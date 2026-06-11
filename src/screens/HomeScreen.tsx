@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BeanApi, type BeanCollection, type BeanDrawResult } from "../api/beans";
 import { ApiClient } from "../api/client";
 import { CheckInApi, type CheckInFinishResult, type CheckInSession } from "../api/checkins";
 import {
@@ -11,16 +12,19 @@ import {
 import { env } from "../config/env";
 
 export function HomeScreen() {
-  const { checkIns, leaderboards } = useMemo(() => {
+  const { beans, checkIns, leaderboards } = useMemo(() => {
     const client = new ApiClient({
       baseUrl: env.apiBaseUrl
     });
     return {
+      beans: new BeanApi(client),
       checkIns: new CheckInApi(client),
       leaderboards: new LeaderboardApi(client)
     };
   }, []);
   const [activeSession, setActiveSession] = useState<CheckInSession | null>(null);
+  const [beanCollection, setBeanCollection] = useState<BeanCollection | null>(null);
+  const [beanDrawResult, setBeanDrawResult] = useState<BeanDrawResult | null>(null);
   const [lastResult, setLastResult] = useState<CheckInFinishResult | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
   const [leaderboardWindow, setLeaderboardWindow] = useState<LeaderboardWindow>("daily");
@@ -40,6 +44,16 @@ export function HomeScreen() {
     [leaderboardWindow, leaderboards]
   );
 
+  const refreshBeans = useCallback(async () => {
+    const response = await beans.getCollection();
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+
+    setBeanCollection(response.data);
+  }, [beans]);
+
   const refreshActive = useCallback(async () => {
     setLoading(true);
     const response = await checkIns.getActive();
@@ -50,8 +64,9 @@ export function HomeScreen() {
     }
 
     setActiveSession(response.data);
+    await refreshBeans();
     await refreshLeaderboard();
-  }, [checkIns, refreshLeaderboard]);
+  }, [checkIns, refreshBeans, refreshLeaderboard]);
 
   useEffect(() => {
     void refreshActive();
@@ -92,7 +107,22 @@ export function HomeScreen() {
 
     setActiveSession(null);
     setLastResult(response.data);
+    await refreshBeans();
     await refreshLeaderboard();
+  }
+
+  async function drawBean() {
+    setLoading(true);
+    setMessage(null);
+    const response = await beans.draw();
+    setLoading(false);
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+
+    setBeanDrawResult(response.data);
+    await refreshBeans();
   }
 
   const elapsedLabel = activeSession ? formatDuration(activeSession.startedAt) : "00:00";
@@ -150,8 +180,54 @@ export function HomeScreen() {
           </Text>
           <Text style={styles.summaryLine}>得分 +{lastResult.reward.score}</Text>
           <Text style={styles.summaryLine}>抽豆进度 +{lastResult.reward.drawProgress}</Text>
+          <Text style={styles.summaryLine}>
+            抽豆机会 +{lastResult.reward.drawChancesGranted ?? 0}
+          </Text>
         </View>
       ) : null}
+
+      <View style={styles.beans}>
+        <View style={styles.leaderboardHeader}>
+          <Text style={styles.kicker}>拼豆模式</Text>
+          <Text style={styles.leaderboardTitle}>抽一颗工位命运豆</Text>
+        </View>
+        <Text style={styles.copy}>
+          机会 {beanCollection?.drawChances ?? 0} 次，进度 {beanCollection?.drawProgress ?? 0}/3
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          disabled={loading || (beanCollection?.drawChances ?? 0) <= 0}
+          onPress={drawBean}
+          style={({ pressed }) => [
+            styles.drawButton,
+            (pressed || loading || (beanCollection?.drawChances ?? 0) <= 0) && styles.buttonMuted
+          ]}
+        >
+          <Text style={styles.primaryButtonText}>抽豆</Text>
+        </Pressable>
+
+        {beanDrawResult ? (
+          <View style={styles.beanReveal}>
+            <Text style={styles.beanName}>{beanDrawResult.bean.name}</Text>
+            <Text style={styles.beanMeta}>
+              {rarityLabel(beanDrawResult.bean.rarity)}
+              {beanDrawResult.duplicate ? " · 重复也算缘分" : " · 新豆入袋"}
+            </Text>
+            <Text style={styles.beanDescription}>{beanDrawResult.bean.description}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.beanGrid}>
+          {beanCollection?.beans.map((bean) => (
+            <View key={bean.id} style={[styles.beanTile, bean.owned && styles.beanTileOwned]}>
+              <Text style={styles.beanTileName}>{bean.name}</Text>
+              <Text style={styles.beanTileMeta}>
+                {rarityLabel(bean.rarity)} · x{bean.quantity}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
 
       <View style={styles.leaderboard}>
         <View style={styles.leaderboardHeader}>
@@ -210,6 +286,18 @@ export function HomeScreen() {
       <StatusBar style="auto" />
     </ScrollView>
   );
+}
+
+function rarityLabel(rarity: string): string {
+  const labels: Record<string, string> = {
+    common: "普通",
+    uncommon: "少见",
+    rare: "稀有",
+    epic: "史诗",
+    legendary: "传说"
+  };
+
+  return labels[rarity] ?? rarity;
 }
 
 const leaderboardWindows: Array<{ value: LeaderboardWindow; label: string }> = [
@@ -334,6 +422,69 @@ const styles = StyleSheet.create({
     color: "#24483a",
     fontSize: 16,
     marginTop: 8
+  },
+  beans: {
+    backgroundColor: "#fffdf8",
+    borderColor: "#1f8f62",
+    borderRadius: 8,
+    borderWidth: 2,
+    marginTop: 18,
+    padding: 18
+  },
+  drawButton: {
+    alignItems: "center",
+    backgroundColor: "#1f8f62",
+    borderRadius: 8,
+    minHeight: 50,
+    justifyContent: "center",
+    marginTop: 16
+  },
+  beanReveal: {
+    backgroundColor: "#e5f4ed",
+    borderRadius: 8,
+    marginTop: 14,
+    padding: 14
+  },
+  beanName: {
+    color: "#1d3d31",
+    fontSize: 20,
+    fontWeight: "900"
+  },
+  beanMeta: {
+    color: "#45725d",
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 4
+  },
+  beanDescription: {
+    color: "#24483a",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8
+  },
+  beanGrid: {
+    gap: 10,
+    marginTop: 14
+  },
+  beanTile: {
+    borderColor: "#e5ded3",
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 12
+  },
+  beanTileOwned: {
+    backgroundColor: "#f0fbf5",
+    borderColor: "#1f8f62"
+  },
+  beanTileName: {
+    color: "#232323",
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  beanTileMeta: {
+    color: "#746b60",
+    fontSize: 13,
+    marginTop: 3
   },
   leaderboard: {
     backgroundColor: "#fffdf8",

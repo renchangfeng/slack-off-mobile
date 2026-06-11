@@ -308,7 +308,10 @@ export interface paths {
         get: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "X-Request-Id"?: components["parameters"]["RequestId"];
+                    "X-Trace-Id"?: components["parameters"]["TraceId"];
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -319,7 +322,12 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["BeanCollection"];
+                            error: null;
+                        };
+                    };
                 };
             };
         };
@@ -343,14 +351,35 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "X-Request-Id"?: components["parameters"]["RequestId"];
+                    "X-Trace-Id"?: components["parameters"]["TraceId"];
+                };
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        idempotencyKey?: string;
+                    };
+                };
+            };
             responses: {
                 /** @description Bean draw result */
                 200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["BeanDrawResult"];
+                            error: null;
+                        };
+                    };
+                };
+                /** @description No draw chance available */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -579,6 +608,7 @@ export interface components {
             reward: {
                 score: number;
                 drawProgress: number;
+                drawChancesGranted?: number;
                 rewarded: boolean;
             };
         };
@@ -606,12 +636,25 @@ export interface components {
             currentUser: components["schemas"]["LeaderboardItem"] | null;
         };
         Bean: {
+            /** Format: uuid */
             id: string;
+            code: string;
             name: string;
             /** @enum {string} */
             rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
+            description: string;
             quantity: number;
             owned: boolean;
+        };
+        BeanCollection: {
+            drawChances: number;
+            drawProgress: number;
+            beans: components["schemas"]["Bean"][];
+        };
+        BeanDrawResult: {
+            bean: components["schemas"]["Bean"];
+            duplicate: boolean;
+            remainingDrawChances: number;
         };
         ActivityAssignment: {
             assignmentId: string;
