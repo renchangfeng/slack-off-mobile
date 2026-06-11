@@ -414,7 +414,12 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AchievementList"];
+                            error: null;
+                        };
+                    };
                 };
             };
         };
@@ -447,7 +452,12 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["CosmeticInventory"];
+                            error: null;
+                        };
+                    };
                 };
             };
         };
@@ -459,7 +469,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cosmetics/{id}/equip": {
+    "/v1/cosmetics/{id}/equip": {
         parameters: {
             query?: never;
             header?: never;
@@ -484,7 +494,12 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["CosmeticEquipResult"];
+                            error: null;
+                        };
+                    };
                 };
             };
         };
@@ -610,6 +625,7 @@ export interface components {
                 drawProgress: number;
                 drawChancesGranted?: number;
                 rewarded: boolean;
+                achievementsUnlocked?: components["schemas"]["AchievementUnlock"][];
             };
         };
         RewardSummary: {
@@ -655,6 +671,64 @@ export interface components {
             bean: components["schemas"]["Bean"];
             duplicate: boolean;
             remainingDrawChances: number;
+            achievementsUnlocked?: components["schemas"]["AchievementUnlock"][];
+        };
+        AchievementUnlock: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            /** Format: date-time */
+            unlockedAt: string;
+            rewards: {
+                score: number;
+                drawProgress: number;
+                drawChances: number;
+                cosmetic: string | null;
+            };
+        };
+        Achievement: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            description: string;
+            /** @enum {string} */
+            ruleType: "first_checkin" | "streak" | "total_duration" | "activity_count" | "collection_count" | "weekly_top_rank";
+            rewardConfig: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            unlockedAt: string | null;
+            /** Format: date-time */
+            rewardClaimedAt: string | null;
+        };
+        AchievementList: {
+            achievements: components["schemas"]["Achievement"][];
+        };
+        Cosmetic: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            description: string;
+            /** @enum {string} */
+            cosmeticType: "badge" | "title";
+            /** @enum {string} */
+            rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
+        };
+        OwnedCosmetic: components["schemas"]["Cosmetic"] & {
+            /** Format: date-time */
+            unlockedAt: string;
+            equipped: boolean;
+        };
+        CosmeticInventory: {
+            equippedBadge: components["schemas"]["Cosmetic"] | null;
+            equippedTitle: components["schemas"]["Cosmetic"] | null;
+            cosmetics: components["schemas"]["OwnedCosmetic"][];
+        };
+        CosmeticEquipResult: {
+            cosmetic: components["schemas"]["Cosmetic"];
         };
         ActivityAssignment: {
             assignmentId: string;

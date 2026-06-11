@@ -1,6 +1,11 @@
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  AchievementApi,
+  type AchievementList,
+  type CosmeticInventory
+} from "../api/achievements";
 import { BeanApi, type BeanCollection, type BeanDrawResult } from "../api/beans";
 import { ApiClient } from "../api/client";
 import { CheckInApi, type CheckInFinishResult, type CheckInSession } from "../api/checkins";
@@ -12,11 +17,12 @@ import {
 import { env } from "../config/env";
 
 export function HomeScreen() {
-  const { beans, checkIns, leaderboards } = useMemo(() => {
+  const { achievements, beans, checkIns, leaderboards } = useMemo(() => {
     const client = new ApiClient({
       baseUrl: env.apiBaseUrl
     });
     return {
+      achievements: new AchievementApi(client),
       beans: new BeanApi(client),
       checkIns: new CheckInApi(client),
       leaderboards: new LeaderboardApi(client)
@@ -26,6 +32,8 @@ export function HomeScreen() {
   const [beanCollection, setBeanCollection] = useState<BeanCollection | null>(null);
   const [beanDrawResult, setBeanDrawResult] = useState<BeanDrawResult | null>(null);
   const [lastResult, setLastResult] = useState<CheckInFinishResult | null>(null);
+  const [achievementList, setAchievementList] = useState<AchievementList | null>(null);
+  const [cosmeticInventory, setCosmeticInventory] = useState<CosmeticInventory | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
   const [leaderboardWindow, setLeaderboardWindow] = useState<LeaderboardWindow>("daily");
   const [loading, setLoading] = useState(false);
@@ -54,6 +62,26 @@ export function HomeScreen() {
     setBeanCollection(response.data);
   }, [beans]);
 
+  const refreshAchievements = useCallback(async () => {
+    const [achievementResponse, cosmeticResponse] = await Promise.all([
+      achievements.getAchievements(),
+      achievements.getCosmetics()
+    ]);
+
+    if (achievementResponse.error) {
+      setMessage(achievementResponse.error.message);
+      return;
+    }
+
+    if (cosmeticResponse.error) {
+      setMessage(cosmeticResponse.error.message);
+      return;
+    }
+
+    setAchievementList(achievementResponse.data);
+    setCosmeticInventory(cosmeticResponse.data);
+  }, [achievements]);
+
   const refreshActive = useCallback(async () => {
     setLoading(true);
     const response = await checkIns.getActive();
@@ -65,8 +93,9 @@ export function HomeScreen() {
 
     setActiveSession(response.data);
     await refreshBeans();
+    await refreshAchievements();
     await refreshLeaderboard();
-  }, [checkIns, refreshBeans, refreshLeaderboard]);
+  }, [checkIns, refreshAchievements, refreshBeans, refreshLeaderboard]);
 
   useEffect(() => {
     void refreshActive();
@@ -108,6 +137,7 @@ export function HomeScreen() {
     setActiveSession(null);
     setLastResult(response.data);
     await refreshBeans();
+    await refreshAchievements();
     await refreshLeaderboard();
   }
 
@@ -123,9 +153,30 @@ export function HomeScreen() {
 
     setBeanDrawResult(response.data);
     await refreshBeans();
+    await refreshAchievements();
+  }
+
+  async function equipCosmetic(id: string) {
+    setLoading(true);
+    setMessage(null);
+    const response = await achievements.equipCosmetic(id);
+    setLoading(false);
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+
+    await refreshAchievements();
+    await refreshLeaderboard();
   }
 
   const elapsedLabel = activeSession ? formatDuration(activeSession.startedAt) : "00:00";
+  const unlockedAchievements =
+    achievementList?.achievements.filter((achievement) => achievement.unlockedAt) ?? [];
+  const recentUnlocks = [
+    ...(lastResult?.reward.achievementsUnlocked ?? []),
+    ...(beanDrawResult?.achievementsUnlocked ?? [])
+  ];
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -171,6 +222,21 @@ export function HomeScreen() {
         {loading ? <ActivityIndicator color="#232323" style={styles.loader} /> : null}
         {message ? <Text style={styles.message}>{message}</Text> : null}
       </View>
+
+      {recentUnlocks.length ? (
+        <View style={styles.unlockPanel}>
+          <Text style={styles.kicker}>刚刚解锁</Text>
+          {recentUnlocks.map((achievement) => (
+            <View key={achievement.id} style={styles.unlockItem}>
+              <Text style={styles.unlockTitle}>{achievement.name}</Text>
+              <Text style={styles.unlockMeta}>
+                +{achievement.rewards.score} 分
+                {achievement.rewards.cosmetic ? ` · ${achievement.rewards.cosmetic}` : ""}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {lastResult ? (
         <View style={styles.summary}>
@@ -226,6 +292,59 @@ export function HomeScreen() {
               </Text>
             </View>
           ))}
+        </View>
+      </View>
+
+      <View style={styles.achievements}>
+        <View style={styles.leaderboardHeader}>
+          <Text style={styles.kicker}>成就与徽章</Text>
+          <Text style={styles.leaderboardTitle}>给摸鱼一点仪式感</Text>
+        </View>
+        <Text style={styles.copy}>
+          已解锁 {unlockedAchievements.length}/{achievementList?.achievements.length ?? 0}
+        </Text>
+
+        <View style={styles.achievementList}>
+          {achievementList?.achievements.slice(0, 5).map((achievement) => (
+            <View
+              key={achievement.id}
+              style={[styles.achievementRow, achievement.unlockedAt && styles.achievementUnlocked]}
+            >
+              <View style={styles.rankUser}>
+                <Text style={styles.achievementName}>{achievement.name}</Text>
+                <Text style={styles.achievementDescription}>{achievement.description}</Text>
+              </View>
+              <Text style={styles.achievementState}>
+                {achievement.unlockedAt ? "已解锁" : "未解锁"}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.cosmeticList}>
+          {cosmeticInventory?.cosmetics.length ? (
+            cosmeticInventory.cosmetics.map((cosmetic) => (
+              <Pressable
+                key={cosmetic.id}
+                accessibilityRole="button"
+                disabled={loading || cosmetic.equipped}
+                onPress={() => void equipCosmetic(cosmetic.id)}
+                style={({ pressed }) => [
+                  styles.cosmeticChip,
+                  cosmetic.equipped && styles.cosmeticChipEquipped,
+                  (pressed || loading) && styles.buttonMuted
+                ]}
+              >
+                <Text style={styles.cosmeticName}>{cosmetic.name}</Text>
+                <Text style={styles.cosmeticMeta}>
+                  {cosmetic.cosmeticType === "badge" ? "徽章" : "称号"} ·{" "}
+                  {cosmetic.equipped ? "使用中" : "装备"}
+                </Text>
+              </Pressable>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>还没有徽章，先完成一次庄重的带薪休息。</Text>
+          )}
         </View>
       </View>
 
@@ -423,6 +542,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 8
   },
+  unlockPanel: {
+    backgroundColor: "#232323",
+    borderRadius: 8,
+    marginTop: 18,
+    padding: 18
+  },
+  unlockItem: {
+    borderTopColor: "#4a4a4a",
+    borderTopWidth: 1,
+    marginTop: 12,
+    paddingTop: 12
+  },
+  unlockTitle: {
+    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  unlockMeta: {
+    color: "#b7e4cd",
+    fontSize: 14,
+    fontWeight: "800",
+    marginTop: 4
+  },
   beans: {
     backgroundColor: "#fffdf8",
     borderColor: "#1f8f62",
@@ -493,6 +635,73 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     marginTop: 18,
     padding: 18
+  },
+  achievements: {
+    backgroundColor: "#fffdf8",
+    borderColor: "#8b4d36",
+    borderRadius: 8,
+    borderWidth: 2,
+    marginTop: 18,
+    padding: 18
+  },
+  achievementList: {
+    gap: 10,
+    marginTop: 16
+  },
+  achievementRow: {
+    borderColor: "#e5ded3",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: 12
+  },
+  achievementUnlocked: {
+    backgroundColor: "#fff5df",
+    borderColor: "#c98825"
+  },
+  achievementName: {
+    color: "#232323",
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  achievementDescription: {
+    color: "#746b60",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4
+  },
+  achievementState: {
+    color: "#8b4d36",
+    fontSize: 13,
+    fontWeight: "900",
+    width: 54
+  },
+  cosmeticList: {
+    gap: 10,
+    marginTop: 14
+  },
+  cosmeticChip: {
+    backgroundColor: "#f6f1e8",
+    borderColor: "#c4b9a8",
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 12
+  },
+  cosmeticChipEquipped: {
+    backgroundColor: "#e5f4ed",
+    borderColor: "#1f8f62"
+  },
+  cosmeticName: {
+    color: "#232323",
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  cosmeticMeta: {
+    color: "#746b60",
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 4
   },
   leaderboardHeader: {
     gap: 6
