@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "slack-off-mobile",
-    "slug": "slack-off-mobile",
+    "name": "Slack Off",
+    "slug": "slack-off",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

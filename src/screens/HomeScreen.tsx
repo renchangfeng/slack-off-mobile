@@ -20,6 +20,7 @@ import {
   type LeaderboardWindow
 } from "../api/leaderboards";
 import { env } from "../config/env";
+import { logEvent } from "../observability/logger";
 
 export function HomeScreen() {
   const { achievements, activities, beans, checkIns, leaderboards } = useMemo(() => {
@@ -56,6 +57,11 @@ export function HomeScreen() {
       }
 
       setLeaderboard(response.data);
+      logEvent("info", "analytics.leaderboard.viewed", {
+        screen: "home",
+        window,
+        itemCount: response.data?.items.length ?? 0
+      });
     },
     [leaderboardWindow, leaderboards]
   );
@@ -88,6 +94,13 @@ export function HomeScreen() {
 
     setAchievementList(achievementResponse.data);
     setCosmeticInventory(cosmeticResponse.data);
+    logEvent("info", "analytics.achievements.viewed", {
+      screen: "home",
+      unlockedCount:
+        achievementResponse.data?.achievements.filter((achievement) => achievement.unlockedAt)
+          .length ?? 0,
+      cosmeticCount: cosmeticResponse.data?.cosmetics.length ?? 0
+    });
   }, [achievements]);
 
   const refreshActive = useCallback(async () => {
@@ -126,6 +139,10 @@ export function HomeScreen() {
     }
 
     setActiveSession(response.data);
+    logEvent("info", "analytics.checkin.started", {
+      screen: "home",
+      sessionId: response.data?.id
+    });
   }
 
   async function finishSession() {
@@ -144,6 +161,13 @@ export function HomeScreen() {
 
     setActiveSession(null);
     setLastResult(response.data);
+    logEvent("info", "analytics.checkin.finished", {
+      screen: "home",
+      rewarded: response.data?.reward.rewarded,
+      score: response.data?.reward.score,
+      achievementsUnlocked: response.data?.reward.achievementsUnlocked?.length ?? 0
+    });
+    logAchievementUnlocks(response.data?.reward.achievementsUnlocked ?? []);
     await refreshBeans();
     await refreshAchievements();
     await refreshLeaderboard();
@@ -160,6 +184,14 @@ export function HomeScreen() {
     }
 
     setBeanDrawResult(response.data);
+    logEvent("info", "analytics.bean.drawn", {
+      screen: "home",
+      beanCode: response.data?.bean.code,
+      rarity: response.data?.bean.rarity,
+      duplicate: response.data?.duplicate,
+      achievementsUnlocked: response.data?.achievementsUnlocked?.length ?? 0
+    });
+    logAchievementUnlocks(response.data?.achievementsUnlocked ?? []);
     await refreshBeans();
     await refreshAchievements();
   }
@@ -176,6 +208,11 @@ export function HomeScreen() {
     }
 
     setActivityAssignment(response.data);
+    logEvent("info", "analytics.activity.assigned", {
+      screen: "home",
+      assignmentId: response.data?.assignmentId,
+      difficulty: response.data?.difficulty
+    });
   }
 
   async function completeActivity() {
@@ -199,6 +236,15 @@ export function HomeScreen() {
 
     setActivityResult(response.data);
     setActivityAssignment(response.data.assignment);
+    logEvent("info", "analytics.activity.completed", {
+      screen: "home",
+      assignmentId: response.data.assignment.assignmentId,
+      rewarded: response.data.reward.rewarded,
+      score: response.data.reward.score,
+      reason: response.data.reward.reason,
+      achievementsUnlocked: response.data.reward.achievementsUnlocked.length
+    });
+    logAchievementUnlocks(response.data.reward.achievementsUnlocked);
     await refreshBeans();
     await refreshAchievements();
     await refreshLeaderboard();
@@ -216,6 +262,11 @@ export function HomeScreen() {
 
     await refreshAchievements();
     await refreshLeaderboard();
+    logEvent("info", "analytics.cosmetic.equipped", {
+      screen: "home",
+      cosmeticId: response.data?.cosmetic.id,
+      cosmeticType: response.data?.cosmetic.cosmeticType
+    });
   }
 
   const elapsedLabel = activeSession ? formatDuration(activeSession.startedAt) : "00:00";
@@ -529,6 +580,23 @@ function difficultyLabel(difficulty: string): string {
   };
 
   return labels[difficulty] ?? difficulty;
+}
+
+function logAchievementUnlocks(
+  achievements: Array<{
+    id: string;
+    code: string;
+    name: string;
+  }>
+) {
+  for (const achievement of achievements) {
+    logEvent("info", "analytics.achievement.unlocked", {
+      screen: "home",
+      achievementId: achievement.id,
+      achievementCode: achievement.code,
+      achievementName: achievement.name
+    });
+  }
 }
 
 const leaderboardWindows: Array<{ value: LeaderboardWindow; label: string }> = [
