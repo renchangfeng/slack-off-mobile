@@ -6,6 +6,11 @@ import {
   type AchievementList,
   type CosmeticInventory
 } from "../api/achievements";
+import {
+  ActivityApi,
+  type ActivityAssignment,
+  type ActivityCompleteResult
+} from "../api/activities";
 import { BeanApi, type BeanCollection, type BeanDrawResult } from "../api/beans";
 import { ApiClient } from "../api/client";
 import { CheckInApi, type CheckInFinishResult, type CheckInSession } from "../api/checkins";
@@ -17,12 +22,13 @@ import {
 import { env } from "../config/env";
 
 export function HomeScreen() {
-  const { achievements, beans, checkIns, leaderboards } = useMemo(() => {
+  const { achievements, activities, beans, checkIns, leaderboards } = useMemo(() => {
     const client = new ApiClient({
       baseUrl: env.apiBaseUrl
     });
     return {
       achievements: new AchievementApi(client),
+      activities: new ActivityApi(client),
       beans: new BeanApi(client),
       checkIns: new CheckInApi(client),
       leaderboards: new LeaderboardApi(client)
@@ -33,6 +39,8 @@ export function HomeScreen() {
   const [beanDrawResult, setBeanDrawResult] = useState<BeanDrawResult | null>(null);
   const [lastResult, setLastResult] = useState<CheckInFinishResult | null>(null);
   const [achievementList, setAchievementList] = useState<AchievementList | null>(null);
+  const [activityAssignment, setActivityAssignment] = useState<ActivityAssignment | null>(null);
+  const [activityResult, setActivityResult] = useState<ActivityCompleteResult | null>(null);
   const [cosmeticInventory, setCosmeticInventory] = useState<CosmeticInventory | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
   const [leaderboardWindow, setLeaderboardWindow] = useState<LeaderboardWindow>("daily");
@@ -154,6 +162,46 @@ export function HomeScreen() {
     setBeanDrawResult(response.data);
     await refreshBeans();
     await refreshAchievements();
+  }
+
+  async function randomActivity() {
+    setLoading(true);
+    setMessage(null);
+    setActivityResult(null);
+    const response = await activities.random();
+    setLoading(false);
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+
+    setActivityAssignment(response.data);
+  }
+
+  async function completeActivity() {
+    if (!activityAssignment) {
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+    const response = await activities.complete(activityAssignment.assignmentId);
+    setLoading(false);
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+
+    if (!response.data) {
+      setMessage("活动结果走丢了，像一个临时会议邀请。");
+      return;
+    }
+
+    setActivityResult(response.data);
+    setActivityAssignment(response.data.assignment);
+    await refreshBeans();
+    await refreshAchievements();
+    await refreshLeaderboard();
   }
 
   async function equipCosmetic(id: string) {
@@ -295,6 +343,60 @@ export function HomeScreen() {
         </View>
       </View>
 
+      <View style={styles.activities}>
+        <View style={styles.leaderboardHeader}>
+          <Text style={styles.kicker}>随机摸鱼活动</Text>
+          <Text style={styles.leaderboardTitle}>系统批准你离线一下</Text>
+        </View>
+        {activityAssignment ? (
+          <View style={styles.activityCard}>
+            <Text style={styles.activityTitle}>{activityAssignment.title}</Text>
+            <Text style={styles.activityDescription}>{activityAssignment.description}</Text>
+            <Text style={styles.activityMeta}>
+              {difficultyLabel(activityAssignment.difficulty)} · +{activityAssignment.rewardPreview.score} 分 · 抽豆进度 +{activityAssignment.rewardPreview.drawProgress}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              disabled={loading || activityAssignment.status !== "active"}
+              onPress={completeActivity}
+              style={({ pressed }) => [
+                styles.activityButton,
+                (pressed || loading || activityAssignment.status !== "active") && styles.buttonMuted
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {activityAssignment.status === "active" ? "完成活动" : "已完成"}
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Text style={styles.copy}>抽一个不会改变世界、但能拯救表情管理的小任务。</Text>
+        )}
+
+        {activityResult ? (
+          <View style={styles.activityResult}>
+            <Text style={styles.summaryLine}>
+              活动奖励 +{activityResult.reward.score} 分，抽豆进度 +{activityResult.reward.drawProgress}
+            </Text>
+            {activityResult.reward.reason ? (
+              <Text style={styles.beanTileMeta}>今日奖励上限已到，精神胜利仍然有效。</Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        <Pressable
+          accessibilityRole="button"
+          disabled={loading}
+          onPress={randomActivity}
+          style={({ pressed }) => [
+            styles.drawButton,
+            (pressed || loading) && styles.buttonMuted
+          ]}
+        >
+          <Text style={styles.primaryButtonText}>换个摸鱼任务</Text>
+        </Pressable>
+      </View>
+
       <View style={styles.achievements}>
         <View style={styles.leaderboardHeader}>
           <Text style={styles.kicker}>成就与徽章</Text>
@@ -417,6 +519,16 @@ function rarityLabel(rarity: string): string {
   };
 
   return labels[rarity] ?? rarity;
+}
+
+function difficultyLabel(difficulty: string): string {
+  const labels: Record<string, string> = {
+    easy: "轻松",
+    normal: "正常",
+    hard: "硬核"
+  };
+
+  return labels[difficulty] ?? difficulty;
 }
 
 const leaderboardWindows: Array<{ value: LeaderboardWindow; label: string }> = [
@@ -635,6 +747,53 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     marginTop: 18,
     padding: 18
+  },
+  activities: {
+    backgroundColor: "#fffdf8",
+    borderColor: "#2f6f8f",
+    borderRadius: 8,
+    borderWidth: 2,
+    marginTop: 18,
+    padding: 18
+  },
+  activityCard: {
+    backgroundColor: "#eef8fc",
+    borderColor: "#9ccfe0",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 14
+  },
+  activityTitle: {
+    color: "#1b3340",
+    fontSize: 19,
+    fontWeight: "900"
+  },
+  activityDescription: {
+    color: "#365260",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8
+  },
+  activityMeta: {
+    color: "#2f6f8f",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 10
+  },
+  activityButton: {
+    alignItems: "center",
+    backgroundColor: "#2f6f8f",
+    borderRadius: 8,
+    minHeight: 48,
+    justifyContent: "center",
+    marginTop: 14
+  },
+  activityResult: {
+    backgroundColor: "#f6f1e8",
+    borderRadius: 8,
+    marginTop: 12,
+    padding: 12
   },
   achievements: {
     backgroundColor: "#fffdf8",

@@ -509,7 +509,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/activities/random": {
+    "/v1/activities/random": {
         parameters: {
             query?: never;
             header?: never;
@@ -532,6 +532,18 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ActivityAssignment"];
+                            error: null;
+                        };
+                    };
+                };
+                /** @description No eligible activity available */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
                     content?: never;
                 };
             };
@@ -542,7 +554,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/activities/{assignmentId}/complete": {
+    "/v1/activities/{assignmentId}/complete": {
         parameters: {
             query?: never;
             header?: never;
@@ -560,10 +572,35 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        idempotencyKey?: string;
+                    };
+                };
+            };
             responses: {
                 /** @description Activity completion result */
                 200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ActivityCompleteResult"];
+                            error: null;
+                        };
+                    };
+                };
+                /** @description Activity assignment not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Activity expired */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -731,17 +768,36 @@ export interface components {
             cosmetic: components["schemas"]["Cosmetic"];
         };
         ActivityAssignment: {
+            /** Format: uuid */
             assignmentId: string;
             title: string;
             description: string;
             /** @enum {string} */
             difficulty: "easy" | "normal" | "hard";
+            /** @enum {string} */
+            status: "active" | "completed" | "skipped" | "expired";
             rewardPreview: {
                 score: number;
                 drawProgress: number;
             };
             /** Format: date-time */
-            expiresAt: string;
+            assignedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: date-time */
+            expiresAt: string | null;
+            rewarded: boolean;
+        };
+        ActivityCompleteResult: {
+            assignment: components["schemas"]["ActivityAssignment"];
+            reward: {
+                score: number;
+                drawProgress: number;
+                drawChancesGranted: number;
+                rewarded: boolean;
+                reason: string | null;
+                achievementsUnlocked: components["schemas"]["AchievementUnlock"][];
+            };
         };
     };
     responses: never;
