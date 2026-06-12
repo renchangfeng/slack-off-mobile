@@ -15,11 +15,15 @@ Expo exposes only variables prefixed with `EXPO_PUBLIC_` to the mobile bundle.
 Required:
 
 - `EXPO_PUBLIC_API_BASE_URL`: API base URL.
-- `EXPO_PUBLIC_ACCESS_TOKEN`: Bearer token used for authenticated API calls.
+- `EXPO_PUBLIC_SUPABASE_URL`: Supabase project URL for real login.
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`: Supabase anon key for real login.
 
 Optional:
 
 - `EXPO_PUBLIC_APP_ENV`: `local`, `staging`, or `production`.
+- `EXPO_PUBLIC_ACCESS_TOKEN`: explicit local/staging Bearer token fallback for smoke tests.
+
+The app uses a restored Supabase session first. If no session exists, it falls back to `EXPO_PUBLIC_ACCESS_TOKEN` when present. If neither exists, it shows the signed-out email OTP screen and does not call private API endpoints.
 
 ## Local Run
 
@@ -42,6 +46,8 @@ When the API is mapped to a different host port, set it explicitly:
 EXPO_PUBLIC_APP_ENV=local EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:3001 npm start
 ```
 
+For real email OTP login, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` instead of `EXPO_PUBLIC_ACCESS_TOKEN`.
+
 ## Staging Run
 
 Set a staging HTTPS API URL before starting Expo:
@@ -59,7 +65,7 @@ npm run start:staging
 ## Production Build Notes
 
 Do not ship release builds with `localhost`, `127.0.0.1`, or private LAN API URLs.
-Do not commit real production user access tokens.
+Do not commit real production user access tokens, Supabase service-role keys, or server JWT secrets.
 
 Before a release build:
 

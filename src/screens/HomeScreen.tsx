@@ -22,11 +22,17 @@ import {
 import { env } from "../config/env";
 import { logEvent } from "../observability/logger";
 
-export function HomeScreen() {
+type HomeScreenProps = {
+  authLabel?: string;
+  getAccessToken: () => Promise<string | null>;
+  onSignOut: () => Promise<void>;
+};
+
+export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenProps) {
   const { achievements, activities, beans, checkIns, leaderboards } = useMemo(() => {
     const client = new ApiClient({
       baseUrl: env.apiBaseUrl,
-      getAccessToken: async () => env.accessToken
+      getAccessToken
     });
     return {
       achievements: new AchievementApi(client),
@@ -35,7 +41,7 @@ export function HomeScreen() {
       checkIns: new CheckInApi(client),
       leaderboards: new LeaderboardApi(client)
     };
-  }, []);
+  }, [getAccessToken]);
   const [activeSession, setActiveSession] = useState<CheckInSession | null>(null);
   const [beanCollection, setBeanCollection] = useState<BeanCollection | null>(null);
   const [beanDrawResult, setBeanDrawResult] = useState<BeanDrawResult | null>(null);
@@ -281,8 +287,20 @@ export function HomeScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Slack Off</Text>
-        <Text style={styles.subtitle}>带薪休息一下，世界不会塌。</Text>
+        <View style={styles.headerTop}>
+          <View style={styles.headerTitleGroup}>
+            <Text style={styles.title}>Slack Off</Text>
+            <Text style={styles.subtitle}>带薪休息一下，世界不会塌。</Text>
+            {authLabel ? <Text style={styles.authLabel}>{authLabel}</Text> : null}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void onSignOut()}
+            style={({ pressed }) => [styles.signOutButton, pressed && styles.buttonMuted]}
+          >
+            <Text style={styles.signOutText}>退出</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.panel}>
@@ -626,6 +644,15 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 28
   },
+  headerTop: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between"
+  },
+  headerTitleGroup: {
+    flex: 1
+  },
   title: {
     color: "#232323",
     fontSize: 38,
@@ -635,6 +662,25 @@ const styles = StyleSheet.create({
     color: "#5f574d",
     fontSize: 16,
     marginTop: 8
+  },
+  authLabel: {
+    color: "#786d60",
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 8
+  },
+  signOutButton: {
+    alignItems: "center",
+    backgroundColor: "#232323",
+    borderRadius: 8,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: 14
+  },
+  signOutText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800"
   },
   panel: {
     backgroundColor: "#fffdf8",
