@@ -25,7 +25,8 @@ import { logEvent } from "../observability/logger";
 export function HomeScreen() {
   const { achievements, activities, beans, checkIns, leaderboards } = useMemo(() => {
     const client = new ApiClient({
-      baseUrl: env.apiBaseUrl
+      baseUrl: env.apiBaseUrl,
+      getAccessToken: async () => env.accessToken
     });
     return {
       achievements: new AchievementApi(client),

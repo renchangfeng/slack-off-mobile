@@ -15,6 +15,7 @@ Expo exposes only variables prefixed with `EXPO_PUBLIC_` to the mobile bundle.
 Required:
 
 - `EXPO_PUBLIC_API_BASE_URL`: API base URL.
+- `EXPO_PUBLIC_ACCESS_TOKEN`: Bearer token used for authenticated API calls.
 
 Optional:
 
@@ -25,6 +26,7 @@ Optional:
 Run against a local API:
 
 ```bash
+export EXPO_PUBLIC_ACCESS_TOKEN="$(cd ../slack-off-api && SUPABASE_JWT_SECRET=dev-secret-change-me npm run auth:dev-token --silent)"
 EXPO_PUBLIC_APP_ENV=local EXPO_PUBLIC_API_BASE_URL=http://localhost:3000 npm start
 ```
 
@@ -32,6 +34,12 @@ or:
 
 ```bash
 npm run start:local
+```
+
+When the API is mapped to a different host port, set it explicitly:
+
+```bash
+EXPO_PUBLIC_APP_ENV=local EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:3001 npm start
 ```
 
 ## Staging Run
@@ -51,6 +59,7 @@ npm run start:staging
 ## Production Build Notes
 
 Do not ship release builds with `localhost`, `127.0.0.1`, or private LAN API URLs.
+Do not commit real production user access tokens.
 
 Before a release build:
 
