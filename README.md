@@ -16,12 +16,13 @@ Required:
 
 - `EXPO_PUBLIC_API_BASE_URL`: API base URL.
 - `EXPO_PUBLIC_SUPABASE_URL`: Supabase project URL for real login.
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY`: Supabase anon key for real login.
+- `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: Supabase publishable key for real login.
 
 Optional:
 
 - `EXPO_PUBLIC_APP_ENV`: `local`, `staging`, or `production`.
 - `EXPO_PUBLIC_ACCESS_TOKEN`: explicit local/staging Bearer token fallback for smoke tests.
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`: legacy fallback name for the Supabase publishable/anon key.
 
 The app uses a restored Supabase session first. If no session exists, it falls back to `EXPO_PUBLIC_ACCESS_TOKEN` when present. If neither exists, it shows the signed-out email OTP screen and does not call private API endpoints.
 
@@ -46,7 +47,7 @@ When the API is mapped to a different host port, set it explicitly:
 EXPO_PUBLIC_APP_ENV=local EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:3001 npm start
 ```
 
-For real email OTP login, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` instead of `EXPO_PUBLIC_ACCESS_TOKEN`.
+For real email OTP login, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` instead of `EXPO_PUBLIC_ACCESS_TOKEN`.
 
 ## Staging Run
 

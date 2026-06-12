@@ -81,7 +81,7 @@ export function useAuthSession(): AuthState {
     if (!supabase) {
       return {
         ok: false,
-        message: "还没有配置 Supabase URL 和 anon key。"
+        message: "还没有配置 Supabase URL 和 publishable key。"
       };
     }
 
