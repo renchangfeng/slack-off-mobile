@@ -74,17 +74,35 @@ npm run start:staging
 Do not ship release builds with `localhost`, `127.0.0.1`, or private LAN API URLs.
 Do not commit real production user access tokens, Supabase service-role keys, or server JWT secrets.
 
+The native app identifiers are configured in `app.json`:
+
+- iOS: `com.renchangfeng.slackoff`
+- Android: `com.renchangfeng.slackoff`
+
+Before the first store submission, confirm these identifiers match the Apple Developer and Google Play accounts. After a public release, changing them creates a different app.
+
 Before a release build:
 
 1. Set `EXPO_PUBLIC_APP_ENV=production`.
 2. Set `EXPO_PUBLIC_API_BASE_URL` to the production HTTPS API URL.
-3. Run typecheck:
+3. Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+4. Increment `expo.ios.buildNumber` and `expo.android.versionCode` when preparing a new store release, or let the production EAS profile auto-increment them.
+5. Run validation:
 
 ```bash
 npx tsc --noEmit
+npm test
 ```
 
-4. Start the app once and confirm API calls return production/staging `traceId` values.
+6. Start the app once and confirm API calls return production/staging `traceId` values.
+
+EAS build profiles are defined in `eas.json`:
+
+```bash
+npx eas build --profile preview --platform ios
+npx eas build --profile preview --platform android
+npx eas build --profile production --platform all
+```
 
 ## Observability
 

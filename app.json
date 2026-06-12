@@ -2,15 +2,23 @@
   "expo": {
     "name": "Slack Off",
     "slug": "slack-off",
+    "description": "A playful anti-overwork app for short breaks, gacha beans, achievements, and slacking leaderboards.",
     "scheme": "slackoff",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.renchangfeng.slackoff",
+      "buildNumber": "1",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.renchangfeng.slackoff",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
