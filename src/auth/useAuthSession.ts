@@ -1,7 +1,9 @@
 import type { Session } from "@supabase/supabase-js";
+import * as Linking from "expo-linking";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { env } from "../config/env";
 import { captureError, logEvent } from "../observability/logger";
+import { authRedirectUrl, readAuthParams } from "./deepLinks";
 import { isSupabaseConfigured, supabase } from "./supabase";
 
 export type AuthMode = "loading" | "authenticated" | "development" | "signedOut" | "error";
@@ -64,6 +66,62 @@ export function useAuthSession(): AuthState {
     };
   }, []);
 
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    async function handleUrl(url: string) {
+      try {
+        const params = readAuthParams(url);
+        if (params.code) {
+          const { data, error: exchangeError } = await supabase!.auth.exchangeCodeForSession(
+            params.code
+          );
+          if (exchangeError) {
+            setError(exchangeError.message);
+            return;
+          }
+          setSession(data.session);
+          return;
+        }
+
+        if (params.access_token && params.refresh_token) {
+          const { data, error: sessionError } = await supabase!.auth.setSession({
+            access_token: params.access_token,
+            refresh_token: params.refresh_token
+          });
+          if (sessionError) {
+            setError(sessionError.message);
+            return;
+          }
+          setSession(data.session);
+        }
+      } catch (urlError) {
+        setError("登录回跳处理失败。");
+        captureError(urlError, "auth.deep_link.failed");
+      }
+    }
+
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) {
+          void handleUrl(url);
+        }
+      })
+      .catch((urlError: unknown) => {
+        captureError(urlError, "auth.deep_link.initial_url_failed");
+      });
+
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      void handleUrl(url);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   const getAccessToken = useCallback(async () => {
     if (session?.access_token) {
       return session.access_token;
@@ -86,7 +144,10 @@ export function useAuthSession(): AuthState {
     }
 
     const { error: signInError } = await supabase.auth.signInWithOtp({
-      email: normalized
+      email: normalized,
+      options: {
+        emailRedirectTo: authRedirectUrl
+      }
     });
 
     if (signInError) {
@@ -98,7 +159,8 @@ export function useAuthSession(): AuthState {
     }
 
     logEvent("info", "auth.email_otp.requested", {
-      appEnv: env.appEnv
+      appEnv: env.appEnv,
+      redirectHost: authRedirectUrl.split(":")[0]
     });
     return { ok: true, message: "登录邮件已发送，去邮箱里捞一下。" };
   }, []);

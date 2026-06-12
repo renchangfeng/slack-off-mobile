@@ -49,6 +49,12 @@ EXPO_PUBLIC_APP_ENV=local EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:3001 npm sta
 
 For real email OTP login, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` instead of `EXPO_PUBLIC_ACCESS_TOKEN`.
 
+The app scheme is `slackoff`; configure the Supabase auth redirect allow-list for the app callback URL:
+
+```text
+slackoff://auth/callback
+```
+
 ## Staging Run
 
 Set a staging HTTPS API URL before starting Expo:
