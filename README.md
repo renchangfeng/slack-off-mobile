@@ -69,6 +69,18 @@ or use `.env` and:
 npm run start:staging
 ```
 
+## API Contract
+
+The mobile API types in `src/api/generated.ts` are tied to the OpenAPI snapshot in `contracts/openapi/v1.yaml`.
+
+Validate the snapshot and generated type marker:
+
+```bash
+npm run api:check
+```
+
+When working locally with the sibling API repository present, this command also checks that the mobile snapshot matches `../slack-off-api/contracts/openapi/v1.yaml`.
+
 ## Production Build Notes
 
 Do not ship release builds with `localhost`, `127.0.0.1`, or private LAN API URLs.

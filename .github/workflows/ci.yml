@@ -31,3 +31,6 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Check API contract snapshot
+        run: npm run api:check
