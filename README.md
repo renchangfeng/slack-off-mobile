@@ -102,6 +102,8 @@ Before a release build:
 5. Run validation:
 
 ```bash
+npm run config:check
+npm run api:check
 npx tsc --noEmit
 npm test
 ```

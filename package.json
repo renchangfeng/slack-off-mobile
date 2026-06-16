@@ -27,6 +27,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "config:check": "expo config --type public",
     "test": "vitest run",
     "api:check": "node scripts/check-api-contract.mjs"
   },
