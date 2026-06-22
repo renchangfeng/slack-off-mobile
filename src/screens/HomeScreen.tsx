@@ -20,6 +20,7 @@ import {
   type LeaderboardWindow
 } from "../api/leaderboards";
 import { env } from "../config/env";
+import { deriveGameplayStep } from "../gameplay/nextStep";
 import { logEvent } from "../observability/logger";
 
 type HomeScreenProps = {
@@ -49,11 +50,15 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   const [achievementList, setAchievementList] = useState<AchievementList | null>(null);
   const [activityAssignment, setActivityAssignment] = useState<ActivityAssignment | null>(null);
   const [activityResult, setActivityResult] = useState<ActivityCompleteResult | null>(null);
+  const [activityMessage, setActivityMessage] = useState<string | null>(null);
+  const [activityUnavailable, setActivityUnavailable] = useState(false);
   const [cosmeticInventory, setCosmeticInventory] = useState<CosmeticInventory | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
   const [leaderboardWindow, setLeaderboardWindow] = useState<LeaderboardWindow>("daily");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const refreshLeaderboard = useCallback(
     async (window: LeaderboardWindow = leaderboardWindow) => {
@@ -129,6 +134,16 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     void refreshActive();
   }, [refreshActive]);
 
+  useEffect(() => {
+    if (!activeSession) {
+      return;
+    }
+
+    setClockNow(Date.now());
+    const timer = setInterval(() => setClockNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [activeSession]);
+
   async function selectLeaderboardWindow(window: LeaderboardWindow) {
     setLeaderboardWindow(window);
     await refreshLeaderboard(window);
@@ -137,6 +152,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   async function startSession() {
     setLoading(true);
     setMessage(null);
+    setNotice(null);
     setLastResult(null);
     const response = await checkIns.start();
     setLoading(false);
@@ -146,6 +162,8 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     }
 
     setActiveSession(response.data);
+    setClockNow(Date.now());
+    setNotice("打卡开始。计时已经动起来了，安心休息一会儿。");
     logEvent("info", "analytics.checkin.started", {
       screen: "home",
       sessionId: response.data?.id
@@ -159,6 +177,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
 
     setLoading(true);
     setMessage(null);
+    setNotice(null);
     const response = await checkIns.finish(activeSession.id);
     setLoading(false);
     if (response.error) {
@@ -168,6 +187,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
 
     setActiveSession(null);
     setLastResult(response.data);
+    setNotice("打卡已结算。看看奖励，然后按“下一步”继续摸鱼流程。");
     logEvent("info", "analytics.checkin.finished", {
       screen: "home",
       rewarded: response.data?.reward.rewarded,
@@ -183,6 +203,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   async function drawBean() {
     setLoading(true);
     setMessage(null);
+    setNotice(null);
     const response = await beans.draw();
     setLoading(false);
     if (response.error) {
@@ -191,6 +212,9 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     }
 
     setBeanDrawResult(response.data);
+    setNotice(
+      `抽到了${response.data?.bean.name ?? "一颗豆"}，还剩 ${response.data?.remainingDrawChances ?? 0} 次机会。`
+    );
     logEvent("info", "analytics.bean.drawn", {
       screen: "home",
       beanCode: response.data?.bean.code,
@@ -206,15 +230,24 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   async function randomActivity() {
     setLoading(true);
     setMessage(null);
+    setNotice(null);
+    setActivityMessage(null);
     setActivityResult(null);
     const response = await activities.random();
     setLoading(false);
     if (response.error) {
-      setMessage(response.error.message);
+      if (response.error.code === "NO_ELIGIBLE_ACTIVITY") {
+        setActivityUnavailable(true);
+        setActivityMessage("当前没有可领取的摸鱼任务，可能都在冷却中。稍后刷新页面再来看看。");
+      } else {
+        setActivityMessage(response.error.message);
+      }
       return;
     }
 
+    setActivityUnavailable(false);
     setActivityAssignment(response.data);
+    setNotice("任务已领取。先去完成描述里的小事，再回来点“我做完了”。");
     logEvent("info", "analytics.activity.assigned", {
       screen: "home",
       assignmentId: response.data?.assignmentId,
@@ -229,20 +262,27 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
 
     setLoading(true);
     setMessage(null);
+    setNotice(null);
+    setActivityMessage(null);
     const response = await activities.complete(activityAssignment.assignmentId);
     setLoading(false);
     if (response.error) {
-      setMessage(response.error.message);
+      setActivityMessage(response.error.message);
       return;
     }
 
     if (!response.data) {
-      setMessage("活动结果走丢了，像一个临时会议邀请。");
+      setActivityMessage("活动结果走丢了，像一个临时会议邀请。");
       return;
     }
 
     setActivityResult(response.data);
     setActivityAssignment(response.data.assignment);
+    setNotice(
+      response.data.reward.drawChancesGranted > 0
+        ? `活动完成，获得 ${response.data.reward.drawChancesGranted} 次抽豆机会。`
+        : "活动完成，奖励已记账。继续攒进度就能抽豆。"
+    );
     logEvent("info", "analytics.activity.completed", {
       screen: "home",
       assignmentId: response.data.assignment.assignmentId,
@@ -276,13 +316,45 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     });
   }
 
-  const elapsedLabel = activeSession ? formatDuration(activeSession.startedAt) : "00:00";
+  const elapsedLabel = activeSession ? formatDuration(activeSession.startedAt, clockNow) : "00:00";
   const unlockedAchievements =
     achievementList?.achievements.filter((achievement) => achievement.unlockedAt) ?? [];
   const recentUnlocks = [
     ...(lastResult?.reward.achievementsUnlocked ?? []),
     ...(beanDrawResult?.achievementsUnlocked ?? [])
   ];
+  const nextStep = deriveGameplayStep({
+    hasActiveCheckIn: Boolean(activeSession),
+    drawChances: beanCollection?.drawChances ?? 0,
+    activityStatus: activityAssignment?.status,
+    activityUnavailable,
+    hasProgress: Boolean(
+      lastResult ||
+        activityResult ||
+        beanDrawResult ||
+        (beanCollection?.drawProgress ?? 0) > 0 ||
+        activityAssignment
+    )
+  });
+
+  async function runNextStep() {
+    switch (nextStep.kind) {
+      case "start-checkin":
+        await startSession();
+        return;
+      case "finish-checkin":
+        await finishSession();
+        return;
+      case "draw-bean":
+        await drawBean();
+        return;
+      case "complete-activity":
+        await completeActivity();
+        return;
+      case "get-activity":
+        await randomActivity();
+    }
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -339,6 +411,24 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
 
         {loading ? <ActivityIndicator color="#232323" style={styles.loader} /> : null}
         {message ? <Text style={styles.message}>{message}</Text> : null}
+        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+      </View>
+
+      <View style={styles.nextStepPanel}>
+        <Text style={styles.kicker}>下一步</Text>
+        <Text style={styles.nextStepTitle}>{nextStep.title}</Text>
+        <Text style={styles.nextStepCopy}>{nextStep.description}</Text>
+        <Pressable
+          accessibilityRole="button"
+          disabled={loading}
+          onPress={() => void runNextStep()}
+          style={({ pressed }) => [
+            styles.nextStepButton,
+            (pressed || loading) && styles.buttonMuted
+          ]}
+        >
+          <Text style={styles.primaryButtonText}>{nextStep.actionLabel}</Text>
+        </Pressable>
       </View>
 
       {recentUnlocks.length ? (
@@ -378,6 +468,9 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
         <Text style={styles.copy}>
           机会 {beanCollection?.drawChances ?? 0} 次，进度 {beanCollection?.drawProgress ?? 0}/3
         </Text>
+        <Text style={styles.helperText}>
+          完成有效打卡或随机活动会增加进度；每累计 3 点进度，自动兑换 1 次抽豆机会。
+        </Text>
         <Pressable
           accessibilityRole="button"
           disabled={loading || (beanCollection?.drawChances ?? 0) <= 0}
@@ -398,6 +491,9 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
               {beanDrawResult.duplicate ? " · 重复也算缘分" : " · 新豆入袋"}
             </Text>
             <Text style={styles.beanDescription}>{beanDrawResult.bean.description}</Text>
+            <Text style={styles.beanRemaining}>
+              剩余抽豆机会 {beanDrawResult.remainingDrawChances} 次
+            </Text>
           </View>
         ) : null}
 
@@ -425,6 +521,9 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
             <Text style={styles.activityMeta}>
               {difficultyLabel(activityAssignment.difficulty)} · +{activityAssignment.rewardPreview.score} 分 · 抽豆进度 +{activityAssignment.rewardPreview.drawProgress}
             </Text>
+            <Text style={styles.activityInstruction}>
+              先在现实里完成这个小任务。完成后回来点击下面的按钮，奖励才会到账。
+            </Text>
             <Pressable
               accessibilityRole="button"
               disabled={loading || activityAssignment.status !== "active"}
@@ -435,7 +534,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
               ]}
             >
               <Text style={styles.primaryButtonText}>
-                {activityAssignment.status === "active" ? "完成活动" : "已完成"}
+                {activityAssignment.status === "active" ? "我做完了，领取奖励" : "本次活动已完成"}
               </Text>
             </Pressable>
           </View>
@@ -448,23 +547,36 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
             <Text style={styles.summaryLine}>
               活动奖励 +{activityResult.reward.score} 分，抽豆进度 +{activityResult.reward.drawProgress}
             </Text>
+            <Text style={styles.summaryLine}>
+              抽豆机会 +{activityResult.reward.drawChancesGranted}
+            </Text>
             {activityResult.reward.reason ? (
               <Text style={styles.beanTileMeta}>今日奖励上限已到，精神胜利仍然有效。</Text>
             ) : null}
           </View>
         ) : null}
 
-        <Pressable
-          accessibilityRole="button"
-          disabled={loading}
-          onPress={randomActivity}
-          style={({ pressed }) => [
-            styles.drawButton,
-            (pressed || loading) && styles.buttonMuted
-          ]}
-        >
-          <Text style={styles.primaryButtonText}>换个摸鱼任务</Text>
-        </Pressable>
+        {activityMessage ? <Text style={styles.activityMessage}>{activityMessage}</Text> : null}
+
+        {activityAssignment?.status !== "active" ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={loading || activityUnavailable}
+            onPress={randomActivity}
+            style={({ pressed }) => [
+              styles.drawButton,
+              (pressed || loading || activityUnavailable) && styles.buttonMuted
+            ]}
+          >
+            <Text style={styles.primaryButtonText}>
+              {activityUnavailable
+                ? "暂无可领取任务"
+                : activityAssignment
+                  ? "再领一个摸鱼任务"
+                  : "领取一个摸鱼任务"}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.achievements}>
@@ -625,8 +737,8 @@ const leaderboardWindows: Array<{ value: LeaderboardWindow; label: string }> = [
   { value: "all_time", label: "总" }
 ];
 
-function formatDuration(startedAt: string): string {
-  const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(startedAt)) / 1000));
+function formatDuration(startedAt: string, now: number): string {
+  const seconds = Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000));
   const minutes = Math.floor(seconds / 60)
     .toString()
     .padStart(2, "0");
@@ -750,6 +862,39 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 14
   },
+  notice: {
+    color: "#1f6f4f",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 20,
+    marginTop: 14
+  },
+  nextStepPanel: {
+    backgroundColor: "#232323",
+    borderRadius: 8,
+    marginTop: 18,
+    padding: 18
+  },
+  nextStepTitle: {
+    color: "#ffffff",
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 8
+  },
+  nextStepCopy: {
+    color: "#ded8ce",
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 8
+  },
+  nextStepButton: {
+    alignItems: "center",
+    backgroundColor: "#1f8f62",
+    borderRadius: 8,
+    justifyContent: "center",
+    marginTop: 16,
+    minHeight: 50
+  },
   summary: {
     backgroundColor: "#e5f4ed",
     borderColor: "#1f8f62",
@@ -831,6 +976,18 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 8
   },
+  beanRemaining: {
+    color: "#1f6f4f",
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 10
+  },
+  helperText: {
+    color: "#746b60",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 6
+  },
   beanGrid: {
     gap: 10,
     marginTop: 14
@@ -896,6 +1053,12 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 10
   },
+  activityInstruction: {
+    color: "#365260",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 10
+  },
   activityButton: {
     alignItems: "center",
     backgroundColor: "#2f6f8f",
@@ -909,6 +1072,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 12,
     padding: 12
+  },
+  activityMessage: {
+    color: "#8f3c2f",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 12
   },
   achievements: {
     backgroundColor: "#fffdf8",

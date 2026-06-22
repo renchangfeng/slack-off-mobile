@@ -40,15 +40,19 @@ export class ApiClient {
 
     let response: Response;
     try {
+      const headers: Record<string, string> = {
+        "X-Request-Id": requestId,
+        "X-Trace-Id": traceId,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...((init.headers as Record<string, string> | undefined) ?? {})
+      };
+      if (init.body) {
+        headers["Content-Type"] = "application/json";
+      }
+
       response = await fetch(`${this.options.baseUrl}${path}`, {
         ...init,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Request-Id": requestId,
-          "X-Trace-Id": traceId,
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...init.headers
-        }
+        headers
       });
     } catch (error) {
       captureError(error, "api.request.network_error", {

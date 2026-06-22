@@ -15,7 +15,7 @@ describe("ApiClient", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("adds trace headers and bearer token to requests", async () => {
+  it("adds trace headers and bearer token without a content type for GET", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({ data: { ok: true }, error: null }), {
         status: 200
@@ -35,11 +35,45 @@ describe("ApiClient", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("http://api.test/v1/check-ins/active");
     expect(init?.headers).toMatchObject({
-      Authorization: "Bearer token-123",
-      "Content-Type": "application/json"
+      Authorization: "Bearer token-123"
     });
+    expect((init?.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
     expect((init?.headers as Record<string, string>)["X-Request-Id"]).toMatch(/^req_/);
     expect((init?.headers as Record<string, string>)["X-Trace-Id"]).toMatch(/^trc_/);
+  });
+
+  it("omits the JSON content type for a bodyless POST", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ data: { ok: true }, error: null }), {
+        status: 200
+      })
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new ApiClient({ baseUrl: "http://api.test" });
+    await client.post("/v1/activities/random");
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(init.body).toBeUndefined();
+    expect(headers["Content-Type"]).toBeUndefined();
+  });
+
+  it("sets the JSON content type when a POST has a body", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ data: { ok: true }, error: null }), {
+        status: 200
+      })
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new ApiClient({ baseUrl: "http://api.test" });
+    await client.post("/v1/check-ins", { idempotencyKey: "start-test-key" });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(init.body).toBe(JSON.stringify({ idempotencyKey: "start-test-key" }));
+    expect(headers["Content-Type"]).toBe("application/json");
   });
 
   it("omits authorization when no token is available", async () => {
