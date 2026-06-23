@@ -16,6 +16,8 @@ import {
 import {
   ActivityApi,
   type ActivityAssignment,
+  type ActivityCatalog,
+  type ActivityCategory,
   type ActivityCompleteResult
 } from "../api/activities";
 import { BeanApi, type BeanCollection, type BeanDrawResult } from "../api/beans";
@@ -66,6 +68,9 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   const [activityResult, setActivityResult] = useState<ActivityCompleteResult | null>(null);
   const [activityMessage, setActivityMessage] = useState<string | null>(null);
   const [activityUnavailable, setActivityUnavailable] = useState(false);
+  const [activityCategory, setActivityCategory] = useState<ActivityCategory | null>(null);
+  const [activityCatalog, setActivityCatalog] = useState<ActivityCatalog | null>(null);
+  const [activityHistory, setActivityHistory] = useState<ActivityAssignment[]>([]);
   const [cosmeticInventory, setCosmeticInventory] = useState<CosmeticInventory | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
   const [leaderboardWindow, setLeaderboardWindow] = useState<LeaderboardWindow>("daily");
@@ -158,6 +163,29 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     return () => clearInterval(timer);
   }, [activeSession]);
 
+  useEffect(() => {
+    if (selectedTab === "activities") {
+      void refreshActivityData(activityCategory);
+    }
+  }, [activityCategory, selectedTab]);
+
+  async function refreshActivityData(category: ActivityCategory | null = activityCategory) {
+    const [catalogResponse, historyResponse] = await Promise.all([
+      api.activities.getCatalog(category ?? undefined),
+      api.activities.getHistory()
+    ]);
+    if (catalogResponse.error || historyResponse.error) {
+      setActivityMessage(
+        catalogResponse.error?.message ??
+          historyResponse.error?.message ??
+          "活动资料加载失败"
+      );
+      return;
+    }
+    setActivityCatalog(catalogResponse.data);
+    setActivityHistory(historyResponse.data?.items ?? []);
+  }
+
   async function refreshAfterReward() {
     await Promise.all([
       refreshProgression(),
@@ -228,7 +256,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     setNotice(null);
     setActivityMessage(null);
     setActivityResult(null);
-    const response = await api.activities.random();
+    const response = await api.activities.random(activityCategory ?? undefined);
     setLoading(false);
     if (response.error) {
       if (response.error.code === "NO_ELIGIBLE_ACTIVITY") {
@@ -242,6 +270,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     setActivityUnavailable(false);
     setActivityAssignment(response.data);
     setNotice("任务已领取。完成后回到活动页领取奖励。");
+    await refreshActivityData();
   }
 
   async function completeActivity() {
@@ -270,7 +299,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
         : "活动完成，奖励和今日目标已经更新。"
     );
     logAchievementUnlocks(response.data.reward.achievementsUnlocked);
-    await refreshAfterReward();
+    await Promise.all([refreshAfterReward(), refreshActivityData()]);
   }
 
   async function equipCosmetic(id: string) {
@@ -408,6 +437,29 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
         {selectedTab === "activities" ? (
           <>
             <GoalBanner goal={findGoal(progression, "activity")} />
+            <View style={styles.panel}>
+              <Text style={styles.kicker}>这次想怎么休息</Text>
+              <Text style={styles.sectionTitle}>选一个偏好，推荐会更懂你</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryRow}
+              >
+                <CategoryChip
+                  label="全部"
+                  selected={activityCategory === null}
+                  onPress={() => setActivityCategory(null)}
+                />
+                {activityCategories.map((category) => (
+                  <CategoryChip
+                    key={category}
+                    label={activityCategoryLabel(category)}
+                    selected={activityCategory === category}
+                    onPress={() => setActivityCategory(category)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
             <View style={styles.featurePanel}>
               {activityAssignment ? (
                 <>
@@ -415,6 +467,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                   <Text style={styles.sectionTitle}>{activityAssignment.title}</Text>
                   <Text style={styles.copy}>{activityAssignment.description}</Text>
                   <Text style={styles.accentMeta}>
+                    {activityCategoryLabel(activityAssignment.category)} ·{" "}
                     {difficultyLabel(activityAssignment.difficulty)} · +
                     {activityAssignment.rewardPreview.score} 分 · 进度 +
                     {activityAssignment.rewardPreview.drawProgress}
@@ -456,13 +509,67 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                     activityUnavailable
                       ? "暂无可领取任务"
                       : activityAssignment
-                        ? "再领一个摸鱼任务"
-                        : "领取一个摸鱼任务"
+                        ? "按偏好再推荐一个"
+                        : "推荐一个摸鱼任务"
                   }
                   disabled={loading || activityUnavailable}
                   onPress={randomActivity}
                 />
               ) : null}
+            </View>
+            <View style={styles.panel}>
+              <View style={styles.rowBetween}>
+                <View style={styles.flex}>
+                  <Text style={styles.kicker}>活动目录</Text>
+                  <Text style={styles.sectionTitle}>
+                    {activityCategory ? activityCategoryLabel(activityCategory) : "全部活动"}
+                  </Text>
+                </View>
+                <Text style={styles.goalCount}>{activityCatalog?.items.length ?? 0}</Text>
+              </View>
+              {activityCatalog?.items.length ? (
+                activityCatalog.items.map((item) => (
+                  <View key={item.templateId} style={styles.activityCatalogRow}>
+                    <View style={styles.flex}>
+                      <Text style={styles.rowTitle}>{item.title}</Text>
+                      <Text style={styles.rowMeta}>
+                        {activityCategoryLabel(item.category)} ·{" "}
+                        {difficultyLabel(item.difficulty)} · 完成 {item.completedCount} 次
+                      </Text>
+                      <Text style={styles.smallCopy}>{item.description}</Text>
+                    </View>
+                    <Text style={item.eligible ? styles.readyMark : styles.cooldownMark}>
+                      {item.eligible
+                        ? "可推荐"
+                        : formatCooldown(item.cooldownRemainingSeconds)}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>这个分类暂时没有活动。</Text>
+              )}
+            </View>
+            <View style={styles.panel}>
+              <Text style={styles.kicker}>完成记录</Text>
+              <Text style={styles.sectionTitle}>最近休息过什么</Text>
+              {activityHistory.length ? (
+                activityHistory.map((item) => (
+                  <View key={item.assignmentId} style={styles.listRow}>
+                    <View style={styles.flex}>
+                      <Text style={styles.rowTitle}>{item.title}</Text>
+                      <Text style={styles.rowMeta}>
+                        {activityCategoryLabel(item.category)} ·{" "}
+                        {formatActivityTime(item.completedAt ?? item.assignedAt)}
+                      </Text>
+                    </View>
+                    <Text style={item.rewarded ? styles.completedMark : styles.pendingMark}>
+                      {item.rewarded ? "已奖励" : "无奖励"}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>还没有完成记录，挑一个顺眼的开始。</Text>
+              )}
             </View>
           </>
         ) : null}
@@ -778,6 +885,29 @@ function CheckInResult({ result }: { result: CheckInFinishResult }) {
   );
 }
 
+function CategoryChip({
+  label,
+  selected,
+  onPress
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={[styles.categoryChip, selected && styles.categoryChipSelected]}
+    >
+      <Text style={[styles.categoryChipText, selected && styles.categoryChipTextSelected]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function ActionButton({
   label,
   onPress,
@@ -845,6 +975,37 @@ function difficultyLabel(difficulty: string): string {
   return ({ easy: "轻松", normal: "正常", hard: "硬核" }[difficulty] ?? difficulty);
 }
 
+function activityCategoryLabel(category: string): string {
+  return (
+    {
+      rest: "安静休息",
+      game: "小游戏",
+      office_theater: "办公室表演",
+      physical: "身体活动",
+      imagination: "脑洞任务"
+    }[category] ?? category
+  );
+}
+
+function formatCooldown(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds} 秒`;
+  }
+  if (seconds < 60 * 60) {
+    return `${Math.ceil(seconds / 60)} 分钟`;
+  }
+  return `${Math.ceil(seconds / 3600)} 小时`;
+}
+
+function formatActivityTime(value: string): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
 function logAchievementUnlocks(
   achievements: Array<{ id: string; code: string; name: string }>
 ) {
@@ -862,6 +1023,14 @@ const leaderboardWindows: Array<{ value: LeaderboardWindow; label: string }> = [
   { value: "weekly", label: "周榜" },
   { value: "monthly", label: "月榜" },
   { value: "all_time", label: "总榜" }
+];
+
+const activityCategories: ActivityCategory[] = [
+  "rest",
+  "game",
+  "office_theater",
+  "physical",
+  "imagination"
 ];
 
 function formatDuration(startedAt: string, now: number): string {
@@ -963,6 +1132,34 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 14,
     padding: 14
+  },
+  categoryRow: { gap: 8, paddingTop: 14 },
+  categoryChip: {
+    alignItems: "center",
+    borderColor: "#cfc7bb",
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 38,
+    paddingHorizontal: 13
+  },
+  categoryChipSelected: { backgroundColor: "#232323", borderColor: "#232323" },
+  categoryChipText: { color: "#625b52", fontSize: 13, fontWeight: "900" },
+  categoryChipTextSelected: { color: "#ffffff" },
+  activityCatalogRow: {
+    alignItems: "flex-start",
+    borderTopColor: "#e2dbd0",
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    paddingVertical: 14
+  },
+  readyMark: { color: "#1f8f62", fontSize: 12, fontWeight: "900" },
+  cooldownMark: {
+    color: "#8b4d36",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "right"
   },
   rowBetween: {
     alignItems: "center",
