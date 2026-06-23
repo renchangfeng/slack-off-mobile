@@ -4,6 +4,7 @@ import type { ApiClient, ApiEnvelope } from "./client";
 export type Bean = components["schemas"]["Bean"];
 export type BeanCollection = components["schemas"]["BeanCollection"];
 export type BeanDrawResult = components["schemas"]["BeanDrawResult"];
+export type BeanTheme = Bean["theme"];
 
 export class BeanApi {
   constructor(private readonly client: ApiClient) {}
@@ -12,10 +13,22 @@ export class BeanApi {
     return this.client.get<BeanCollection>("/v1/beans/collection");
   }
 
-  draw(): Promise<ApiEnvelope<BeanDrawResult>> {
+  draw(theme: BeanTheme): Promise<ApiEnvelope<BeanDrawResult>> {
     return this.client.post<BeanDrawResult>("/v1/beans/draw", {
-      idempotencyKey: createIdempotencyKey("bean_draw")
+      idempotencyKey: createIdempotencyKey("bean_draw"),
+      theme
     });
+  }
+
+  exchangeFragments(): Promise<ApiEnvelope<{ fragments: number; drawChances: number }>> {
+    return this.client.post("/v1/beans/fragments/exchange");
+  }
+
+  setShowcase(
+    position: number,
+    beanId: string
+  ): Promise<ApiEnvelope<{ position: number; beanId: string }>> {
+    return this.client.put(`/v1/beans/showcase/${position}`, { beanId });
   }
 }
 

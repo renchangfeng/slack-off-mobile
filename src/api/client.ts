@@ -30,6 +30,13 @@ export class ApiClient {
     });
   }
 
+  async put<T>(path: string, body: unknown): Promise<ApiEnvelope<T>> {
+    return this.request<T>(path, {
+      method: "PUT",
+      body: JSON.stringify(body)
+    });
+  }
+
   private async request<T>(
     path: string,
     init: RequestInit

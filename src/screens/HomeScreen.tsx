@@ -1,7 +1,10 @@
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  Animated,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,7 +23,12 @@ import {
   type ActivityCategory,
   type ActivityCompleteResult
 } from "../api/activities";
-import { BeanApi, type BeanCollection, type BeanDrawResult } from "../api/beans";
+import {
+  BeanApi,
+  type BeanCollection,
+  type BeanDrawResult,
+  type BeanTheme
+} from "../api/beans";
 import { ApiClient } from "../api/client";
 import { CheckInApi, type CheckInFinishResult, type CheckInSession } from "../api/checkins";
 import {
@@ -49,6 +57,19 @@ type HomeScreenProps = {
   onSignOut: () => Promise<void>;
 };
 
+type AchievementUnlockFeedback = {
+  id: string;
+  code: string;
+  name: string;
+  unlockedAt: string;
+  rewards: {
+    score: number;
+    drawProgress: number;
+    drawChances: number;
+    cosmetic: string | null;
+  };
+};
+
 export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenProps) {
   const api = useMemo(() => {
     const client = new ApiClient({ baseUrl: env.apiBaseUrl, getAccessToken });
@@ -68,8 +89,13 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   const [progressionClaim, setProgressionClaim] = useState<ProgressionClaimResult | null>(null);
   const [beanCollection, setBeanCollection] = useState<BeanCollection | null>(null);
   const [beanDrawResult, setBeanDrawResult] = useState<BeanDrawResult | null>(null);
+  const [beanTheme, setBeanTheme] = useState<BeanTheme>("office");
+  const [showcasePosition, setShowcasePosition] = useState(1);
   const [lastResult, setLastResult] = useState<CheckInFinishResult | null>(null);
   const [achievementList, setAchievementList] = useState<AchievementList | null>(null);
+  const [achievementUnlockQueue, setAchievementUnlockQueue] = useState<
+    AchievementUnlockFeedback[]
+  >([]);
   const [activityAssignment, setActivityAssignment] = useState<ActivityAssignment | null>(null);
   const [activityResult, setActivityResult] = useState<ActivityCompleteResult | null>(null);
   const [activityMessage, setActivityMessage] = useState<string | null>(null);
@@ -201,6 +227,12 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     ]);
   }
 
+  function enqueueAchievementUnlocks(unlocks: AchievementUnlockFeedback[]) {
+    if (!unlocks.length) return;
+    logAchievementUnlocks(unlocks);
+    setAchievementUnlockQueue((current) => [...current, ...unlocks]);
+  }
+
   async function claimProgressionReward(period: ProgressionPeriod) {
     setLoading(true);
     setMessage(null);
@@ -258,7 +290,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     setActiveSession(null);
     setLastResult(response.data);
     setNotice("打卡已结算，今日进度也同步更新了。");
-    logAchievementUnlocks(response.data?.reward.achievementsUnlocked ?? []);
+    enqueueAchievementUnlocks(response.data?.reward.achievementsUnlocked ?? []);
     await refreshAfterReward();
   }
 
@@ -266,7 +298,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     setLoading(true);
     setMessage(null);
     setNotice(null);
-    const response = await api.beans.draw();
+    const response = await api.beans.draw(beanTheme);
     setLoading(false);
     if (response.error) {
       setMessage(response.error.message);
@@ -276,8 +308,36 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     setNotice(
       `抽到了${response.data?.bean.name ?? "一颗豆"}，还剩 ${response.data?.remainingDrawChances ?? 0} 次机会。`
     );
-    logAchievementUnlocks(response.data?.achievementsUnlocked ?? []);
+    enqueueAchievementUnlocks(response.data?.achievementsUnlocked ?? []);
     await refreshAfterReward();
+  }
+
+  async function exchangeBeanFragments() {
+    setLoading(true);
+    setMessage(null);
+    setNotice(null);
+    const response = await api.beans.exchangeFragments();
+    setLoading(false);
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+    setNotice("豆子碎片已兑换为 1 次抽取机会。");
+    await refreshBeans();
+  }
+
+  async function setBeanShowcase(beanId: string) {
+    setLoading(true);
+    setMessage(null);
+    setNotice(null);
+    const response = await api.beans.setShowcase(showcasePosition, beanId);
+    setLoading(false);
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+    setNotice(`已放入展示柜第 ${showcasePosition} 格。`);
+    await refreshBeans();
   }
 
   async function randomActivity() {
@@ -328,7 +388,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
         ? `活动完成，获得 ${response.data.reward.drawChancesGranted} 次抽豆机会。`
         : "活动完成，奖励和今日目标已经更新。"
     );
-    logAchievementUnlocks(response.data.reward.achievementsUnlocked);
+    enqueueAchievementUnlocks(response.data.reward.achievementsUnlocked);
     await Promise.all([refreshAfterReward(), refreshActivityData()]);
   }
 
@@ -355,10 +415,12 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     : false;
   const unlockedAchievements =
     achievementList?.achievements.filter((achievement) => achievement.unlockedAt) ?? [];
-  const recentUnlocks = [
-    ...(lastResult?.reward.achievementsUnlocked ?? []),
-    ...(beanDrawResult?.achievementsUnlocked ?? [])
-  ];
+  const sortedAchievements = [...(achievementList?.achievements ?? [])].sort((left, right) => {
+    if (Boolean(left.unlockedAt) !== Boolean(right.unlockedAt)) {
+      return left.unlockedAt ? 1 : -1;
+    }
+    return right.progress.percent - left.progress.percent;
+  });
   const nextStep = deriveGameplayStep({
     hasActiveCheckIn: Boolean(activeSession),
     drawChances: beanCollection?.drawChances ?? 0,
@@ -457,20 +519,6 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
               <ActionButton label={nextStep.actionLabel} onPress={runNextStep} disabled={loading} />
             </View>
             {lastResult ? <CheckInResult result={lastResult} /> : null}
-            {recentUnlocks.length ? (
-              <View style={styles.panel}>
-                <Text style={styles.kicker}>刚刚解锁</Text>
-                {recentUnlocks.map((achievement) => (
-                  <View key={achievement.id} style={styles.listRow}>
-                    <View style={styles.flex}>
-                      <Text style={styles.rowTitle}>{achievement.name}</Text>
-                      <Text style={styles.rowMeta}>奖励 +{achievement.rewards.score} 分</Text>
-                    </View>
-                    <Text style={styles.completedMark}>完成</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
           </>
         ) : null}
 
@@ -630,21 +678,118 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                 max={3}
                 color="#1f8f62"
               />
+              <Text style={styles.kickerSection}>选择主题卡池</Text>
+              <View style={styles.beanThemeRow}>
+                {beanThemes.map((theme) => {
+                  const summary = beanCollection?.themes.find((item) => item.theme === theme);
+                  return (
+                    <Pressable
+                      key={theme}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: beanTheme === theme }}
+                      onPress={() => setBeanTheme(theme)}
+                      style={[
+                        styles.beanThemeButton,
+                        beanTheme === theme && styles.beanThemeButtonActive
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.beanThemeButtonText,
+                          beanTheme === theme && styles.beanThemeButtonTextActive
+                        ]}
+                      >
+                        {beanThemeLabel(theme)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.beanThemeCount,
+                          beanTheme === theme && styles.beanThemeButtonTextActive
+                        ]}
+                      >
+                        {summary?.collected ?? 0}/{summary?.total ?? 0}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={styles.beanEconomyGrid}>
+                <View style={styles.beanEconomyCell}>
+                  <Text style={styles.kicker}>稀有保底</Text>
+                  <Text style={styles.beanEconomyValue}>
+                    {beanCollection?.pityCount ?? 0}/{beanCollection?.pityThreshold ?? 8}
+                  </Text>
+                  <Text style={styles.smallCopy}>第 8 次必出稀有以上</Text>
+                </View>
+                <View style={styles.beanEconomyCell}>
+                  <Text style={styles.kicker}>重复碎片</Text>
+                  <Text style={styles.beanEconomyValue}>
+                    {beanCollection?.fragments ?? 0}
+                  </Text>
+                  <Text style={styles.smallCopy}>
+                    {beanCollection?.fragmentExchangeCost ?? 10} 个换 1 次
+                  </Text>
+                </View>
+              </View>
               <ActionButton
-                label="抽一颗工位命运豆"
+                label={`从${beanThemeLabel(beanTheme)}抽一颗`}
                 disabled={loading || (beanCollection?.drawChances ?? 0) <= 0}
                 onPress={drawBean}
+              />
+              <ActionButton
+                label="用碎片兑换 1 次机会"
+                dark
+                disabled={
+                  loading ||
+                  (beanCollection?.fragments ?? 0) <
+                    (beanCollection?.fragmentExchangeCost ?? 10)
+                }
+                onPress={exchangeBeanFragments}
               />
               {beanDrawResult ? (
                 <View style={styles.resultBox}>
                   <Text style={styles.sectionTitle}>{beanDrawResult.bean.name}</Text>
                   <Text style={styles.accentMeta}>
+                    {beanThemeLabel(beanDrawResult.bean.theme)} ·{" "}
                     {rarityLabel(beanDrawResult.bean.rarity)}
-                    {beanDrawResult.duplicate ? " · 重复收藏" : " · 新豆入袋"}
+                    {beanDrawResult.pityTriggered ? " · 保底生效" : ""}
                   </Text>
                   <Text style={styles.copy}>{beanDrawResult.bean.description}</Text>
+                  <Text style={styles.helperText}>
+                    {beanDrawResult.duplicate
+                      ? `重复收藏，数量增加并获得 ${beanDrawResult.fragmentsGranted} 个碎片。`
+                      : "新豆入袋，图鉴完成度已更新。"}
+                  </Text>
                 </View>
               ) : null}
+            </View>
+            <View style={styles.panel}>
+              <Text style={styles.kicker}>展示柜</Text>
+              <Text style={styles.sectionTitle}>选一个槽位，再点一颗已拥有的豆</Text>
+              <View style={styles.showcaseRow}>
+                {[1, 2, 3].map((position) => {
+                  const item = beanCollection?.showcase.find(
+                    (showcase) => showcase.position === position
+                  );
+                  return (
+                    <Pressable
+                      key={position}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: showcasePosition === position }}
+                      onPress={() => setShowcasePosition(position)}
+                      style={[
+                        styles.showcaseSlot,
+                        showcasePosition === position && styles.showcaseSlotActive
+                      ]}
+                    >
+                      <Text style={styles.kicker}>第 {position} 格</Text>
+                      <Text style={styles.showcaseBeanName}>
+                        {item?.bean.name ?? "空位"}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
             <View style={styles.panel}>
               <Text style={styles.kicker}>豆子图鉴</Text>
@@ -652,9 +797,32 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                 已收集 {beanCollection?.beans.filter((bean) => bean.owned).length ?? 0}/
                 {beanCollection?.beans.length ?? 0}
               </Text>
+              <View style={styles.raritySummaryRow}>
+                {beanRarities.map((rarity) => {
+                  const rarityBeans = beanCollection?.beans.filter(
+                    (bean) => bean.rarity === rarity
+                  ) ?? [];
+                  return (
+                    <View key={rarity} style={styles.raritySummaryCell}>
+                      <Text style={styles.kicker}>{rarityLabel(rarity)}</Text>
+                      <Text style={styles.raritySummaryValue}>
+                        {rarityBeans.filter((bean) => bean.owned).length}/{rarityBeans.length}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
               <View style={styles.grid}>
-                {beanCollection?.beans.map((bean) => (
-                  <View key={bean.id} style={[styles.beanTile, bean.owned && styles.beanTileOwned]}>
+                {beanCollection?.beans
+                  .filter((bean) => bean.theme === beanTheme)
+                  .map((bean) => (
+                  <Pressable
+                    key={bean.id}
+                    accessibilityRole={bean.owned ? "button" : undefined}
+                    disabled={!bean.owned || loading}
+                    onPress={() => setBeanShowcase(bean.id)}
+                    style={[styles.beanTile, bean.owned && styles.beanTileOwned]}
+                  >
                     <Text style={styles.rowTitle}>{bean.name}</Text>
                     <Text style={styles.rowMeta}>
                       {rarityLabel(bean.rarity)} · x{bean.quantity}
@@ -662,9 +830,30 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                     <Text style={styles.smallCopy}>
                       {bean.owned ? bean.description : "尚未获得，先保持一点神秘。"}
                     </Text>
-                  </View>
+                    {bean.owned ? (
+                      <Text style={styles.showcaseHint}>放入第 {showcasePosition} 格</Text>
+                    ) : null}
+                  </Pressable>
                 ))}
               </View>
+            </View>
+            <View style={styles.panel}>
+              <Text style={styles.kicker}>豆子组合</Text>
+              <Text style={styles.sectionTitle}>只看收藏，不消耗豆子</Text>
+              {beanCollection?.combinations.map((combination) => (
+                <View
+                  key={combination.code}
+                  style={[styles.listRow, combination.completed && styles.listRowCompleted]}
+                >
+                  <View style={styles.flex}>
+                    <Text style={styles.rowTitle}>{combination.name}</Text>
+                    <Text style={styles.rowMeta}>收集指定豆子即可自动完成</Text>
+                  </View>
+                  <Text style={combination.completed ? styles.completedMark : styles.progressValue}>
+                    {combination.owned}/{combination.required}
+                  </Text>
+                </View>
+              ))}
             </View>
           </>
         ) : null}
@@ -750,7 +939,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                 已解锁 {unlockedAchievements.length}/
                 {achievementList?.achievements.length ?? 0}
               </Text>
-              {achievementList?.achievements.map((achievement) => (
+              {sortedAchievements.map((achievement) => (
                 <View
                   key={achievement.id}
                   style={[styles.listRow, achievement.unlockedAt && styles.listRowCompleted]}
@@ -758,9 +947,15 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                   <View style={styles.flex}>
                     <Text style={styles.rowTitle}>{achievement.name}</Text>
                     <Text style={styles.rowMeta}>{achievement.description}</Text>
+                    <ProgressBar
+                      value={achievement.progress.percent}
+                      max={100}
+                      color={achievement.unlockedAt ? "#1f8f62" : "#d4a838"}
+                      trackColor="#e2dbd0"
+                    />
                   </View>
-                  <Text style={achievement.unlockedAt ? styles.completedMark : styles.pendingMark}>
-                    {achievement.unlockedAt ? "完成" : "未完成"}
+                  <Text style={achievement.unlockedAt ? styles.completedMark : styles.progressValue}>
+                    {achievementProgressLabel(achievement.progress)}
                   </Text>
                 </View>
               ))}
@@ -828,6 +1023,11 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
           );
         })}
       </View>
+      <AchievementUnlockOverlay
+        unlock={achievementUnlockQueue[0] ?? null}
+        remaining={Math.max(0, achievementUnlockQueue.length - 1)}
+        onDismiss={() => setAchievementUnlockQueue((current) => current.slice(1))}
+      />
     </View>
   );
 }
@@ -1033,6 +1233,93 @@ function CheckInResult({ result }: { result: CheckInFinishResult }) {
   );
 }
 
+function AchievementUnlockOverlay({
+  unlock,
+  remaining,
+  onDismiss
+}: {
+  unlock: AchievementUnlockFeedback | null;
+  remaining: number;
+  onDismiss: () => void;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(24)).current;
+  const scale = useRef(new Animated.Value(0.96)).current;
+
+  useEffect(() => {
+    if (!unlock) return;
+    let active = true;
+    opacity.setValue(0);
+    translateY.setValue(24);
+    scale.setValue(0.96);
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+      if (!active) return;
+      if (reduceMotion) {
+        opacity.setValue(1);
+        translateY.setValue(0);
+        scale.setValue(1);
+        return;
+      }
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 260, useNativeDriver: true }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          damping: 16,
+          stiffness: 180,
+          useNativeDriver: true
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          damping: 14,
+          stiffness: 170,
+          useNativeDriver: true
+        })
+      ]).start();
+    });
+    return () => {
+      active = false;
+    };
+  }, [opacity, scale, translateY, unlock]);
+
+  if (!unlock) return null;
+
+  return (
+    <Modal transparent animationType="none" visible onRequestClose={onDismiss}>
+      <View style={styles.unlockBackdrop}>
+        <Animated.View
+          style={[
+            styles.unlockPanel,
+            { opacity, transform: [{ translateY }, { scale }] }
+          ]}
+        >
+          <Text style={styles.unlockEyebrow}>成就解锁</Text>
+          <Text style={styles.unlockMark}>ACHIEVED</Text>
+          <Text style={styles.unlockTitle}>{unlock.name}</Text>
+          <View style={styles.unlockRule} />
+          <Text style={styles.unlockRewardTitle}>本次奖励</Text>
+          <Text style={styles.unlockRewardCopy}>
+            +{unlock.rewards.score} 分 · 抽豆进度 +{unlock.rewards.drawProgress} · 机会 +
+            {unlock.rewards.drawChances}
+          </Text>
+          {unlock.rewards.cosmetic ? (
+            <View style={styles.cosmeticReveal}>
+              <Text style={styles.kicker}>新装扮</Text>
+              <Text style={styles.rowTitle}>{unlock.rewards.cosmetic}</Text>
+            </View>
+          ) : null}
+          {remaining > 0 ? (
+            <Text style={styles.unlockRemaining}>还有 {remaining} 个成就等待展示</Text>
+          ) : null}
+          <ActionButton
+            label={remaining > 0 ? "查看下一个" : "收下这份荣誉"}
+            onPress={onDismiss}
+          />
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
 function CategoryChip({
   label,
   selected,
@@ -1121,8 +1408,31 @@ function rarityLabel(rarity: string): string {
   );
 }
 
+function beanThemeLabel(theme: string): string {
+  return (
+    {
+      office: "工位卡池",
+      restroom: "隔间卡池",
+      daydream: "白日梦卡池"
+    }[theme] ?? theme
+  );
+}
+
 function difficultyLabel(difficulty: string): string {
   return ({ easy: "轻松", normal: "正常", hard: "硬核" }[difficulty] ?? difficulty);
+}
+
+function achievementProgressLabel(progress: {
+  current: number;
+  target: number;
+  unit: string;
+}): string {
+  if (progress.unit === "minutes") return `${progress.current}/${progress.target} 分钟`;
+  if (progress.unit === "days") return `${progress.current}/${progress.target} 天`;
+  if (progress.unit === "rank") {
+    return progress.current > 0 ? `第 ${progress.current}/前 ${progress.target}` : `未上榜/前 ${progress.target}`;
+  }
+  return `${progress.current}/${progress.target}`;
 }
 
 function activityCategoryLabel(category: string): string {
@@ -1182,6 +1492,9 @@ const activityCategories: ActivityCategory[] = [
   "physical",
   "imagination"
 ];
+
+const beanThemes: BeanTheme[] = ["office", "restroom", "daydream"];
+const beanRarities = ["common", "uncommon", "rare", "epic", "legendary"] as const;
 
 function formatDuration(startedAt: string, now: number): string {
   const seconds = Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000));
@@ -1246,6 +1559,7 @@ const styles = StyleSheet.create({
   copy: { color: "#47413a", fontSize: 15, lineHeight: 22, marginTop: 8 },
   smallCopy: { color: "#746b60", fontSize: 12, lineHeight: 18, marginTop: 7 },
   helperText: { color: "#746b60", fontSize: 13, lineHeight: 19, marginTop: 10 },
+  kickerSection: { color: "#756c61", fontSize: 12, fontWeight: "900", marginTop: 20 },
   accentMeta: { color: "#2f6f8f", fontSize: 13, fontWeight: "900", marginTop: 10 },
   actions: { flexDirection: "row", gap: 10, marginTop: 18 },
   actionButton: {
@@ -1377,6 +1691,52 @@ const styles = StyleSheet.create({
     padding: 13
   },
   beanTileOwned: { backgroundColor: "#edf8f2", borderColor: "#82b99f" },
+  beanThemeRow: { flexDirection: "row", gap: 8, marginTop: 10 },
+  beanThemeButton: {
+    alignItems: "center",
+    borderColor: "#cfc7bb",
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 58,
+    padding: 7
+  },
+  beanThemeButtonActive: { backgroundColor: "#232323", borderColor: "#232323" },
+  beanThemeButtonText: { color: "#625b52", fontSize: 12, fontWeight: "900", textAlign: "center" },
+  beanThemeButtonTextActive: { color: "#ffffff" },
+  beanThemeCount: { color: "#746b60", fontSize: 11, marginTop: 3 },
+  beanEconomyGrid: { flexDirection: "row", gap: 10, marginTop: 14 },
+  beanEconomyCell: {
+    backgroundColor: "#f4f0e8",
+    borderRadius: 8,
+    flex: 1,
+    minHeight: 102,
+    padding: 12
+  },
+  beanEconomyValue: { color: "#232323", fontSize: 24, fontWeight: "900", marginTop: 5 },
+  showcaseRow: { flexDirection: "row", gap: 8, marginTop: 14 },
+  showcaseSlot: {
+    borderColor: "#d8d0c4",
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 76,
+    padding: 10
+  },
+  showcaseSlotActive: { backgroundColor: "#fff4c9", borderColor: "#d4a838" },
+  showcaseBeanName: { color: "#232323", fontSize: 13, fontWeight: "900", marginTop: 7 },
+  showcaseHint: { color: "#1f8f62", fontSize: 11, fontWeight: "900", marginTop: 9 },
+  raritySummaryRow: { flexDirection: "row", gap: 5, marginTop: 14 },
+  raritySummaryCell: {
+    alignItems: "center",
+    backgroundColor: "#f4f0e8",
+    borderRadius: 6,
+    flex: 1,
+    minHeight: 50,
+    padding: 6
+  },
+  raritySummaryValue: { color: "#232323", fontSize: 14, fontWeight: "900", marginTop: 3 },
   segmented: {
     backgroundColor: "#eee8df",
     borderRadius: 8,
@@ -1468,6 +1828,70 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 19,
     marginBottom: 12
+  },
+  unlockBackdrop: {
+    alignItems: "center",
+    backgroundColor: "rgba(20, 19, 17, 0.72)",
+    flex: 1,
+    justifyContent: "center",
+    padding: 20
+  },
+  unlockPanel: {
+    backgroundColor: "#fffdf8",
+    borderColor: "#d4a838",
+    borderRadius: 8,
+    borderWidth: 2,
+    maxWidth: 460,
+    padding: 24,
+    width: "100%"
+  },
+  unlockEyebrow: {
+    color: "#8b6b16",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  unlockMark: {
+    color: "#d4a838",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 14,
+    textAlign: "center"
+  },
+  unlockTitle: {
+    color: "#232323",
+    fontSize: 28,
+    fontWeight: "900",
+    marginTop: 8,
+    textAlign: "center"
+  },
+  unlockRule: {
+    alignSelf: "center",
+    backgroundColor: "#d4a838",
+    height: 3,
+    marginVertical: 18,
+    width: 54
+  },
+  unlockRewardTitle: { color: "#756c61", fontSize: 12, fontWeight: "900", textAlign: "center" },
+  unlockRewardCopy: {
+    color: "#232323",
+    fontSize: 15,
+    fontWeight: "900",
+    lineHeight: 22,
+    marginTop: 6,
+    textAlign: "center"
+  },
+  cosmeticReveal: {
+    backgroundColor: "#fff4c9",
+    borderRadius: 8,
+    marginTop: 16,
+    padding: 13
+  },
+  unlockRemaining: {
+    color: "#746b60",
+    fontSize: 12,
+    marginTop: 14,
+    textAlign: "center"
   },
   emptyText: { color: "#746b60", fontSize: 14, lineHeight: 21, marginTop: 12 },
   bottomNav: {
