@@ -28,7 +28,12 @@ import {
   type LeaderboardResponse,
   type LeaderboardWindow
 } from "../api/leaderboards";
-import { ProgressionApi, type ProgressionSummary } from "../api/progression";
+import {
+  ProgressionApi,
+  type ProgressionClaimResult,
+  type ProgressionPeriod,
+  type ProgressionSummary
+} from "../api/progression";
 import { env } from "../config/env";
 import {
   dashboardTabs,
@@ -60,6 +65,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   const [selectedTab, setSelectedTab] = useState<DashboardTab>("home");
   const [activeSession, setActiveSession] = useState<CheckInSession | null>(null);
   const [progression, setProgression] = useState<ProgressionSummary | null>(null);
+  const [progressionClaim, setProgressionClaim] = useState<ProgressionClaimResult | null>(null);
   const [beanCollection, setBeanCollection] = useState<BeanCollection | null>(null);
   const [beanDrawResult, setBeanDrawResult] = useState<BeanDrawResult | null>(null);
   const [lastResult, setLastResult] = useState<CheckInFinishResult | null>(null);
@@ -193,6 +199,30 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
       refreshAchievements(),
       refreshLeaderboard()
     ]);
+  }
+
+  async function claimProgressionReward(period: ProgressionPeriod) {
+    setLoading(true);
+    setMessage(null);
+    setNotice(null);
+    setProgressionClaim(null);
+    const response = await api.progression.claim(period);
+    setLoading(false);
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+    if (!response.data) {
+      setMessage("成长奖励结果走丢了，请稍后重试。");
+      return;
+    }
+    setProgressionClaim(response.data);
+    setNotice(
+      response.data.awarded
+        ? `${period === "daily" ? "今日" : "本周"}成长奖励已领取。`
+        : "这份成长奖励已经领取过了。"
+    );
+    await refreshAfterReward();
   }
 
   async function startSession() {
@@ -385,7 +415,17 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
         {selectedTab === "home" ? (
           <>
             <ProgressionOverview progression={progression} />
-            <DailyGoals progression={progression} />
+            {progressionClaim ? <ProgressionClaimResultPanel result={progressionClaim} /> : null}
+            <DailyGoals
+              progression={progression}
+              loading={loading}
+              onClaim={() => claimProgressionReward("daily")}
+            />
+            <WeeklyGoals
+              progression={progression}
+              loading={loading}
+              onClaim={() => claimProgressionReward("weekly")}
+            />
             <View style={styles.panel}>
               <Text style={styles.kicker}>当前打卡</Text>
               <Text style={styles.timer}>{elapsedLabel}</Text>
@@ -696,6 +736,15 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
             </View>
             <LifetimeStats progression={progression} />
             <View style={styles.panel}>
+              <Text style={styles.kicker}>休息连续性</Text>
+              <Text style={styles.sectionTitle}>
+                已连续 {progression?.currentStreakDays ?? 0} 天
+              </Text>
+              <Text style={styles.copy}>
+                最长记录 {progression?.longestStreakDays ?? 0} 天。漏掉一天不会扣分，也不需要付费恢复，想起来时继续就好。
+              </Text>
+            </View>
+            <View style={styles.panel}>
               <Text style={styles.kicker}>成就</Text>
               <Text style={styles.sectionTitle}>
                 已解锁 {unlockedAchievements.length}/
@@ -808,29 +857,127 @@ function ProgressionOverview({ progression }: { progression: ProgressionSummary 
   );
 }
 
-function DailyGoals({ progression }: { progression: ProgressionSummary | null }) {
+function DailyGoals({
+  progression,
+  loading,
+  onClaim
+}: {
+  progression: ProgressionSummary | null;
+  loading: boolean;
+  onClaim: () => void | Promise<void>;
+}) {
+  return (
+    <GoalPeriodPanel
+      kicker="今日目标"
+      title="完成一点就算赢"
+      period={progression?.dailyGoals ?? null}
+      loading={loading}
+      onClaim={onClaim}
+    />
+  );
+}
+
+function WeeklyGoals({
+  progression,
+  loading,
+  onClaim
+}: {
+  progression: ProgressionSummary | null;
+  loading: boolean;
+  onClaim: () => void | Promise<void>;
+}) {
+  return (
+    <GoalPeriodPanel
+      kicker="本周目标"
+      title="这一周，慢慢攒"
+      period={progression?.weeklyGoals ?? null}
+      loading={loading}
+      onClaim={onClaim}
+    />
+  );
+}
+
+function GoalPeriodPanel({
+  kicker,
+  title,
+  period,
+  loading,
+  onClaim
+}: {
+  kicker: string;
+  title: string;
+  period: ProgressionSummary["dailyGoals"] | null;
+  loading: boolean;
+  onClaim: () => void | Promise<void>;
+}) {
   return (
     <View style={styles.panel}>
       <View style={styles.rowBetween}>
         <View>
-          <Text style={styles.kicker}>今日目标</Text>
-          <Text style={styles.sectionTitle}>完成一点就算赢</Text>
+          <Text style={styles.kicker}>{kicker}</Text>
+          <Text style={styles.sectionTitle}>{title}</Text>
         </View>
         <Text style={styles.goalCount}>
-          {progression?.dailyGoals.completed ?? 0}/{progression?.dailyGoals.total ?? 3}
+          {period?.completed ?? 0}/{period?.total ?? 3}
         </Text>
       </View>
-      {progression?.dailyGoals.goals.map((goal) => (
+      {period?.goals.map((goal) => (
         <View key={goal.code} style={[styles.listRow, goal.completed && styles.listRowCompleted]}>
           <View style={styles.flex}>
             <Text style={styles.rowTitle}>{goal.title}</Text>
             <Text style={styles.rowMeta}>{goal.description}</Text>
+            <ProgressBar
+              value={goal.current}
+              max={goal.target}
+              color={goal.completed ? "#1f8f62" : "#d4a838"}
+            />
           </View>
-          <Text style={goal.completed ? styles.completedMark : styles.pendingMark}>
-            {goal.completed ? "完成" : "待办"}
+          <Text style={goal.completed ? styles.completedMark : styles.progressValue}>
+            {goal.current}/{goal.target}
           </Text>
         </View>
       )) ?? <Text style={styles.emptyText}>正在读取今天的休息安排。</Text>}
+      {period ? (
+        <View style={styles.goalRewardRow}>
+          <View style={styles.flex}>
+            <Text style={styles.rowTitle}>整组奖励</Text>
+            <Text style={styles.rowMeta}>
+              +{period.reward.score} 分 · 抽豆进度 +{period.reward.drawProgress}
+            </Text>
+          </View>
+          <Text style={period.rewardClaimed ? styles.completedMark : styles.pendingMark}>
+            {period.rewardClaimed
+              ? "已领取"
+              : period.allCompleted
+                ? "待领取"
+                : "未解锁"}
+          </Text>
+        </View>
+      ) : null}
+      {period?.allCompleted && !period.rewardClaimed ? (
+        <ActionButton label="领取成长奖励" disabled={loading} onPress={onClaim} />
+      ) : null}
+    </View>
+  );
+}
+
+function ProgressionClaimResultPanel({ result }: { result: ProgressionClaimResult }) {
+  return (
+    <View style={[styles.resultPanel, result.progression.leveledUp && styles.levelUpPanel]}>
+      <Text style={styles.kicker}>
+        {result.progression.leveledUp ? "等级提升" : "成长奖励"}
+      </Text>
+      <Text style={styles.sectionTitle}>
+        {result.progression.leveledUp
+          ? `LV ${result.progression.previousLevel} → LV ${result.progression.currentLevel}`
+          : result.awarded
+            ? "这份努力被正式记下了"
+            : "这份奖励已经领过了"}
+      </Text>
+      <Text style={styles.copy}>
+        得分 +{result.reward.score} · 抽豆进度 +{result.reward.drawProgress} · 机会 +
+        {result.reward.drawChancesGranted}
+      </Text>
     </View>
   );
 }
@@ -1127,6 +1274,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 18
   },
+  levelUpPanel: { backgroundColor: "#fff4c9", borderColor: "#d4a838" },
   resultBox: {
     backgroundColor: "#eef7f3",
     borderRadius: 8,
@@ -1183,6 +1331,23 @@ const styles = StyleSheet.create({
   rowMeta: { color: "#746b60", fontSize: 12, lineHeight: 17, marginTop: 3 },
   completedMark: { color: "#1f8f62", fontSize: 12, fontWeight: "900" },
   pendingMark: { color: "#8b4d36", fontSize: 12, fontWeight: "900" },
+  progressValue: {
+    color: "#8b4d36",
+    fontSize: 13,
+    fontWeight: "900",
+    minWidth: 44,
+    textAlign: "right"
+  },
+  goalRewardRow: {
+    alignItems: "center",
+    backgroundColor: "#f4f0e8",
+    borderRadius: 8,
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 12,
+    minHeight: 58,
+    padding: 12
+  },
   flex: { flex: 1 },
   goalBanner: {
     backgroundColor: "#fff7df",
