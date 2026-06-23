@@ -930,6 +930,7 @@ function GoalPeriodPanel({
               value={goal.current}
               max={goal.target}
               color={goal.completed ? "#1f8f62" : "#d4a838"}
+              trackColor="#e2dbd0"
             />
           </View>
           <Text style={goal.completed ? styles.completedMark : styles.progressValue}>
@@ -1085,15 +1086,17 @@ function ActionButton({
 function ProgressBar({
   value,
   max,
-  color
+  color,
+  trackColor = "#514d48"
 }: {
   value: number;
   max: number;
   color: string;
+  trackColor?: string;
 }) {
   const percent = Math.max(0, Math.min(100, Math.round((value / Math.max(1, max)) * 100)));
   return (
-    <View style={styles.progressTrack}>
+    <View style={[styles.progressTrack, { backgroundColor: trackColor }]}>
       <View style={[styles.progressFill, { backgroundColor: color, width: `${percent}%` }]} />
     </View>
   );
