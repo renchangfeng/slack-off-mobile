@@ -37,6 +37,10 @@ export class ApiClient {
     });
   }
 
+  async delete<T>(path: string): Promise<ApiEnvelope<T>> {
+    return this.request<T>(path, { method: "DELETE" });
+  }
+
   private async request<T>(
     path: string,
     init: RequestInit

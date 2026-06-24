@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View
 } from "react-native";
 import {
@@ -34,6 +35,7 @@ import { CheckInApi, type CheckInFinishResult, type CheckInSession } from "../ap
 import {
   LeaderboardApi,
   type LeaderboardResponse,
+  type LeaderboardScope,
   type LeaderboardWindow
 } from "../api/leaderboards";
 import {
@@ -43,6 +45,7 @@ import {
   type ProgressionSummary
 } from "../api/progression";
 import { env } from "../config/env";
+import { SocialApi, type SocialReactionType, type SocialSummary } from "../api/social";
 import {
   dashboardTabs,
   getDashboardTab,
@@ -80,6 +83,8 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
       checkIns: new CheckInApi(client),
       leaderboards: new LeaderboardApi(client),
       progression: new ProgressionApi(client)
+      ,
+      social: new SocialApi(client)
     };
   }, [getAccessToken]);
 
@@ -106,6 +111,9 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   const [cosmeticInventory, setCosmeticInventory] = useState<CosmeticInventory | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
   const [leaderboardWindow, setLeaderboardWindow] = useState<LeaderboardWindow>("daily");
+  const [leaderboardScope, setLeaderboardScope] = useState<LeaderboardScope>("global");
+  const [social, setSocial] = useState<SocialSummary | null>(null);
+  const [socialInput, setSocialInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -147,16 +155,28 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   }, [api.achievements]);
 
   const refreshLeaderboard = useCallback(
-    async (window: LeaderboardWindow = leaderboardWindow) => {
-      const response = await api.leaderboards.getLeaderboard(window);
+    async (
+      window: LeaderboardWindow = leaderboardWindow,
+      scope: LeaderboardScope = leaderboardScope
+    ) => {
+      const response = await api.leaderboards.getLeaderboard(window, scope);
       if (response.error) {
         setMessage(response.error.message);
         return;
       }
       setLeaderboard(response.data);
     },
-    [api.leaderboards, leaderboardWindow]
+    [api.leaderboards, leaderboardScope, leaderboardWindow]
   );
+
+  const refreshSocial = useCallback(async () => {
+    const response = await api.social.getSummary();
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+    setSocial(response.data);
+  }, [api.social]);
 
   const refreshDashboard = useCallback(async () => {
     setLoading(true);
@@ -171,7 +191,8 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
       refreshProgression(),
       refreshBeans(),
       refreshAchievements(),
-      refreshLeaderboard()
+      refreshLeaderboard(),
+      refreshSocial()
     ]);
     setLoading(false);
   }, [
@@ -179,7 +200,8 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     refreshAchievements,
     refreshBeans,
     refreshLeaderboard,
-    refreshProgression
+    refreshProgression,
+    refreshSocial
   ]);
 
   useEffect(() => {
@@ -406,7 +428,56 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
 
   async function selectLeaderboardWindow(window: LeaderboardWindow) {
     setLeaderboardWindow(window);
-    await refreshLeaderboard(window);
+    await refreshLeaderboard(window, leaderboardScope);
+  }
+
+  async function selectLeaderboardScope(scope: LeaderboardScope) {
+    setLeaderboardScope(scope);
+    await refreshLeaderboard(leaderboardWindow, scope);
+  }
+
+  async function submitSocialAction(action: "friend" | "squad" | "company") {
+    const value = socialInput.trim();
+    if (!value) return;
+    setLoading(true);
+    const response =
+      action === "friend"
+        ? await api.social.addFriend(value)
+        : social?.[action]
+          ? await api.social.joinGroup(action, value)
+          : value.includes("#")
+            ? await api.social.joinGroup(action, value.replace("#", ""))
+            : await api.social.createGroup(action, value);
+    setLoading(false);
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+    setSocial(response.data);
+    setSocialInput("");
+    await refreshLeaderboard();
+  }
+
+  async function sendReaction(userId: string, reactionType: SocialReactionType) {
+    const response = await api.social.react(userId, reactionType);
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+    setNotice(response.data?.created ? "心意已送达。" : "今天已经送过这份心意了。");
+    await refreshLeaderboard();
+  }
+
+  async function leaveSocialGroup(kind: "squad" | "company") {
+    const response = await api.social.leaveGroup(kind);
+    if (response.error) {
+      setMessage(response.error.message);
+      return;
+    }
+    setSocial(response.data);
+    if (leaderboardScope === kind) {
+      await refreshLeaderboard();
+    }
   }
 
   const elapsedLabel = activeSession ? formatDuration(activeSession.startedAt, clockNow) : "00:00";
@@ -859,7 +930,23 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
         ) : null}
 
         {selectedTab === "rankings" ? (
+          <>
           <View style={styles.panel}>
+            <Text style={styles.kicker}>排行范围</Text>
+            <View style={styles.segmented}>
+              {leaderboardScopes.map((scope) => (
+                <Pressable
+                  key={scope.value}
+                  accessibilityRole="button"
+                  onPress={() => void selectLeaderboardScope(scope.value)}
+                  style={[styles.segment, leaderboardScope === scope.value && styles.segmentActive]}
+                >
+                  <Text style={[styles.segmentText, leaderboardScope === scope.value && styles.segmentTextActive]}>
+                    {scope.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
             <View style={styles.segmented}>
               {leaderboardWindows.map((window) => (
                 <Pressable
@@ -892,9 +979,27 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                       {item.equippedBadge ?? item.equippedTitle ?? "认真摸鱼中"}
                     </Text>
                   </View>
-                  <Text style={styles.rankScore}>{item.score}</Text>
+                  <View style={styles.rankActions}>
+                    <Text style={styles.rankScore}>{item.score}</Text>
+                    {item.userId && item.userId !== leaderboard.currentUser?.userId ? (
+                      <View style={styles.reactionRow}>
+                        <Pressable accessibilityRole="button" onPress={() => void sendReaction(item.userId!, "tissue")} style={styles.reactionButton}>
+                          <Text style={styles.reactionText}>纸 {item.reactions.tissue}</Text>
+                        </Pressable>
+                        <Pressable accessibilityRole="button" onPress={() => void sendReaction(item.userId!, "like")} style={styles.reactionButton}>
+                          <Text style={styles.reactionText}>赞 {item.reactions.like}</Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
               ))
+            ) : leaderboard?.suppressed ? (
+              <Text style={styles.emptyText}>
+                {leaderboard.suppressionReason === "COMPANY_TOO_SMALL"
+                  ? "公司榜至少需要 3 位成员，避免一眼认出谁是谁。"
+                  : "加入对应的小队或公司后，这里才会开始热闹。"}
+              </Text>
             ) : (
               <Text style={styles.emptyText}>榜单还空着，第一位休息的人会获得心理优势。</Text>
             )}
@@ -907,6 +1012,42 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
               </View>
             ) : null}
           </View>
+          <View style={styles.panel}>
+            <Text style={styles.kicker}>轻社交</Text>
+            <Text style={styles.sectionTitle}>好友码 {social?.friendCode ?? "加载中"}</Text>
+            <Text style={styles.smallCopy}>没有私信，没有动态，只有排行和一点善意。</Text>
+            <TextInput
+              accessibilityLabel="好友码、小队名或邀请码"
+              autoCapitalize="characters"
+              onChangeText={setSocialInput}
+              placeholder="输入好友码；小队名；或 #邀请码"
+              placeholderTextColor="#8a8176"
+              style={styles.socialInput}
+              value={socialInput}
+            />
+            <View style={styles.socialActions}>
+              <ActionButton label="加好友" disabled={loading || !socialInput.trim()} onPress={() => submitSocialAction("friend")} />
+              <ActionButton label="小队：新建/加入" disabled={loading || !socialInput.trim() || Boolean(social?.squad)} onPress={() => submitSocialAction("squad")} dark />
+              <ActionButton label="公司：新建/加入" disabled={loading || !socialInput.trim() || Boolean(social?.company)} onPress={() => submitSocialAction("company")} />
+            </View>
+            <Text style={styles.kickerSection}>好友 {social?.friends.length ?? 0}</Text>
+            {social?.friends.map((friend) => (
+              <Text key={friend.userId} style={styles.rowMeta}>{friend.displayName}</Text>
+            ))}
+            {social?.squad ? (
+              <>
+                <Text style={styles.accentMeta}>小队：{social.squad.name} · #{social.squad.inviteCode} · {social.squad.memberCount} 人</Text>
+                <ActionButton label="离开小队" onPress={() => leaveSocialGroup("squad")} dark />
+              </>
+            ) : null}
+            {social?.company ? (
+              <>
+                <Text style={styles.accentMeta}>公司：{social.company.name} · 匿名身份 {social.company.anonymousAlias} · #{social.company.inviteCode}</Text>
+                <ActionButton label="离开公司" onPress={() => leaveSocialGroup("company")} dark />
+              </>
+            ) : null}
+          </View>
+          </>
         ) : null}
 
         {selectedTab === "profile" ? (
@@ -1484,6 +1625,12 @@ const leaderboardWindows: Array<{ value: LeaderboardWindow; label: string }> = [
   { value: "monthly", label: "月榜" },
   { value: "all_time", label: "总榜" }
 ];
+const leaderboardScopes: Array<{ value: LeaderboardScope; label: string }> = [
+  { value: "global", label: "全站" },
+  { value: "friends", label: "好友" },
+  { value: "squad", label: "小队" },
+  { value: "company", label: "公司" }
+];
 
 const activityCategories: ActivityCategory[] = [
   "rest",
@@ -1766,6 +1913,22 @@ const styles = StyleSheet.create({
   },
   rankNo: { color: "#1f8f62", fontSize: 17, fontWeight: "900", width: 44 },
   rankScore: { color: "#232323", fontSize: 20, fontWeight: "900" },
+  rankActions: { alignItems: "flex-end", gap: 6 },
+  reactionRow: { flexDirection: "row", gap: 5 },
+  reactionButton: { backgroundColor: "#eee8df", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 5 },
+  reactionText: { color: "#47413a", fontSize: 11, fontWeight: "900" },
+  socialInput: {
+    backgroundColor: "#f4f0e8",
+    borderColor: "#d8d0c4",
+    borderRadius: 8,
+    borderWidth: 1,
+    color: "#232323",
+    fontSize: 14,
+    marginTop: 14,
+    minHeight: 46,
+    paddingHorizontal: 12
+  },
+  socialActions: { flexDirection: "row", gap: 7 },
   myRank: { backgroundColor: "#232323", borderRadius: 8, marginTop: 14, padding: 13 },
   myRankText: { color: "#ffffff", fontSize: 14, fontWeight: "900" },
   profileHeader: {
