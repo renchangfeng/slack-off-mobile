@@ -6,6 +6,7 @@ export type ActivityCompleteResult = components["schemas"]["ActivityCompleteResu
 export type ActivityCatalog = components["schemas"]["ActivityCatalog"];
 export type ActivityCatalogItem = components["schemas"]["ActivityCatalogItem"];
 export type ActivityHistory = components["schemas"]["ActivityHistory"];
+export type ActivityInteractionProgress = components["schemas"]["ActivityInteractionProgress"];
 export type ActivityCategory = ActivityCatalog["categories"][number];
 
 export class ActivityApi {
@@ -27,7 +28,16 @@ export class ActivityApi {
     return this.client.get<ActivityHistory>(`/v1/activities/history?limit=${limit}`);
   }
 
-  complete(assignmentId: string): Promise<ApiEnvelope<ActivityCompleteResult>> {
-    return this.client.post<ActivityCompleteResult>(`/v1/activities/${assignmentId}/complete`);
+  complete(
+    assignmentId: string,
+    interaction: ActivityInteractionProgress
+  ): Promise<ApiEnvelope<ActivityCompleteResult>> {
+    return this.client.post<ActivityCompleteResult>(`/v1/activities/${assignmentId}/complete`, {
+      interaction
+    });
+  }
+
+  skip(assignmentId: string): Promise<ApiEnvelope<ActivityAssignment>> {
+    return this.client.post<ActivityAssignment>(`/v1/activities/${assignmentId}/skip`);
   }
 }

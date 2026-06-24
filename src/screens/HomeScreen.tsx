@@ -1,5 +1,13 @@
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction
+} from "react";
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -22,7 +30,8 @@ import {
   type ActivityAssignment,
   type ActivityCatalog,
   type ActivityCategory,
-  type ActivityCompleteResult
+  type ActivityCompleteResult,
+  type ActivityInteractionProgress
 } from "../api/activities";
 import {
   BeanApi,
@@ -103,6 +112,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   >([]);
   const [activityAssignment, setActivityAssignment] = useState<ActivityAssignment | null>(null);
   const [activityResult, setActivityResult] = useState<ActivityCompleteResult | null>(null);
+  const [activityProgress, setActivityProgress] = useState<ActivityInteractionProgress>({});
   const [activityMessage, setActivityMessage] = useState<string | null>(null);
   const [activityUnavailable, setActivityUnavailable] = useState(false);
   const [activityCategory, setActivityCategory] = useState<ActivityCategory | null>(null);
@@ -112,12 +122,14 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
   const [leaderboardWindow, setLeaderboardWindow] = useState<LeaderboardWindow>("daily");
   const [leaderboardScope, setLeaderboardScope] = useState<LeaderboardScope>("global");
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [social, setSocial] = useState<SocialSummary | null>(null);
   const [socialInput, setSocialInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
+  const leaderboardRequestId = useRef(0);
 
   const refreshProgression = useCallback(async () => {
     const response = await api.progression.getSummary();
@@ -155,18 +167,22 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   }, [api.achievements]);
 
   const refreshLeaderboard = useCallback(
-    async (
-      window: LeaderboardWindow = leaderboardWindow,
-      scope: LeaderboardScope = leaderboardScope
-    ) => {
+    async (window: LeaderboardWindow, scope: LeaderboardScope) => {
+      const requestId = leaderboardRequestId.current + 1;
+      leaderboardRequestId.current = requestId;
+      setLeaderboardLoading(true);
       const response = await api.leaderboards.getLeaderboard(window, scope);
+      if (requestId !== leaderboardRequestId.current) {
+        return;
+      }
+      setLeaderboardLoading(false);
       if (response.error) {
         setMessage(response.error.message);
         return;
       }
       setLeaderboard(response.data);
     },
-    [api.leaderboards, leaderboardScope, leaderboardWindow]
+    [api.leaderboards]
   );
 
   const refreshSocial = useCallback(async () => {
@@ -191,7 +207,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
       refreshProgression(),
       refreshBeans(),
       refreshAchievements(),
-      refreshLeaderboard(),
+      refreshLeaderboard("daily", "global"),
       refreshSocial()
     ]);
     setLoading(false);
@@ -223,6 +239,10 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     }
   }, [activityCategory, selectedTab]);
 
+  useEffect(() => {
+    setActivityProgress({});
+  }, [activityAssignment?.assignmentId]);
+
   async function refreshActivityData(category: ActivityCategory | null = activityCategory) {
     const [catalogResponse, historyResponse] = await Promise.all([
       api.activities.getCatalog(category ?? undefined),
@@ -245,7 +265,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
       refreshProgression(),
       refreshBeans(),
       refreshAchievements(),
-      refreshLeaderboard()
+      refreshLeaderboard(leaderboardWindow, leaderboardScope)
     ]);
   }
 
@@ -381,6 +401,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     }
     setActivityUnavailable(false);
     setActivityAssignment(response.data);
+    setActivityProgress({});
     setNotice("任务已领取。完成后回到活动页领取奖励。");
     await refreshActivityData();
   }
@@ -393,7 +414,12 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     setMessage(null);
     setNotice(null);
     setActivityMessage(null);
-    const response = await api.activities.complete(activityAssignment.assignmentId);
+    if (!isActivityInteractionComplete(activityAssignment, activityProgress)) {
+      setLoading(false);
+      setActivityMessage("先完成上面的互动步骤，再领取奖励。");
+      return;
+    }
+    const response = await api.activities.complete(activityAssignment.assignmentId, activityProgress);
     setLoading(false);
     if (response.error) {
       setActivityMessage(response.error.message);
@@ -405,13 +431,32 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     }
     setActivityResult(response.data);
     setActivityAssignment(response.data.assignment);
+    setActivityProgress({});
     setNotice(
       response.data.reward.drawChancesGranted > 0
         ? `活动完成，获得 ${response.data.reward.drawChancesGranted} 次抽豆机会。`
-        : "活动完成，奖励和今日目标已经更新。"
+        : response.data.feedback
     );
     enqueueAchievementUnlocks(response.data.reward.achievementsUnlocked);
     await Promise.all([refreshAfterReward(), refreshActivityData()]);
+  }
+
+  async function skipActivity() {
+    if (!activityAssignment) return;
+    setLoading(true);
+    setMessage(null);
+    setNotice(null);
+    setActivityMessage(null);
+    const response = await api.activities.skip(activityAssignment.assignmentId);
+    setLoading(false);
+    if (response.error) {
+      setActivityMessage(response.error.message);
+      return;
+    }
+    setActivityAssignment(response.data);
+    setActivityProgress({});
+    setNotice("这次任务已放弃，不发奖励。换一个更顺眼的就好。");
+    await refreshActivityData();
   }
 
   async function equipCosmetic(id: string) {
@@ -423,15 +468,19 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
       setMessage(response.error.message);
       return;
     }
-    await Promise.all([refreshAchievements(), refreshLeaderboard()]);
+    await Promise.all([refreshAchievements(), refreshLeaderboard(leaderboardWindow, leaderboardScope)]);
   }
 
   async function selectLeaderboardWindow(window: LeaderboardWindow) {
+    if (window === leaderboardWindow || leaderboardLoading) return;
+    setMessage(null);
     setLeaderboardWindow(window);
     await refreshLeaderboard(window, leaderboardScope);
   }
 
   async function selectLeaderboardScope(scope: LeaderboardScope) {
+    if (scope === leaderboardScope || leaderboardLoading) return;
+    setMessage(null);
     setLeaderboardScope(scope);
     await refreshLeaderboard(leaderboardWindow, scope);
   }
@@ -455,7 +504,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     }
     setSocial(response.data);
     setSocialInput("");
-    await refreshLeaderboard();
+    await refreshLeaderboard(leaderboardWindow, leaderboardScope);
   }
 
   async function sendReaction(userId: string, reactionType: SocialReactionType) {
@@ -465,7 +514,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
       return;
     }
     setNotice(response.data?.created ? "心意已送达。" : "今天已经送过这份心意了。");
-    await refreshLeaderboard();
+    await refreshLeaderboard(leaderboardWindow, leaderboardScope);
   }
 
   async function leaveSocialGroup(kind: "squad" | "company") {
@@ -476,7 +525,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     }
     setSocial(response.data);
     if (leaderboardScope === kind) {
-      await refreshLeaderboard();
+      await refreshLeaderboard(leaderboardWindow, leaderboardScope);
     }
   }
 
@@ -497,6 +546,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     drawChances: beanCollection?.drawChances ?? 0,
     activityStatus: activityAssignment?.status,
     activityUnavailable,
+    serverNextActions: progression?.nextActions ?? [],
     hasProgress: Boolean(
       lastResult ||
         activityResult ||
@@ -505,6 +555,9 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
         activityAssignment
     )
   });
+  const activityCanComplete = activityAssignment
+    ? isActivityInteractionComplete(activityAssignment, activityProgress)
+    : false;
   const tabMeta = getDashboardTab(selectedTab);
 
   async function runNextStep() {
@@ -528,8 +581,47 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
       await completeActivity();
       return;
     }
+    if (nextStep.kind === "claim-daily-reward") {
+      setSelectedTab("home");
+      await claimProgressionReward("daily");
+      return;
+    }
+    if (nextStep.kind === "claim-weekly-reward") {
+      setSelectedTab("home");
+      await claimProgressionReward("weekly");
+      return;
+    }
     setSelectedTab("activities");
     await randomActivity();
+  }
+
+  async function runDailyGoalAction(code: string) {
+    if (code === "check_in") {
+      setSelectedTab("home");
+      if (activeSession) {
+        await finishSession();
+      } else {
+        await startSession();
+      }
+      return;
+    }
+    if (code === "activity") {
+      setSelectedTab("activities");
+      if (activityAssignment?.status === "active") {
+        await completeActivity();
+      } else {
+        await randomActivity();
+      }
+      return;
+    }
+    if (code === "bean_draw") {
+      setSelectedTab("beans");
+      if ((beanCollection?.drawChances ?? 0) > 0) {
+        await drawBean();
+      } else {
+        setNotice("还差一点抽豆进度。先完成打卡或摸鱼任务，机会就会自己冒出来。");
+      }
+    }
   }
 
   return (
@@ -548,7 +640,9 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
         {selectedTab === "home" ? (
           <>
             <ProgressionOverview progression={progression} />
-            {progressionClaim ? <ProgressionClaimResultPanel result={progressionClaim} /> : null}
+            {progressionClaim ? (
+              <ProgressionClaimResultPanel result={progressionClaim} nextStep={nextStep} />
+            ) : null}
             <DailyGoals
               progression={progression}
               loading={loading}
@@ -587,9 +681,15 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
               <Text style={styles.darkKicker}>下一步</Text>
               <Text style={styles.nextStepTitle}>{nextStep.title}</Text>
               <Text style={styles.nextStepCopy}>{nextStep.description}</Text>
+              <RewardPreview preview={nextStep.rewardPreview ?? null} dark />
               <ActionButton label={nextStep.actionLabel} onPress={runNextStep} disabled={loading} />
             </View>
-            {lastResult ? <CheckInResult result={lastResult} /> : null}
+            <DailyRhythmChecklist
+              progression={progression}
+              loading={loading}
+              onRunGoal={runDailyGoalAction}
+            />
+            {lastResult ? <CheckInResult result={lastResult} nextStep={nextStep} /> : null}
           </>
         ) : null}
 
@@ -631,18 +731,34 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                     {activityAssignment.rewardPreview.score} 分 · 进度 +
                     {activityAssignment.rewardPreview.drawProgress}
                   </Text>
-                  <Text style={styles.helperText}>
-                    先在现实里完成它，再点击下面的按钮领取奖励。
-                  </Text>
+                  <ActivityInteractionRunner
+                    assignment={activityAssignment}
+                    progress={activityProgress}
+                    onChange={setActivityProgress}
+                  />
                   <ActionButton
                     label={
                       activityAssignment.status === "active"
-                        ? "我做完了，领取奖励"
+                        ? activityCanComplete
+                          ? "领取互动奖励"
+                          : "先完成互动步骤"
                         : "本次活动已完成"
                     }
-                    disabled={loading || activityAssignment.status !== "active"}
+                    disabled={
+                      loading ||
+                      activityAssignment.status !== "active" ||
+                      !activityCanComplete
+                    }
                     onPress={completeActivity}
                   />
+                  {activityAssignment.status === "active" ? (
+                    <ActionButton
+                      label="不感兴趣，换一个"
+                      dark
+                      disabled={loading}
+                      onPress={skipActivity}
+                    />
+                  ) : null}
                 </>
               ) : (
                 <>
@@ -659,6 +775,8 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                     {activityResult.reward.drawProgress} · 抽豆机会 +
                     {activityResult.reward.drawChancesGranted}
                   </Text>
+                  <Text style={styles.helperText}>{activityResult.feedback}</Text>
+                  <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
                 </View>
               ) : null}
               {activityMessage ? <Text style={styles.message}>{activityMessage}</Text> : null}
@@ -831,6 +949,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                       ? `重复收藏，数量增加并获得 ${beanDrawResult.fragmentsGranted} 个碎片。`
                       : "新豆入袋，图鉴完成度已更新。"}
                   </Text>
+                  <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
                 </View>
               ) : null}
             </View>
@@ -969,48 +1088,54 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                 </Pressable>
               ))}
             </View>
-            {leaderboard?.items.length ? (
-              leaderboard.items.map((item) => (
-                <View key={`${item.rank}-${item.userId}`} style={styles.rankRow}>
-                  <Text style={styles.rankNo}>#{item.rank}</Text>
-                  <View style={styles.flex}>
-                    <Text style={styles.rowTitle}>{item.displayName}</Text>
-                    <Text style={styles.rowMeta}>
-                      {item.equippedBadge ?? item.equippedTitle ?? "认真摸鱼中"}
+            <View style={styles.leaderboardBody}>
+              {leaderboard?.items.length ? (
+                leaderboard.items.map((item) => (
+                  <View key={`${item.rank}-${item.userId}`} style={styles.rankRow}>
+                    <Text style={styles.rankNo}>#{item.rank}</Text>
+                    <View style={styles.flex}>
+                      <Text style={styles.rowTitle}>{item.displayName}</Text>
+                      <Text style={styles.rowMeta}>
+                        {item.equippedBadge ?? item.equippedTitle ?? "认真摸鱼中"}
+                      </Text>
+                    </View>
+                    <View style={styles.rankActions}>
+                      <Text style={styles.rankScore}>{item.score}</Text>
+                      {item.userId && item.userId !== leaderboard.currentUser?.userId ? (
+                        <View style={styles.reactionRow}>
+                          <Pressable accessibilityRole="button" onPress={() => void sendReaction(item.userId!, "tissue")} style={styles.reactionButton}>
+                            <Text style={styles.reactionText}>纸 {item.reactions.tissue}</Text>
+                          </Pressable>
+                          <Pressable accessibilityRole="button" onPress={() => void sendReaction(item.userId!, "like")} style={styles.reactionButton}>
+                            <Text style={styles.reactionText}>赞 {item.reactions.like}</Text>
+                          </Pressable>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.leaderboardEmptyState}>
+                  <Text style={styles.emptyText}>
+                    {leaderboard?.suppressed
+                      ? leaderboard.suppressionReason === "COMPANY_TOO_SMALL"
+                        ? "公司榜至少需要 3 位成员，避免一眼认出谁是谁。"
+                        : "加入对应的小队或公司后，这里才会开始热闹。"
+                      : "榜单还空着，第一位休息的人会获得心理优势。"}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.myRankSlot}>
+                {leaderboard?.currentUser ? (
+                  <View style={styles.myRank}>
+                    <Text style={styles.myRankText}>
+                      你现在第 {leaderboard.currentUser.rank} 名 ·{" "}
+                      {leaderboard.currentUser.score} 分
                     </Text>
                   </View>
-                  <View style={styles.rankActions}>
-                    <Text style={styles.rankScore}>{item.score}</Text>
-                    {item.userId && item.userId !== leaderboard.currentUser?.userId ? (
-                      <View style={styles.reactionRow}>
-                        <Pressable accessibilityRole="button" onPress={() => void sendReaction(item.userId!, "tissue")} style={styles.reactionButton}>
-                          <Text style={styles.reactionText}>纸 {item.reactions.tissue}</Text>
-                        </Pressable>
-                        <Pressable accessibilityRole="button" onPress={() => void sendReaction(item.userId!, "like")} style={styles.reactionButton}>
-                          <Text style={styles.reactionText}>赞 {item.reactions.like}</Text>
-                        </Pressable>
-                      </View>
-                    ) : null}
-                  </View>
-                </View>
-              ))
-            ) : leaderboard?.suppressed ? (
-              <Text style={styles.emptyText}>
-                {leaderboard.suppressionReason === "COMPANY_TOO_SMALL"
-                  ? "公司榜至少需要 3 位成员，避免一眼认出谁是谁。"
-                  : "加入对应的小队或公司后，这里才会开始热闹。"}
-              </Text>
-            ) : (
-              <Text style={styles.emptyText}>榜单还空着，第一位休息的人会获得心理优势。</Text>
-            )}
-            {leaderboard?.currentUser ? (
-              <View style={styles.myRank}>
-                <Text style={styles.myRankText}>
-                  你现在第 {leaderboard.currentUser.rank} 名 ·{" "}
-                  {leaderboard.currentUser.score} 分
-                </Text>
+                ) : null}
               </View>
-            ) : null}
+            </View>
           </View>
           <View style={styles.panel}>
             <Text style={styles.kicker}>轻社交</Text>
@@ -1303,7 +1428,13 @@ function GoalPeriodPanel({
   );
 }
 
-function ProgressionClaimResultPanel({ result }: { result: ProgressionClaimResult }) {
+function ProgressionClaimResultPanel({
+  result,
+  nextStep
+}: {
+  result: ProgressionClaimResult;
+  nextStep: ReturnType<typeof deriveGameplayStep>;
+}) {
   return (
     <View style={[styles.resultPanel, result.progression.leveledUp && styles.levelUpPanel]}>
       <Text style={styles.kicker}>
@@ -1320,6 +1451,67 @@ function ProgressionClaimResultPanel({ result }: { result: ProgressionClaimResul
         得分 +{result.reward.score} · 抽豆进度 +{result.reward.drawProgress} · 机会 +
         {result.reward.drawChancesGranted}
       </Text>
+      <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
+    </View>
+  );
+}
+
+function DailyRhythmChecklist({
+  progression,
+  loading,
+  onRunGoal
+}: {
+  progression: ProgressionSummary | null;
+  loading: boolean;
+  onRunGoal: (code: string) => void | Promise<void>;
+}) {
+  const goals = progression?.dailyGoals.goals ?? [];
+  const incompleteGoals = goals.filter((goal) => !goal.completed);
+
+  return (
+    <View style={styles.panel}>
+      <View style={styles.rowBetween}>
+        <View style={styles.flex}>
+          <Text style={styles.kicker}>今天还能做什么</Text>
+          <Text style={styles.sectionTitle}>
+            {incompleteGoals.length ? "把闭环补完整" : "今天已经很会休息"}
+          </Text>
+        </View>
+        <Text style={styles.goalCount}>
+          {progression?.dailyGoals.completed ?? 0}/{progression?.dailyGoals.total ?? 3}
+        </Text>
+      </View>
+      {incompleteGoals.length ? (
+        incompleteGoals.map((goal) => (
+          <View key={goal.code} style={styles.rhythmRow}>
+            <View style={styles.flex}>
+              <Text style={styles.rowTitle}>{goal.title}</Text>
+              <Text style={styles.rowMeta}>{goal.description}</Text>
+              <ProgressBar
+                value={goal.current}
+                max={goal.target}
+                color="#d4a838"
+                trackColor="#e2dbd0"
+              />
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              disabled={loading}
+              onPress={() => void onRunGoal(goal.code)}
+              style={({ pressed }) => [
+                styles.inlineActionButton,
+                (pressed || loading) && styles.buttonMuted
+              ]}
+            >
+              <Text style={styles.inlineActionText}>{goalActionLabel(goal.code)}</Text>
+            </Pressable>
+          </View>
+        ))
+      ) : (
+        <Text style={styles.emptyText}>
+          今日目标已经完成，领完奖励后就可以去抽豆、看榜，或者什么都不做。
+        </Text>
+      )}
     </View>
   );
 }
@@ -1336,6 +1528,168 @@ function GoalBanner({
       <Text style={styles.rowMeta}>
         {goal?.completed ? "今天已经完成，可以继续，但不用勉强。" : goal?.description}
       </Text>
+    </View>
+  );
+}
+
+function ActivityInteractionRunner({
+  assignment,
+  progress,
+  onChange
+}: {
+  assignment: ActivityAssignment;
+  progress: ActivityInteractionProgress;
+  onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>;
+}) {
+  const steps = assignment.interaction.steps;
+  const completed = steps.filter((step) => isActivityStepComplete(step, progress)).length;
+  return (
+    <View style={styles.interactionPanel}>
+      <View style={styles.rowBetween}>
+        <View style={styles.flex}>
+          <Text style={styles.kicker}>互动流程</Text>
+          <Text style={styles.rowTitle}>
+            {completed}/{steps.length} 步 · 约 {assignment.interaction.estimatedSeconds} 秒
+          </Text>
+        </View>
+        <Text style={completed === steps.length ? styles.completedMark : styles.progressValue}>
+          {completed === steps.length ? "可领取" : "进行中"}
+        </Text>
+      </View>
+      {steps.map((step, index) => (
+        <ActivityStepCard
+          key={step.id}
+          index={index}
+          step={step}
+          progress={progress}
+          onChange={onChange}
+        />
+      ))}
+    </View>
+  );
+}
+
+function ActivityStepCard({
+  index,
+  step,
+  progress,
+  onChange
+}: {
+  index: number;
+  step: ActivityAssignment["interaction"]["steps"][number];
+  progress: ActivityInteractionProgress;
+  onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>;
+}) {
+  const completed = isActivityStepComplete(step, progress);
+  const selectedChoice = step.options?.find(
+    (option) => option.id === progress.choiceAnswers?.[step.id]
+  );
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [miniTapCount, setMiniTapCount] = useState(0);
+
+  useEffect(() => {
+    if (remaining === null || remaining <= 0 || completed) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setRemaining((current) => {
+        const next = Math.max(0, (current ?? 0) - 1);
+        if (next === 0) {
+          markTimerStep(onChange, step.id, step.durationSeconds ?? 0);
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [completed, onChange, remaining, step.durationSeconds, step.id]);
+
+  function startTimer() {
+    setRemaining(step.durationSeconds ?? 0);
+  }
+
+  function tapMiniGame() {
+    const next = miniTapCount + 1;
+    setMiniTapCount(next);
+    if (next >= 5) {
+      markMiniGameStep(onChange, step.id, next);
+    }
+  }
+
+  return (
+    <View style={[styles.interactionStep, completed && styles.interactionStepDone]}>
+      <View style={styles.rowBetween}>
+        <Text style={styles.kicker}>第 {index + 1} 步 · {activityStepTypeLabel(step.type)}</Text>
+        <Text style={completed ? styles.completedMark : styles.pendingMark}>
+          {completed ? "完成" : "待完成"}
+        </Text>
+      </View>
+      <Text style={styles.rowTitle}>{step.title}</Text>
+      <Text style={styles.rowMeta}>{step.description}</Text>
+      {step.type === "ack" ? (
+        <ActionButton
+          label={completed ? "已确认" : "我照做了"}
+          disabled={completed}
+          onPress={() => markAckStep(onChange, step.id)}
+        />
+      ) : null}
+      {step.type === "timer" ? (
+        <>
+          <Text style={styles.timerMini}>
+            {completed
+              ? "00"
+              : remaining === null
+                ? `${step.durationSeconds ?? 0}`
+                : `${remaining.toString().padStart(2, "0")}`}
+            s
+          </Text>
+          <ActionButton
+            label={completed ? "倒计时完成" : remaining === null ? "开始倒计时" : "倒计时中"}
+            disabled={completed || remaining !== null}
+            onPress={startTimer}
+          />
+        </>
+      ) : null}
+      {step.type === "choice" ? (
+        <>
+          <View style={styles.choiceGrid}>
+            {step.options?.map((option) => {
+              const selected = selectedChoice?.id === option.id;
+              return (
+                <Pressable
+                  key={option.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => markChoiceStep(onChange, step.id, option.id)}
+                  style={[styles.choiceButton, selected && styles.choiceButtonSelected]}
+                >
+                  <Text
+                    style={[
+                      styles.choiceButtonText,
+                      selected && styles.choiceButtonTextSelected
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {selectedChoice ? <Text style={styles.helperText}>{selectedChoice.resultText}</Text> : null}
+        </>
+      ) : null}
+      {step.type === "mini_game" ? (
+        <>
+          <Text style={styles.helperText}>
+            {step.gameCode ?? "mini_game"} · {step.requiredResult ?? "完成即可"}
+          </Text>
+          <Text style={styles.timerMini}>{Math.min(5, miniTapCount)}/5</Text>
+          <ActionButton
+            label={completed ? "小游戏通过" : "快速点击"}
+            disabled={completed}
+            onPress={tapMiniGame}
+          />
+        </>
+      ) : null}
     </View>
   );
 }
@@ -1359,7 +1713,13 @@ function LifetimeStats({ progression }: { progression: ProgressionSummary | null
   );
 }
 
-function CheckInResult({ result }: { result: CheckInFinishResult }) {
+function CheckInResult({
+  result,
+  nextStep
+}: {
+  result: CheckInFinishResult;
+  nextStep: ReturnType<typeof deriveGameplayStep>;
+}) {
   return (
     <View style={styles.resultPanel}>
       <Text style={styles.kicker}>本次结算</Text>
@@ -1369,6 +1729,30 @@ function CheckInResult({ result }: { result: CheckInFinishResult }) {
       <Text style={styles.copy}>
         得分 +{result.reward.score} · 抽豆进度 +{result.reward.drawProgress} · 机会 +
         {result.reward.drawChancesGranted ?? 0}
+      </Text>
+      <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
+    </View>
+  );
+}
+
+function RewardPreview({
+  preview,
+  dark = false
+}: {
+  preview: { score: number; drawProgress: number; drawChances: number } | null;
+  dark?: boolean;
+}) {
+  if (!preview) return null;
+  const items = [
+    preview.score > 0 ? `+${preview.score} 分` : null,
+    preview.drawProgress > 0 ? `抽豆进度 +${preview.drawProgress}` : null,
+    preview.drawChances > 0 ? `${preview.drawChances} 次机会` : null
+  ].filter(Boolean);
+  if (!items.length) return null;
+  return (
+    <View style={[styles.rewardPreview, dark && styles.rewardPreviewDark]}>
+      <Text style={[styles.rewardPreviewText, dark && styles.rewardPreviewTextDark]}>
+        预计收获：{items.join(" · ")}
       </Text>
     </View>
   );
@@ -1576,6 +1960,101 @@ function achievementProgressLabel(progress: {
   return `${progress.current}/${progress.target}`;
 }
 
+function goalActionLabel(code: string): string {
+  if (code === "check_in") return "去打卡";
+  if (code === "activity") return "去活动";
+  if (code === "bean_draw") return "去抽豆";
+  return "去完成";
+}
+
+function activityStepTypeLabel(type: string): string {
+  if (type === "timer") return "倒计时";
+  if (type === "choice") return "选择";
+  if (type === "mini_game") return "小游戏";
+  return "确认";
+}
+
+function isActivityInteractionComplete(
+  assignment: ActivityAssignment,
+  progress: ActivityInteractionProgress
+): boolean {
+  return assignment.interaction.steps
+    .filter((step) => step.required)
+    .every((step) => isActivityStepComplete(step, progress));
+}
+
+function isActivityStepComplete(
+  step: ActivityAssignment["interaction"]["steps"][number],
+  progress: ActivityInteractionProgress
+): boolean {
+  if (step.type === "ack") {
+    return Boolean(progress.completedStepIds?.includes(step.id));
+  }
+  if (step.type === "timer") {
+    return (progress.timerSeconds?.[step.id] ?? 0) >= (step.durationSeconds ?? 0);
+  }
+  if (step.type === "choice") {
+    const answer = progress.choiceAnswers?.[step.id];
+    return Boolean(answer && (!step.correctOptionId || answer === step.correctOptionId));
+  }
+  if (step.type === "mini_game") {
+    return progress.miniGameResults?.[step.id]?.passed === true;
+  }
+  return false;
+}
+
+function markAckStep(
+  onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>,
+  stepId: string
+) {
+  onChange((current) => ({
+    ...current,
+    completedStepIds: Array.from(new Set([...(current.completedStepIds ?? []), stepId]))
+  }));
+}
+
+function markTimerStep(
+  onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>,
+  stepId: string,
+  seconds: number
+) {
+  onChange((current) => ({
+    ...current,
+    timerSeconds: {
+      ...(current.timerSeconds ?? {}),
+      [stepId]: seconds
+    }
+  }));
+}
+
+function markChoiceStep(
+  onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>,
+  stepId: string,
+  optionId: string
+) {
+  onChange((current) => ({
+    ...current,
+    choiceAnswers: {
+      ...(current.choiceAnswers ?? {}),
+      [stepId]: optionId
+    }
+  }));
+}
+
+function markMiniGameStep(
+  onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>,
+  stepId: string,
+  score: number
+) {
+  onChange((current) => ({
+    ...current,
+    miniGameResults: {
+      ...(current.miniGameResults ?? {}),
+      [stepId]: { passed: true, score }
+    }
+  }));
+}
+
 function activityCategoryLabel(category: string): string {
   return (
     {
@@ -1722,6 +2201,16 @@ const styles = StyleSheet.create({
   actionButtonDark: { backgroundColor: "#232323" },
   actionButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "900", textAlign: "center" },
   buttonMuted: { opacity: 0.42 },
+  inlineActionButton: {
+    alignItems: "center",
+    backgroundColor: "#232323",
+    borderRadius: 8,
+    justifyContent: "center",
+    minHeight: 40,
+    minWidth: 74,
+    paddingHorizontal: 12
+  },
+  inlineActionText: { color: "#ffffff", fontSize: 13, fontWeight: "900" },
   nextStepPanel: {
     backgroundColor: "#232323",
     borderRadius: 8,
@@ -1730,6 +2219,22 @@ const styles = StyleSheet.create({
   },
   nextStepTitle: { color: "#ffffff", fontSize: 21, fontWeight: "900", marginTop: 7 },
   nextStepCopy: { color: "#d5cec4", fontSize: 14, lineHeight: 21, marginTop: 7 },
+  rewardPreview: {
+    alignSelf: "flex-start",
+    backgroundColor: "#eef7f3",
+    borderColor: "#b7d9c8",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8
+  },
+  rewardPreviewDark: {
+    backgroundColor: "#35322e",
+    borderColor: "#6d655b"
+  },
+  rewardPreviewText: { color: "#1f8f62", fontSize: 12, fontWeight: "900" },
+  rewardPreviewTextDark: { color: "#f0c95a" },
   resultPanel: {
     backgroundColor: "#e7f4ed",
     borderColor: "#1f8f62",
@@ -1745,6 +2250,50 @@ const styles = StyleSheet.create({
     marginTop: 14,
     padding: 14
   },
+  interactionPanel: {
+    backgroundColor: "#f7f2e8",
+    borderColor: "#d8d0c4",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 12
+  },
+  interactionStep: {
+    backgroundColor: "#fffdf8",
+    borderColor: "#e2dbd0",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+    padding: 12
+  },
+  interactionStepDone: {
+    backgroundColor: "#edf8f2",
+    borderColor: "#82b99f"
+  },
+  timerMini: {
+    color: "#232323",
+    fontSize: 26,
+    fontWeight: "900",
+    marginTop: 10
+  },
+  choiceGrid: {
+    gap: 8,
+    marginTop: 12
+  },
+  choiceButton: {
+    borderColor: "#cfc7bb",
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 42,
+    justifyContent: "center",
+    paddingHorizontal: 12
+  },
+  choiceButtonSelected: {
+    backgroundColor: "#232323",
+    borderColor: "#232323"
+  },
+  choiceButtonText: { color: "#625b52", fontSize: 13, fontWeight: "900" },
+  choiceButtonTextSelected: { color: "#ffffff" },
   categoryRow: { gap: 8, paddingTop: 14 },
   categoryChip: {
     alignItems: "center",
@@ -1788,6 +2337,17 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 10,
     minHeight: 62,
+    padding: 12
+  },
+  rhythmRow: {
+    alignItems: "center",
+    borderColor: "#e2dbd0",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 10,
+    minHeight: 72,
     padding: 12
   },
   listRowCompleted: { backgroundColor: "#edf8f2", borderColor: "#82b99f" },
@@ -1902,6 +2462,13 @@ const styles = StyleSheet.create({
   segmentActive: { backgroundColor: "#232323" },
   segmentText: { color: "#625b52", fontSize: 13, fontWeight: "900" },
   segmentTextActive: { color: "#ffffff" },
+  leaderboardBody: {
+    minHeight: 156
+  },
+  leaderboardEmptyState: {
+    justifyContent: "center",
+    minHeight: 78
+  },
   rankRow: {
     alignItems: "center",
     borderTopColor: "#e4ddd3",
@@ -1929,6 +2496,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12
   },
   socialActions: { flexDirection: "row", gap: 7 },
+  myRankSlot: { minHeight: 54 },
   myRank: { backgroundColor: "#232323", borderRadius: 8, marginTop: 14, padding: 13 },
   myRankText: { color: "#ffffff", fontSize: 14, fontWeight: "900" },
   profileHeader: {
