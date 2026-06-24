@@ -7,6 +7,7 @@ export type ActivityCatalog = components["schemas"]["ActivityCatalog"];
 export type ActivityCatalogItem = components["schemas"]["ActivityCatalogItem"];
 export type ActivityHistory = components["schemas"]["ActivityHistory"];
 export type ActivityInteractionProgress = components["schemas"]["ActivityInteractionProgress"];
+export type ActivitySkipReason = components["schemas"]["ActivitySkipReason"];
 export type ActivityCategory = ActivityCatalog["categories"][number];
 
 export class ActivityApi {
@@ -37,7 +38,13 @@ export class ActivityApi {
     });
   }
 
-  skip(assignmentId: string): Promise<ApiEnvelope<ActivityAssignment>> {
-    return this.client.post<ActivityAssignment>(`/v1/activities/${assignmentId}/skip`);
+  skip(
+    assignmentId: string,
+    reason?: ActivitySkipReason
+  ): Promise<ApiEnvelope<ActivityAssignment>> {
+    return this.client.post<ActivityAssignment>(
+      `/v1/activities/${assignmentId}/skip`,
+      reason ? { reason } : undefined
+    );
   }
 }

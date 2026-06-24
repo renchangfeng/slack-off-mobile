@@ -31,7 +31,8 @@ import {
   type ActivityCatalog,
   type ActivityCategory,
   type ActivityCompleteResult,
-  type ActivityInteractionProgress
+  type ActivityInteractionProgress,
+  type ActivitySkipReason
 } from "../api/activities";
 import {
   BeanApi,
@@ -113,6 +114,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   const [activityAssignment, setActivityAssignment] = useState<ActivityAssignment | null>(null);
   const [activityResult, setActivityResult] = useState<ActivityCompleteResult | null>(null);
   const [activityProgress, setActivityProgress] = useState<ActivityInteractionProgress>({});
+  const [activitySkipReason, setActivitySkipReason] = useState<ActivitySkipReason>("not_interested");
   const [activityMessage, setActivityMessage] = useState<string | null>(null);
   const [activityUnavailable, setActivityUnavailable] = useState(false);
   const [activityCategory, setActivityCategory] = useState<ActivityCategory | null>(null);
@@ -241,6 +243,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
 
   useEffect(() => {
     setActivityProgress({});
+    setActivitySkipReason("not_interested");
   }, [activityAssignment?.assignmentId]);
 
   async function refreshActivityData(category: ActivityCategory | null = activityCategory) {
@@ -447,7 +450,7 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     setMessage(null);
     setNotice(null);
     setActivityMessage(null);
-    const response = await api.activities.skip(activityAssignment.assignmentId);
+    const response = await api.activities.skip(activityAssignment.assignmentId, activitySkipReason);
     setLoading(false);
     if (response.error) {
       setActivityMessage(response.error.message);
@@ -752,12 +755,31 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                     onPress={completeActivity}
                   />
                   {activityAssignment.status === "active" ? (
-                    <ActionButton
-                      label="不感兴趣，换一个"
-                      dark
-                      disabled={loading}
-                      onPress={skipActivity}
-                    />
+                    <>
+                      <View style={styles.skipReasonBox}>
+                        <Text style={styles.kicker}>不想做的原因</Text>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.categoryRow}
+                        >
+                          {activitySkipReasonOptions.map((option) => (
+                            <CategoryChip
+                              key={option.value}
+                              label={option.label}
+                              selected={activitySkipReason === option.value}
+                              onPress={() => setActivitySkipReason(option.value)}
+                            />
+                          ))}
+                        </ScrollView>
+                      </View>
+                      <ActionButton
+                        label="按原因换一个"
+                        dark
+                        disabled={loading}
+                        onPress={skipActivity}
+                      />
+                    </>
                   ) : null}
                 </>
               ) : (
@@ -812,6 +834,9 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                       <Text style={styles.rowMeta}>
                         {activityCategoryLabel(item.category)} ·{" "}
                         {difficultyLabel(item.difficulty)} · 完成 {item.completedCount} 次
+                      </Text>
+                      <Text style={styles.rowMeta}>
+                        {activityInteractionSummaryLabel(item.interactionSummary)}
                       </Text>
                       <Text style={styles.smallCopy}>{item.description}</Text>
                     </View>
@@ -1974,6 +1999,19 @@ function activityStepTypeLabel(type: string): string {
   return "确认";
 }
 
+function activityInteractionSummaryLabel(
+  summary: ActivityCatalog["items"][number]["interactionSummary"]
+): string {
+  const traits = [
+    summary.hasTimer ? "倒计时" : null,
+    summary.hasChoice ? "选择题" : null,
+    summary.hasMiniGame ? "小游戏" : null
+  ].filter(Boolean);
+  return `${summary.stepCount} 步 · 约 ${summary.estimatedSeconds} 秒${
+    traits.length ? ` · ${traits.join("/")}` : ""
+  }`;
+}
+
 function isActivityInteractionComplete(
   assignment: ActivityAssignment,
   progress: ActivityInteractionProgress
@@ -2117,6 +2155,14 @@ const activityCategories: ActivityCategory[] = [
   "office_theater",
   "physical",
   "imagination"
+];
+
+const activitySkipReasonOptions: Array<{ value: ActivitySkipReason; label: string }> = [
+  { value: "not_interested", label: "没兴趣" },
+  { value: "too_much_work", label: "太麻烦" },
+  { value: "not_convenient", label: "不方便" },
+  { value: "want_weirder", label: "来点怪的" },
+  { value: "other", label: "换个口味" }
 ];
 
 const beanThemes: BeanTheme[] = ["office", "restroom", "daydream"];
@@ -2307,6 +2353,10 @@ const styles = StyleSheet.create({
   categoryChipSelected: { backgroundColor: "#232323", borderColor: "#232323" },
   categoryChipText: { color: "#625b52", fontSize: 13, fontWeight: "900" },
   categoryChipTextSelected: { color: "#ffffff" },
+  skipReasonBox: {
+    gap: 4,
+    paddingTop: 4
+  },
   activityCatalogRow: {
     alignItems: "flex-start",
     borderTopColor: "#e2dbd0",
