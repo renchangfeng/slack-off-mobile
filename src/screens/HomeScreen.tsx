@@ -22,8 +22,10 @@ import {
 } from "react-native";
 import {
   AchievementApi,
+  type Achievement,
   type AchievementList,
-  type CosmeticInventory
+  type CosmeticInventory,
+  type OwnedCosmetic
 } from "../api/achievements";
 import {
   ActivityApi,
@@ -108,6 +110,8 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   const [showcasePosition, setShowcasePosition] = useState(1);
   const [lastResult, setLastResult] = useState<CheckInFinishResult | null>(null);
   const [achievementList, setAchievementList] = useState<AchievementList | null>(null);
+  const [achievementCategoryFilter, setAchievementCategoryFilter] =
+    useState<Achievement["category"] | "all">("all");
   const [achievementUnlockQueue, setAchievementUnlockQueue] = useState<
     AchievementUnlockFeedback[]
   >([]);
@@ -544,6 +548,12 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     }
     return right.progress.percent - left.progress.percent;
   });
+  const filteredAchievements = sortedAchievements.filter(
+    (achievement) =>
+      achievementCategoryFilter === "all" || achievement.category === achievementCategoryFilter
+  );
+  const equippedTitle = cosmeticInventory?.equippedTitle?.name ?? null;
+  const equippedBadge = cosmeticInventory?.equippedBadge?.name ?? null;
   const nextStep = deriveGameplayStep({
     hasActiveCheckIn: Boolean(activeSession),
     drawChances: beanCollection?.drawChances ?? 0,
@@ -1212,6 +1222,10 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                   连续休息 {progression?.currentStreakDays ?? 0} 天 · 最长{" "}
                   {progression?.longestStreakDays ?? 0} 天
                 </Text>
+                <Text style={styles.accentMeta}>
+                  {equippedTitle ? `称号：${equippedTitle}` : "称号：还没装备"} ·{" "}
+                  {equippedBadge ? `徽章：${equippedBadge}` : "徽章：还没装备"}
+                </Text>
               </View>
             </View>
             <LifetimeStats progression={progression} />
@@ -1225,56 +1239,64 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
               </Text>
             </View>
             <View style={styles.panel}>
-              <Text style={styles.kicker}>成就</Text>
+              <Text style={styles.kicker}>推荐追逐目标</Text>
+              <Text style={styles.sectionTitle}>今天别乱卷，挑一个顺手的</Text>
+              <AchievementRecommendationSection
+                title="离你最近"
+                items={achievementList?.recommendations?.nearest ?? []}
+              />
+              <AchievementRecommendationSection
+                title="今天顺手能做"
+                items={achievementList?.recommendations?.today ?? []}
+              />
+              <AchievementRecommendationSection
+                title="长期目标"
+                items={achievementList?.recommendations?.long_term ?? []}
+              />
+            </View>
+            <View style={styles.panel}>
+              <Text style={styles.kicker}>成就墙</Text>
               <Text style={styles.sectionTitle}>
                 已解锁 {unlockedAchievements.length}/
                 {achievementList?.achievements.length ?? 0}
               </Text>
-              {sortedAchievements.map((achievement) => (
-                <View
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryRow}
+              >
+                <CategoryChip
+                  label="全部"
+                  selected={achievementCategoryFilter === "all"}
+                  onPress={() => setAchievementCategoryFilter("all")}
+                />
+                {achievementCategories.map((category) => (
+                  <CategoryChip
+                    key={category}
+                    label={achievementCategoryLabel(category)}
+                    selected={achievementCategoryFilter === category}
+                    onPress={() => setAchievementCategoryFilter(category)}
+                  />
+                ))}
+              </ScrollView>
+              {filteredAchievements.map((achievement) => (
+                <AchievementWallRow
                   key={achievement.id}
-                  style={[styles.listRow, achievement.unlockedAt && styles.listRowCompleted]}
-                >
-                  <View style={styles.flex}>
-                    <Text style={styles.rowTitle}>{achievement.name}</Text>
-                    <Text style={styles.rowMeta}>{achievement.description}</Text>
-                    <ProgressBar
-                      value={achievement.progress.percent}
-                      max={100}
-                      color={achievement.unlockedAt ? "#1f8f62" : "#d4a838"}
-                      trackColor="#e2dbd0"
-                    />
-                  </View>
-                  <Text style={achievement.unlockedAt ? styles.completedMark : styles.progressValue}>
-                    {achievementProgressLabel(achievement.progress)}
-                  </Text>
-                </View>
+                  achievement={achievement}
+                />
               ))}
             </View>
             <View style={styles.panel}>
               <Text style={styles.kicker}>徽章与称号</Text>
+              <Text style={styles.sectionTitle}>奖励墙</Text>
               {cosmeticInventory?.cosmetics.length ? (
                 cosmeticInventory.cosmetics.map((cosmetic) => (
-                  <Pressable
+                  <CosmeticRewardRow
                     key={cosmetic.id}
-                    accessibilityRole="button"
-                    disabled={loading || cosmetic.equipped}
-                    onPress={() => void equipCosmetic(cosmetic.id)}
-                    style={[
-                      styles.cosmeticRow,
-                      cosmetic.equipped && styles.listRowCompleted
-                    ]}
-                  >
-                    <View style={styles.flex}>
-                      <Text style={styles.rowTitle}>{cosmetic.name}</Text>
-                      <Text style={styles.rowMeta}>
-                        {cosmetic.cosmeticType === "badge" ? "徽章" : "称号"}
-                      </Text>
-                    </View>
-                    <Text style={cosmetic.equipped ? styles.completedMark : styles.pendingMark}>
-                      {cosmetic.equipped ? "使用中" : "装备"}
-                    </Text>
-                  </Pressable>
+                    cosmetic={cosmetic}
+                    loading={loading}
+                    onEquip={equipCosmetic}
+                  />
                 ))
               ) : (
                 <Text style={styles.emptyText}>还没有装扮，先认真完成几次休息。</Text>
@@ -1316,7 +1338,10 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
       </View>
       <AchievementUnlockOverlay
         unlock={achievementUnlockQueue[0] ?? null}
+        cosmeticInventory={cosmeticInventory}
         remaining={Math.max(0, achievementUnlockQueue.length - 1)}
+        loading={loading}
+        onEquip={equipCosmetic}
         onDismiss={() => setAchievementUnlockQueue((current) => current.slice(1))}
       />
     </View>
@@ -1738,6 +1763,104 @@ function LifetimeStats({ progression }: { progression: ProgressionSummary | null
   );
 }
 
+function AchievementRecommendationSection({
+  title,
+  items
+}: {
+  title: string;
+  items: Achievement[];
+}) {
+  if (!items.length) {
+    return null;
+  }
+  return (
+    <View style={styles.recommendationBlock}>
+      <Text style={styles.kickerSection}>{title}</Text>
+      {items.map((achievement) => (
+        <View key={achievement.id} style={styles.recommendationRow}>
+          <View style={styles.flex}>
+            <Text style={styles.rowTitle}>{achievement.name}</Text>
+            <Text style={styles.rowMeta}>
+              {achievement.unlockSummary ?? achievement.description} ·{" "}
+              {achievement.actionHint?.label ?? "去完成"}
+            </Text>
+          </View>
+          <Text style={styles.progressValue}>{achievementProgressLabel(achievement.progress)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function AchievementWallRow({ achievement }: { achievement: Achievement }) {
+  return (
+    <View style={[styles.listRow, achievement.unlockedAt && styles.listRowCompleted]}>
+      <View style={styles.flex}>
+        <Text style={styles.rowTitle}>{achievement.name}</Text>
+        <Text style={styles.rowMeta}>
+          {achievementCategoryLabel(achievement.category ?? "new_user")} ·{" "}
+          {rarityLabel(achievement.rarity ?? "common")} ·{" "}
+          {achievement.unlockSummary ?? achievement.description}
+        </Text>
+        <Text style={styles.smallCopy}>{achievement.description}</Text>
+        <ProgressBar
+          value={achievement.progress.percent}
+          max={100}
+          color={achievement.unlockedAt ? "#1f8f62" : "#d4a838"}
+          trackColor="#e2dbd0"
+        />
+      </View>
+      <Text style={achievement.unlockedAt ? styles.completedMark : styles.progressValue}>
+        {achievement.unlockedAt ? "已解锁" : achievementProgressLabel(achievement.progress)}
+      </Text>
+    </View>
+  );
+}
+
+function CosmeticRewardRow({
+  cosmetic,
+  loading,
+  onEquip
+}: {
+  cosmetic: OwnedCosmetic;
+  loading: boolean;
+  onEquip: (id: string) => Promise<void>;
+}) {
+  const owned = cosmetic.owned ?? Boolean(cosmetic.unlockedAt);
+  const canEquip = owned && !cosmetic.equipped;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={loading || !canEquip}
+      onPress={() => void onEquip(cosmetic.id)}
+      style={[
+        styles.cosmeticRow,
+        cosmetic.equipped && styles.listRowCompleted,
+        !owned && styles.cosmeticRowLocked
+      ]}
+    >
+      <View style={styles.flex}>
+        <Text style={styles.rowTitle}>{cosmetic.name}</Text>
+        <Text style={styles.rowMeta}>
+          {cosmetic.cosmeticType === "badge" ? "徽章" : "称号"} · {rarityLabel(cosmetic.rarity)}
+        </Text>
+        <Text style={styles.smallCopy}>{cosmetic.unlockSummary ?? cosmetic.description}</Text>
+      </View>
+      <Text
+        style={
+          cosmetic.equipped
+            ? styles.completedMark
+            : owned
+              ? styles.pendingMark
+              : styles.cooldownMark
+        }
+      >
+        {cosmetic.equipped ? "使用中" : owned ? "装备" : "未解锁"}
+      </Text>
+    </Pressable>
+  );
+}
+
 function CheckInResult({
   result,
   nextStep
@@ -1785,11 +1908,17 @@ function RewardPreview({
 
 function AchievementUnlockOverlay({
   unlock,
+  cosmeticInventory,
   remaining,
+  loading,
+  onEquip,
   onDismiss
 }: {
   unlock: AchievementUnlockFeedback | null;
+  cosmeticInventory: CosmeticInventory | null;
   remaining: number;
+  loading: boolean;
+  onEquip: (id: string) => Promise<void>;
   onDismiss: () => void;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -1832,6 +1961,13 @@ function AchievementUnlockOverlay({
   }, [opacity, scale, translateY, unlock]);
 
   if (!unlock) return null;
+  const unlockedCosmetic = unlock.rewards.cosmetic
+    ? cosmeticInventory?.cosmetics.find(
+        (cosmetic) =>
+          cosmetic.name === unlock.rewards.cosmetic &&
+          (cosmetic.owned ?? Boolean(cosmetic.unlockedAt))
+      )
+    : null;
 
   return (
     <Modal transparent animationType="none" visible onRequestClose={onDismiss}>
@@ -1855,6 +1991,16 @@ function AchievementUnlockOverlay({
             <View style={styles.cosmeticReveal}>
               <Text style={styles.kicker}>新装扮</Text>
               <Text style={styles.rowTitle}>{unlock.rewards.cosmetic}</Text>
+              {unlockedCosmetic && !unlockedCosmetic.equipped ? (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={loading}
+                  onPress={() => void onEquip(unlockedCosmetic.id)}
+                  style={styles.inlineEquipButton}
+                >
+                  <Text style={styles.inlineEquipText}>立即装备</Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
           {remaining > 0 ? (
@@ -2105,6 +2251,19 @@ function activityCategoryLabel(category: string): string {
   );
 }
 
+function achievementCategoryLabel(category: string): string {
+  return (
+    {
+      new_user: "新手",
+      check_in: "打卡",
+      activity: "活动",
+      bean_draw: "抽豆",
+      leaderboard: "排行",
+      social: "社交"
+    }[category] ?? category
+  );
+}
+
 function formatCooldown(seconds: number): string {
   if (seconds < 60) {
     return `${seconds} 秒`;
@@ -2155,6 +2314,15 @@ const activityCategories: ActivityCategory[] = [
   "office_theater",
   "physical",
   "imagination"
+];
+
+const achievementCategories: Achievement["category"][] = [
+  "new_user",
+  "check_in",
+  "activity",
+  "bean_draw",
+  "leaderboard",
+  "social"
 ];
 
 const activitySkipReasonOptions: Array<{ value: ActivitySkipReason; label: string }> = [
@@ -2579,6 +2747,18 @@ const styles = StyleSheet.create({
   },
   statValue: { color: "#232323", fontSize: 22, fontWeight: "900" },
   statLabel: { color: "#746b60", fontSize: 11, marginTop: 4, textAlign: "center" },
+  recommendationBlock: {
+    borderTopColor: "#e2dbd0",
+    borderTopWidth: 1,
+    marginTop: 14,
+    paddingTop: 12
+  },
+  recommendationRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    paddingVertical: 8
+  },
   cosmeticRow: {
     alignItems: "center",
     borderColor: "#e2dbd0",
@@ -2587,6 +2767,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginTop: 10,
     padding: 12
+  },
+  cosmeticRowLocked: {
+    backgroundColor: "#f7f1e8",
+    opacity: 0.82
   },
   signOutButton: {
     alignItems: "center",
@@ -2668,6 +2852,16 @@ const styles = StyleSheet.create({
     marginTop: 16,
     padding: 13
   },
+  inlineEquipButton: {
+    alignItems: "center",
+    backgroundColor: "#232323",
+    borderRadius: 8,
+    justifyContent: "center",
+    marginTop: 10,
+    minHeight: 36,
+    paddingHorizontal: 12
+  },
+  inlineEquipText: { color: "#ffffff", fontSize: 13, fontWeight: "900" },
   unlockRemaining: {
     color: "#746b60",
     fontSize: 12,

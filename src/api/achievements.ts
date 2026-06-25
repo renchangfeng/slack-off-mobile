@@ -2,7 +2,9 @@ import type { components } from "./generated";
 import type { ApiClient, ApiEnvelope } from "./client";
 
 export type AchievementList = components["schemas"]["AchievementList"];
+export type Achievement = components["schemas"]["Achievement"];
 export type CosmeticInventory = components["schemas"]["CosmeticInventory"];
+export type OwnedCosmetic = components["schemas"]["OwnedCosmetic"];
 export type CosmeticEquipResult = components["schemas"]["CosmeticEquipResult"];
 
 export class AchievementApi {
