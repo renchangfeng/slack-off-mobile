@@ -24,6 +24,7 @@ import {
   AchievementApi,
   type Achievement,
   type AchievementList,
+  type AchievementRecommendation,
   type CosmeticInventory,
   type OwnedCosmetic
 } from "../api/achievements";
@@ -552,6 +553,14 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     (achievement) =>
       achievementCategoryFilter === "all" || achievement.category === achievementCategoryFilter
   );
+  const achievementFocus = pickAchievementFocus(achievementList);
+  const secondaryAchievementRecommendations = achievementList
+    ? [
+        ...achievementList.recommendations.nearest,
+        ...achievementList.recommendations.today,
+        ...achievementList.recommendations.long_term
+      ].filter((achievement) => achievement.id !== achievementFocus?.id)
+    : [];
   const equippedTitle = cosmeticInventory?.equippedTitle?.name ?? null;
   const equippedBadge = cosmeticInventory?.equippedBadge?.name ?? null;
   const nextStep = deriveGameplayStep({
@@ -572,6 +581,10 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     ? isActivityInteractionComplete(activityAssignment, activityProgress)
     : false;
   const tabMeta = getDashboardTab(selectedTab);
+
+  function jumpToAchievementTarget(achievement: AchievementRecommendation) {
+    setSelectedTab(achievementTargetTab(achievement));
+  }
 
   async function runNextStep() {
     if (nextStep.kind === "start-checkin") {
@@ -744,6 +757,11 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                     {activityAssignment.rewardPreview.score} 分 · 进度 +
                     {activityAssignment.rewardPreview.drawProgress}
                   </Text>
+                  {activityAssignment.recommendationExplanation ? (
+                    <Text style={styles.helperText}>
+                      推荐理由：{activityAssignment.recommendationExplanation}
+                    </Text>
+                  ) : null}
                   <ActivityInteractionRunner
                     assignment={activityAssignment}
                     progress={activityProgress}
@@ -801,7 +819,12 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
               )}
               {activityResult ? (
                 <View style={styles.resultBox}>
-                  <Text style={styles.rowTitle}>活动奖励已结算</Text>
+                  <Text style={styles.rowTitle}>
+                    {activityResult.resultTitle ?? "活动奖励已结算"}
+                  </Text>
+                  {activityResult.resultCopy ? (
+                    <Text style={styles.helperText}>{activityResult.resultCopy}</Text>
+                  ) : null}
                   <Text style={styles.rowMeta}>
                     +{activityResult.reward.score} 分 · 进度 +
                     {activityResult.reward.drawProgress} · 抽豆机会 +
@@ -1239,20 +1262,44 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
               </Text>
             </View>
             <View style={styles.panel}>
-              <Text style={styles.kicker}>推荐追逐目标</Text>
+              <Text style={styles.kicker}>目标板</Text>
               <Text style={styles.sectionTitle}>今天别乱卷，挑一个顺手的</Text>
+              <AchievementFocusCard
+                achievement={achievementFocus}
+                unlockedCount={unlockedAchievements.length}
+                totalCount={achievementList?.achievements.length ?? 0}
+                onPress={jumpToAchievementTarget}
+              />
+              <Text style={styles.kickerSection}>近期进展</Text>
+              <Text style={styles.rowMeta}>
+                今日目标 {progression?.dailyGoals.completed ?? 0}/
+                {progression?.dailyGoals.total ?? 3} · 本周目标{" "}
+                {progression?.weeklyGoals.completed ?? 0}/
+                {progression?.weeklyGoals.total ?? 3} · 成就解锁{" "}
+                {unlockedAchievements.length}/{achievementList?.achievements.length ?? 0}
+              </Text>
+              <Text style={styles.kickerSection}>推荐追逐目标</Text>
               <AchievementRecommendationSection
                 title="离你最近"
                 items={achievementList?.recommendations?.nearest ?? []}
+                focusId={achievementFocus?.id}
+                onPress={jumpToAchievementTarget}
               />
               <AchievementRecommendationSection
                 title="今天顺手能做"
                 items={achievementList?.recommendations?.today ?? []}
+                focusId={achievementFocus?.id}
+                onPress={jumpToAchievementTarget}
               />
               <AchievementRecommendationSection
                 title="长期目标"
                 items={achievementList?.recommendations?.long_term ?? []}
+                focusId={achievementFocus?.id}
+                onPress={jumpToAchievementTarget}
               />
+              {!achievementFocus && !secondaryAchievementRecommendations.length ? (
+                <Text style={styles.emptyText}>当前成就目标都很安静，你已经把休息做得挺像回事了。</Text>
+              ) : null}
             </View>
             <View style={styles.panel}>
               <Text style={styles.kicker}>成就墙</Text>
@@ -1765,30 +1812,88 @@ function LifetimeStats({ progression }: { progression: ProgressionSummary | null
 
 function AchievementRecommendationSection({
   title,
-  items
+  items,
+  focusId,
+  onPress
 }: {
   title: string;
-  items: Achievement[];
+  items: AchievementRecommendation[];
+  focusId?: string;
+  onPress: (achievement: AchievementRecommendation) => void;
 }) {
-  if (!items.length) {
+  const visibleItems = items.filter((achievement) => achievement.id !== focusId);
+  if (!visibleItems.length) {
     return null;
   }
   return (
     <View style={styles.recommendationBlock}>
       <Text style={styles.kickerSection}>{title}</Text>
-      {items.map((achievement) => (
-        <View key={achievement.id} style={styles.recommendationRow}>
+      {visibleItems.map((achievement) => (
+        <Pressable
+          accessibilityRole="button"
+          key={achievement.id}
+          onPress={() => onPress(achievement)}
+          style={styles.recommendationRow}
+        >
           <View style={styles.flex}>
             <Text style={styles.rowTitle}>{achievement.name}</Text>
             <Text style={styles.rowMeta}>
-              {achievement.unlockSummary ?? achievement.description} ·{" "}
-              {achievement.actionHint?.label ?? "去完成"}
+              {achievement.recommendationReason} · {achievement.remainingEffortLabel}
             </Text>
           </View>
-          <Text style={styles.progressValue}>{achievementProgressLabel(achievement.progress)}</Text>
-        </View>
+          <View style={styles.inlineActionButton}>
+            <Text style={styles.inlineActionText}>{achievement.actionHint?.label ?? "去完成"}</Text>
+          </View>
+        </Pressable>
       ))}
     </View>
+  );
+}
+
+function AchievementFocusCard({
+  achievement,
+  unlockedCount,
+  totalCount,
+  onPress
+}: {
+  achievement: AchievementRecommendation | null;
+  unlockedCount: number;
+  totalCount: number;
+  onPress: (achievement: AchievementRecommendation) => void;
+}) {
+  if (!achievement) {
+    return (
+      <View style={styles.resultBox}>
+        <Text style={styles.rowTitle}>今天没有特别催你的成就</Text>
+        <Text style={styles.helperText}>
+          已解锁 {unlockedCount}/{totalCount}。没有红点逼你上班，挺好。
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => onPress(achievement)}
+      style={styles.focusAchievementCard}
+    >
+      <View style={styles.flex}>
+        <Text style={styles.kickerSection}>今日焦点</Text>
+        <Text style={styles.rowTitle}>{achievement.name}</Text>
+        <Text style={styles.rowMeta}>
+          {achievement.recommendationReason} · {achievement.remainingEffortLabel}
+        </Text>
+        <ProgressBar
+          value={achievement.progress.percent}
+          max={100}
+          color="#1f8f62"
+          trackColor="#d5e9dc"
+        />
+      </View>
+      <View style={styles.inlineActionButton}>
+        <Text style={styles.inlineActionText}>{achievement.actionHint.label}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -1855,7 +1960,7 @@ function CosmeticRewardRow({
               : styles.cooldownMark
         }
       >
-        {cosmetic.equipped ? "使用中" : owned ? "装备" : "未解锁"}
+        {cosmetic.equipped ? "使用中" : owned ? "立即装备" : "未解锁"}
       </Text>
     </Pressable>
   );
@@ -2092,6 +2197,23 @@ function findGoal(
   return progression?.dailyGoals.goals.find((goal) => goal.code === code) ?? null;
 }
 
+function pickAchievementFocus(list: AchievementList | null): AchievementRecommendation | null {
+  if (!list) return null;
+  return (
+    list.recommendations.today[0] ??
+    list.recommendations.nearest[0] ??
+    list.recommendations.long_term[0] ??
+    null
+  );
+}
+
+function achievementTargetTab(achievement: AchievementRecommendation): DashboardTab {
+  if (achievement.targetSection === "leaderboards") {
+    return "rankings";
+  }
+  return achievement.targetSection;
+}
+
 function rarityLabel(rarity: string): string {
   return (
     {
@@ -2153,9 +2275,10 @@ function activityInteractionSummaryLabel(
     summary.hasChoice ? "选择题" : null,
     summary.hasMiniGame ? "小游戏" : null
   ].filter(Boolean);
-  return `${summary.stepCount} 步 · 约 ${summary.estimatedSeconds} 秒${
+  const summaryText = `${summary.stepCount} 步 · 约 ${summary.estimatedSeconds} 秒${
     traits.length ? ` · ${traits.join("/")}` : ""
   }`;
+  return summary.flavorLabel ? `${summary.flavorLabel} · ${summaryText}` : summaryText;
 }
 
 function isActivityInteractionComplete(
@@ -2752,6 +2875,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     marginTop: 14,
     paddingTop: 12
+  },
+  focusAchievementCard: {
+    alignItems: "center",
+    backgroundColor: "#eef7f3",
+    borderColor: "#b7d9c8",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 14,
+    padding: 14
   },
   recommendationRow: {
     alignItems: "center",
