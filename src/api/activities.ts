@@ -7,6 +7,7 @@ export type ActivityCatalog = components["schemas"]["ActivityCatalog"];
 export type ActivityCatalogItem = components["schemas"]["ActivityCatalogItem"];
 export type ActivityHistory = components["schemas"]["ActivityHistory"];
 export type ActivityInteractionProgress = components["schemas"]["ActivityInteractionProgress"];
+export type ActivityPresentation = components["schemas"]["ActivityPresentation"];
 export type ActivitySkipReason = components["schemas"]["ActivitySkipReason"];
 export type ActivityCategory = ActivityCatalog["categories"][number];
 

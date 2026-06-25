@@ -35,6 +35,7 @@ import {
   type ActivityCategory,
   type ActivityCompleteResult,
   type ActivityInteractionProgress,
+  type ActivityPresentation,
   type ActivitySkipReason
 } from "../api/activities";
 import {
@@ -581,6 +582,13 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
   const activityCanComplete = activityAssignment
     ? isActivityInteractionComplete(activityAssignment, activityProgress)
     : false;
+  const activityPresentation = activityAssignment
+    ? resolveActivityPresentation(activityAssignment)
+    : null;
+  const activityResultPresentation = activityResult
+    ? resolveActivityPresentation(activityResult.assignment)
+    : null;
+  const activityAccentColor = activityPresentation?.accentColor ?? "#2f6f8f";
   const tabMeta = getDashboardTab(selectedTab);
 
   function jumpToAchievementTarget(achievement: AchievementRecommendation) {
@@ -749,15 +757,47 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
             <View style={styles.featurePanel}>
               {activityAssignment ? (
                 <>
-                  <Text style={styles.kicker}>当前任务</Text>
-                  <Text style={styles.sectionTitle}>{activityAssignment.title}</Text>
-                  <Text style={styles.copy}>{activityAssignment.description}</Text>
-                  <Text style={styles.accentMeta}>
-                    {activityCategoryLabel(activityAssignment.category)} ·{" "}
-                    {difficultyLabel(activityAssignment.difficulty)} · +
-                    {activityAssignment.rewardPreview.score} 分 · 进度 +
-                    {activityAssignment.rewardPreview.drawProgress}
-                  </Text>
+                  <View
+                    style={[
+                      styles.activityHeroCard,
+                      { borderColor: activityAccentColor }
+                    ]}
+                  >
+                    <View style={styles.activityCardTopRow}>
+                      <Text
+                        style={[
+                          styles.activityBadge,
+                          { backgroundColor: activityAccentColor }
+                        ]}
+                      >
+                        {activityPresentation?.badge ?? "当前任务"}
+                      </Text>
+                      <Text style={styles.activityStat}>
+                        {activityPresentation?.statLabel ?? "摸鱼指数"}{" "}
+                        {activityPresentation?.statValue ?? "--"}
+                      </Text>
+                    </View>
+                    <Text style={styles.kicker}>
+                      {activityCategoryLabel(activityAssignment.category)} ·{" "}
+                      {difficultyLabel(activityAssignment.difficulty)}
+                    </Text>
+                    <Text style={styles.activityHeadline}>
+                      {activityPresentation?.headline ?? activityAssignment.title}
+                    </Text>
+                    <Text style={styles.activityScene}>
+                      {activityPresentation?.scene ?? activityAssignment.description}
+                    </Text>
+                    <View style={styles.activityPromptBox}>
+                      <Text style={styles.activityPrompt}>
+                        {activityPresentation?.prompt ?? activityAssignment.description}
+                      </Text>
+                    </View>
+                    <Text style={styles.accentMeta}>
+                      +{activityAssignment.rewardPreview.score} 分 · 进度 +
+                      {activityAssignment.rewardPreview.drawProgress} ·{" "}
+                      {activityAssignment.interactionSummary.flavorLabel}
+                    </Text>
+                  </View>
                   {activityAssignment.recommendationExplanation ? (
                     <Text style={styles.helperText}>
                       推荐理由：{activityAssignment.recommendationExplanation}
@@ -819,8 +859,21 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                 </>
               )}
               {activityResult ? (
-                <View style={styles.resultBox}>
-                  <Text style={styles.rowTitle}>
+                <View
+                  style={[
+                    styles.activityResultCertificate,
+                    { borderColor: activityResultPresentation?.accentColor ?? "#1f8f62" }
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.activityBadge,
+                      { backgroundColor: activityResultPresentation?.accentColor ?? "#1f8f62" }
+                    ]}
+                  >
+                    {activityResultPresentation?.badge ?? "活动完成"}
+                  </Text>
+                  <Text style={styles.activityResultTitle}>
                     {activityResult.resultTitle ?? "活动奖励已结算"}
                   </Text>
                   {activityResult.resultCopy ? (
@@ -861,26 +914,30 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
                 <Text style={styles.goalCount}>{activityCatalog?.items.length ?? 0}</Text>
               </View>
               {activityCatalog?.items.length ? (
-                activityCatalog.items.map((item) => (
-                  <View key={item.templateId} style={styles.activityCatalogRow}>
-                    <View style={styles.flex}>
-                      <Text style={styles.rowTitle}>{item.title}</Text>
-                      <Text style={styles.rowMeta}>
-                        {activityCategoryLabel(item.category)} ·{" "}
-                        {difficultyLabel(item.difficulty)} · 完成 {item.completedCount} 次
+                activityCatalog.items.map((item) => {
+                  const itemPresentation = resolveActivityPresentation(item);
+                  return (
+                    <View key={item.templateId} style={styles.activityCatalogRow}>
+                      <View style={styles.flex}>
+                        <Text style={styles.rowTitle}>{item.title}</Text>
+                        <Text style={styles.rowMeta}>
+                          {activityCategoryLabel(item.category)} ·{" "}
+                          {difficultyLabel(item.difficulty)} · 完成 {item.completedCount} 次
+                        </Text>
+                        <Text style={styles.rowMeta}>
+                          {itemPresentation.badge} ·{" "}
+                          {activityInteractionSummaryLabel(item.interactionSummary)}
+                        </Text>
+                        <Text style={styles.smallCopy}>{item.description}</Text>
+                      </View>
+                      <Text style={item.eligible ? styles.readyMark : styles.cooldownMark}>
+                        {item.eligible
+                          ? "可推荐"
+                          : formatCooldown(item.cooldownRemainingSeconds)}
                       </Text>
-                      <Text style={styles.rowMeta}>
-                        {activityInteractionSummaryLabel(item.interactionSummary)}
-                      </Text>
-                      <Text style={styles.smallCopy}>{item.description}</Text>
                     </View>
-                    <Text style={item.eligible ? styles.readyMark : styles.cooldownMark}>
-                      {item.eligible
-                        ? "可推荐"
-                        : formatCooldown(item.cooldownRemainingSeconds)}
-                    </Text>
-                  </View>
-                ))
+                  );
+                })
               ) : (
                 <Text style={styles.emptyText}>这个分类暂时没有活动。</Text>
               )}
@@ -2415,6 +2472,84 @@ function activityCategoryLabel(category: string): string {
   );
 }
 
+function resolveActivityPresentation(activity: {
+  title: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  code?: string;
+  presentation?: ActivityPresentation;
+}): ActivityPresentation {
+  if (activity.presentation) {
+    return activity.presentation;
+  }
+  const statValue = fallbackActivityStatValue(activity.code ?? activity.title, activity.difficulty);
+  if (activity.category === "game") {
+    return {
+      badge: "小游戏入口",
+      tone: "game",
+      accentColor: "#6655d8",
+      headline: activity.title,
+      scene: "屏幕前的短暂叛逃，手指负责把大脑带离工位。",
+      prompt: activity.description,
+      statLabel: "手眼协调",
+      statValue
+    };
+  }
+  if (activity.category === "rest") {
+    return {
+      badge: "精神离线",
+      tone: "calm",
+      accentColor: "#1f8f62",
+      headline: activity.title,
+      scene: "把注意力从消息红点里拽出来，给自己留一小块静音区。",
+      prompt: activity.description,
+      statLabel: "回血概率",
+      statValue
+    };
+  }
+  if (activity.category === "physical") {
+    return {
+      badge: "身体重启",
+      tone: "physical",
+      accentColor: "#b9821f",
+      headline: activity.title,
+      scene: "椅子已经连续获胜太久，现在轮到身体拿回一点控制权。",
+      prompt: activity.description,
+      statLabel: "关节上线",
+      statValue
+    };
+  }
+  if (activity.category === "imagination") {
+    return {
+      badge: "脑洞逃逸",
+      tone: "daydream",
+      accentColor: "#2d7d90",
+      headline: activity.title,
+      scene: "现实先放旁边，给脑内小剧场批准一张临时通行证。",
+      prompt: activity.description,
+      statLabel: "离谱指数",
+      statValue
+    };
+  }
+  return {
+    badge: "工位表演",
+    tone: "absurd",
+    accentColor: "#8b4d36",
+    headline: activity.title,
+    scene: "这是一场不需要观众的办公室独幕剧，表演结束就能继续装忙。",
+    prompt: activity.description,
+    statLabel: "戏剧张力",
+    statValue
+  };
+}
+
+function fallbackActivityStatValue(seed: string, difficulty: string): string {
+  const base = difficulty === "hard" ? 70 : difficulty === "normal" ? 55 : 40;
+  const hash = [...seed].reduce((total, char) => total + char.charCodeAt(0), 0);
+  return `${Math.min(96, base + (hash % 22))}%`;
+}
+
 function achievementCategoryLabel(category: string): string {
   return (
     {
@@ -2542,6 +2677,63 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 18
   },
+  activityHeroCard: {
+    backgroundColor: "#fff8e9",
+    borderLeftWidth: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14
+  },
+  activityCardTopRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "space-between"
+  },
+  activityBadge: {
+    alignSelf: "flex-start",
+    borderRadius: 8,
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "900",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  activityStat: {
+    color: "#625b52",
+    fontSize: 12,
+    fontWeight: "900",
+    lineHeight: 18,
+    paddingTop: 4
+  },
+  activityHeadline: {
+    color: "#232323",
+    fontSize: 23,
+    fontWeight: "900",
+    lineHeight: 29
+  },
+  activityScene: {
+    color: "#47413a",
+    fontSize: 14,
+    lineHeight: 21
+  },
+  activityPromptBox: {
+    backgroundColor: "#ffffff",
+    borderColor: "#e2dbd0",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 2,
+    padding: 12
+  },
+  activityPrompt: {
+    color: "#2f2a25",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 21
+  },
   progressionPanel: {
     backgroundColor: "#232323",
     borderRadius: 8,
@@ -2627,6 +2819,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 14,
     padding: 14
+  },
+  activityResultCertificate: {
+    backgroundColor: "#eef7f3",
+    borderLeftWidth: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 14
+  },
+  activityResultTitle: {
+    color: "#232323",
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 24,
+    marginTop: 10
   },
   interactionPanel: {
     backgroundColor: "#f7f2e8",
