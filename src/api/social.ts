@@ -2,6 +2,7 @@ import type { components } from "./generated";
 import type { ApiClient, ApiEnvelope } from "./client";
 
 export type SocialSummary = components["schemas"]["SocialSummary"];
+export type SocialReactionResult = components["schemas"]["SocialReactionResult"];
 export type SocialReactionType = "tissue" | "like";
 
 export class SocialApi {
@@ -32,11 +33,9 @@ export class SocialApi {
   }
 
   react(recipientUserId: string, reactionType: SocialReactionType) {
-    return this.client.post<{
-      created: boolean;
-      reactionType: SocialReactionType;
-      counts: { tissue: number; like: number };
-      remainingToday: number;
-    }>("/v1/social/reactions", { recipientUserId, reactionType });
+    return this.client.post<SocialReactionResult>("/v1/social/reactions", {
+      recipientUserId,
+      reactionType
+    });
   }
 }

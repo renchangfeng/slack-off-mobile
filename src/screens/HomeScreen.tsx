@@ -521,7 +521,8 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
       setMessage(response.error.message);
       return;
     }
-    setNotice(response.data?.created ? "心意已送达。" : "今天已经送过这份心意了。");
+    setNotice(response.data?.resultCopy ?? (response.data?.created ? "心意已送达。" : "今天已经送过这份心意了。"));
+    await refreshSocial();
     await refreshLeaderboard(leaderboardWindow, leaderboardScope);
   }
 
@@ -920,6 +921,32 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
               <Text style={styles.copy}>
                 当前进度 {beanCollection?.drawProgress ?? 0}/3。每满 3 点自动兑换一次机会。
               </Text>
+              <View style={styles.beanCollectionSummary}>
+                <View style={styles.flex}>
+                  <Text style={styles.kickerSection}>图鉴完成度</Text>
+                  <Text style={styles.rowTitle}>
+                    {beanCollection?.summary.collected ?? 0}/
+                    {beanCollection?.summary.total ?? 0} ·{" "}
+                    {beanCollection?.summary.percent ?? 0}%
+                  </Text>
+                  <ProgressBar
+                    value={beanCollection?.summary.percent ?? 0}
+                    max={100}
+                    color="#1f8f62"
+                    trackColor="#d5e9dc"
+                  />
+                </View>
+                <Text style={styles.pendingMark}>
+                  {beanCollection?.nextTarget
+                    ? `追 ${beanCollection.nextTarget.name}`
+                    : "全图鉴"}
+                </Text>
+              </View>
+              <Text style={styles.helperText}>
+                {beanCollection?.nextTarget?.hint ??
+                  beanCollection?.summary.nextAction ??
+                  "继续攒机会，给豆仓一点命运的响动。"}
+              </Text>
               <ProgressBar
                 value={beanCollection?.drawProgress ?? 0}
                 max={3}
@@ -995,19 +1022,26 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
               />
               {beanDrawResult ? (
                 <View style={styles.resultBox}>
-                  <Text style={styles.sectionTitle}>{beanDrawResult.bean.name}</Text>
+                  <Text style={styles.kicker}>抽豆结果</Text>
+                  <Text style={styles.sectionTitle}>
+                    {beanDrawResult.resultTitle ?? beanDrawResult.bean.name}
+                  </Text>
                   <Text style={styles.accentMeta}>
+                    {beanDrawResult.bean.name} ·{" "}
                     {beanThemeLabel(beanDrawResult.bean.theme)} ·{" "}
                     {rarityLabel(beanDrawResult.bean.rarity)}
                     {beanDrawResult.pityTriggered ? " · 保底生效" : ""}
                   </Text>
                   <Text style={styles.copy}>{beanDrawResult.bean.description}</Text>
                   <Text style={styles.helperText}>
-                    {beanDrawResult.duplicate
-                      ? `重复收藏，数量增加并获得 ${beanDrawResult.fragmentsGranted} 个碎片。`
-                      : "新豆入袋，图鉴完成度已更新。"}
+                    {beanDrawResult.resultCopy ??
+                      (beanDrawResult.duplicate
+                        ? `重复收藏，数量增加并获得 ${beanDrawResult.fragmentsGranted} 个碎片。`
+                        : "新豆入袋，图鉴完成度已更新。")}
                   </Text>
-                  <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
+                  <Text style={styles.helperText}>
+                    下一步：{beanDrawResult.nextHint ?? nextStep.title}
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -1110,6 +1144,10 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
           <>
           <View style={styles.panel}>
             <Text style={styles.kicker}>排行范围</Text>
+            <Text style={styles.rowMeta}>
+              今日固定善意还可送 {social?.reactions.remainingToday ?? 0}/
+              {social?.reactions.dailyLimit ?? 10} 次 · {social?.reactions.resetTimezone ?? "UTC"} 重置
+            </Text>
             <View style={styles.segmented}>
               {leaderboardScopes.map((scope) => (
                 <Pressable
@@ -1198,7 +1236,10 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
           <View style={styles.panel}>
             <Text style={styles.kicker}>轻社交</Text>
             <Text style={styles.sectionTitle}>好友码 {social?.friendCode ?? "加载中"}</Text>
-            <Text style={styles.smallCopy}>没有私信，没有动态，只有排行和一点善意。</Text>
+            <Text style={styles.smallCopy}>
+              没有私信，没有动态，只有排行和一点善意。今天已送{" "}
+              {social?.reactions.sentToday ?? 0} 次。
+            </Text>
             <TextInput
               accessibilityLabel="好友码、小队名或邀请码"
               autoCapitalize="characters"
@@ -2754,6 +2795,17 @@ const styles = StyleSheet.create({
   beanThemeButtonText: { color: "#625b52", fontSize: 12, fontWeight: "900", textAlign: "center" },
   beanThemeButtonTextActive: { color: "#ffffff" },
   beanThemeCount: { color: "#746b60", fontSize: 11, marginTop: 3 },
+  beanCollectionSummary: {
+    alignItems: "center",
+    backgroundColor: "#eef7f3",
+    borderColor: "#b7d9c8",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 14,
+    padding: 12
+  },
   beanEconomyGrid: { flexDirection: "row", gap: 10, marginTop: 14 },
   beanEconomyCell: {
     backgroundColor: "#f4f0e8",
