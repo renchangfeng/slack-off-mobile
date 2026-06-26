@@ -23,6 +23,14 @@ const pixelRestColors = {
   purple: "#6655d8",
   lilac: "#b9a7ef",
   acid: "#b7f05a",
+  gold: "#f0c95a",
+  goldDeep: "#d4a838",
+  goldDark: "#8b6b16",
+  mintLight: "#eef7f3",
+  mintMid: "#b7d9c8",
+  greenDeep: "#1f6f4f",
+  dangerStrong: "#a23b3b",
+  brown: "#8b4d36",
   white: "#ffffff"
 } as const;
 
@@ -46,7 +54,9 @@ const compactSpacing = {
 const softPixelRadius = {
   sm: 6,
   md: 8,
-  lg: 8
+  lg: 8,
+  xl: 12,
+  pill: 999
 } as const;
 
 const sturdyTypography = {
@@ -88,6 +98,13 @@ const softShadows = {
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 2
+  },
+  overlay: {
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 8
   }
 } as const;
 
