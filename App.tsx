@@ -1,10 +1,18 @@
+import { useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useAuthSession } from "./src/auth/useAuthSession";
+import { env } from "./src/config/env";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
+import { UiLabScreen } from "./src/screens/dev/UiLabScreen";
 
 export default function App() {
   const auth = useAuthSession();
+  const [showUiLab, setShowUiLab] = useState(false);
+
+  if (showUiLab && env.showUiLab) {
+    return <UiLabScreen onClose={() => setShowUiLab(false)} />;
+  }
 
   if (auth.mode === "loading") {
     return (
@@ -19,6 +27,7 @@ export default function App() {
     return (
       <LoginScreen
         error={auth.error}
+        onOpenUiLab={env.showUiLab ? () => setShowUiLab(true) : undefined}
         onSignInWithEmail={auth.signInWithEmail}
       />
     );
@@ -28,6 +37,7 @@ export default function App() {
     <HomeScreen
       authLabel={auth.mode === "development" ? "本地开发身份" : auth.email}
       getAccessToken={auth.getAccessToken}
+      onOpenUiLab={env.showUiLab ? () => setShowUiLab(true) : undefined}
       onSignOut={auth.signOut}
     />
   );

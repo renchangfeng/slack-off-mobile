@@ -11,10 +11,11 @@ import {
 
 type LoginScreenProps = {
   error?: string;
+  onOpenUiLab?: () => void;
   onSignInWithEmail: (email: string) => Promise<{ ok: boolean; message: string }>;
 };
 
-export function LoginScreen({ error, onSignInWithEmail }: LoginScreenProps) {
+export function LoginScreen({ error, onOpenUiLab, onSignInWithEmail }: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(error ?? null);
@@ -62,6 +63,15 @@ export function LoginScreen({ error, onSignInWithEmail }: LoginScreenProps) {
         </Pressable>
         {loading ? <ActivityIndicator color="#232323" style={styles.loader} /> : null}
         {message ? <Text style={styles.message}>{message}</Text> : null}
+        {onOpenUiLab ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onOpenUiLab}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryButtonText}>打开 UI Lab</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <StatusBar style="auto" />
@@ -134,6 +144,21 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 18,
     fontWeight: "800"
+  },
+  secondaryButton: {
+    alignItems: "center",
+    borderColor: "#232323",
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    marginTop: 12,
+    minHeight: 44,
+    paddingHorizontal: 12
+  },
+  secondaryButtonText: {
+    color: "#232323",
+    fontSize: 14,
+    fontWeight: "900"
   },
   loader: {
     marginTop: 16

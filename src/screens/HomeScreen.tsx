@@ -71,6 +71,7 @@ import { logEvent } from "../observability/logger";
 type HomeScreenProps = {
   authLabel?: string;
   getAccessToken: () => Promise<string | null>;
+  onOpenUiLab?: () => void;
   onSignOut: () => Promise<void>;
 };
 
@@ -87,7 +88,7 @@ type AchievementUnlockFeedback = {
   };
 };
 
-export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenProps) {
+export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }: HomeScreenProps) {
   const api = useMemo(() => {
     const client = new ApiClient({ baseUrl: env.apiBaseUrl, getAccessToken });
     return {
@@ -663,7 +664,18 @@ export function HomeScreen({ authLabel, getAccessToken, onSignOut }: HomeScreenP
     <View style={styles.app}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.brand}>Slack Off</Text>
+          <View style={styles.headerTopRow}>
+            <Text style={styles.brand}>Slack Off</Text>
+            {onOpenUiLab ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={onOpenUiLab}
+                style={styles.uiLabButton}
+              >
+                <Text style={styles.uiLabButtonText}>UI Lab</Text>
+              </Pressable>
+            ) : null}
+          </View>
           <Text style={styles.pageTitle}>{tabMeta.title}</Text>
           <Text style={styles.pageSubtitle}>{tabMeta.subtitle}</Text>
         </View>
@@ -2646,7 +2658,7 @@ function formatDuration(startedAt: string, now: number): string {
 }
 
 const styles = StyleSheet.create({
-  app: { backgroundColor: "#f3efe7", flex: 1 },
+  app: { backgroundColor: "#f4efe4", flex: 1 },
   container: {
     alignSelf: "center",
     flexGrow: 1,
@@ -2657,9 +2669,28 @@ const styles = StyleSheet.create({
     width: "100%"
   },
   header: { marginBottom: 22 },
-  brand: { color: "#1f8f62", fontSize: 14, fontWeight: "900" },
-  pageTitle: { color: "#232323", fontSize: 30, fontWeight: "900", marginTop: 8 },
-  pageSubtitle: { color: "#625b52", fontSize: 15, lineHeight: 22, marginTop: 6 },
+  headerTopRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  brand: { color: "#17a36b", fontSize: 14, fontWeight: "900" },
+  uiLabButton: {
+    alignItems: "center",
+    borderColor: "#18232b",
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 32,
+    paddingHorizontal: 10
+  },
+  uiLabButtonText: {
+    color: "#18232b",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  pageTitle: { color: "#18232b", fontSize: 30, fontWeight: "900", marginTop: 8 },
+  pageSubtitle: { color: "#5f574d", fontSize: 15, lineHeight: 22, marginTop: 6 },
   topLoader: { marginBottom: 12 },
   panel: {
     backgroundColor: "#fffdf8",
@@ -2671,14 +2702,14 @@ const styles = StyleSheet.create({
   },
   featurePanel: {
     backgroundColor: "#fffdf8",
-    borderColor: "#2f6f8f",
+    borderColor: "#4ca6a8",
     borderRadius: 8,
     borderWidth: 2,
     marginBottom: 16,
     padding: 18
   },
   activityHeroCard: {
-    backgroundColor: "#fff8e9",
+    backgroundColor: "#fff6df",
     borderLeftWidth: 6,
     borderRadius: 8,
     borderWidth: 1,
@@ -2710,7 +2741,7 @@ const styles = StyleSheet.create({
     paddingTop: 4
   },
   activityHeadline: {
-    color: "#232323",
+    color: "#18232b",
     fontSize: 23,
     fontWeight: "900",
     lineHeight: 29
@@ -2735,7 +2766,7 @@ const styles = StyleSheet.create({
     lineHeight: 21
   },
   progressionPanel: {
-    backgroundColor: "#232323",
+    backgroundColor: "#18232b",
     borderRadius: 8,
     marginBottom: 16,
     padding: 18
@@ -2746,12 +2777,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   progressionLevel: { color: "#ffffff", fontSize: 34, fontWeight: "900", marginTop: 5 },
-  progressionXp: { color: "#f0c95a", fontSize: 18, fontWeight: "900" },
+  progressionXp: { color: "#b7f05a", fontSize: 18, fontWeight: "900" },
   progressionMeta: { color: "#c8c1b7", fontSize: 13, marginTop: 8 },
   darkKicker: { color: "#bdb5aa", fontSize: 12, fontWeight: "900" },
   kicker: { color: "#756c61", fontSize: 12, fontWeight: "900" },
-  sectionTitle: { color: "#232323", fontSize: 21, fontWeight: "900", marginTop: 6 },
-  timer: { color: "#232323", fontSize: 58, fontWeight: "900", marginTop: 8 },
+  sectionTitle: { color: "#18232b", fontSize: 21, fontWeight: "900", marginTop: 6 },
+  timer: { color: "#18232b", fontSize: 58, fontWeight: "900", marginTop: 8 },
   copy: { color: "#47413a", fontSize: 15, lineHeight: 22, marginTop: 8 },
   smallCopy: { color: "#746b60", fontSize: 12, lineHeight: 18, marginTop: 7 },
   helperText: { color: "#746b60", fontSize: 13, lineHeight: 19, marginTop: 10 },
@@ -2760,7 +2791,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 10, marginTop: 18 },
   actionButton: {
     alignItems: "center",
-    backgroundColor: "#1f8f62",
+    backgroundColor: "#17a36b",
     borderRadius: 8,
     flex: 1,
     justifyContent: "center",
@@ -2768,12 +2799,12 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: 12
   },
-  actionButtonDark: { backgroundColor: "#232323" },
+  actionButtonDark: { backgroundColor: "#18232b" },
   actionButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "900", textAlign: "center" },
   buttonMuted: { opacity: 0.42 },
   inlineActionButton: {
     alignItems: "center",
-    backgroundColor: "#232323",
+    backgroundColor: "#18232b",
     borderRadius: 8,
     justifyContent: "center",
     minHeight: 40,
@@ -2782,7 +2813,7 @@ const styles = StyleSheet.create({
   },
   inlineActionText: { color: "#ffffff", fontSize: 13, fontWeight: "900" },
   nextStepPanel: {
-    backgroundColor: "#232323",
+    backgroundColor: "#18232b",
     borderRadius: 8,
     marginBottom: 16,
     padding: 18
@@ -3265,10 +3296,13 @@ const styles = StyleSheet.create({
   bottomNav: {
     alignSelf: "center",
     backgroundColor: "#fffdf8",
-    borderTopColor: "#d6cec2",
+    borderColor: "#18232b",
     borderTopWidth: 1,
+    borderWidth: 1,
     flexDirection: "row",
+    marginBottom: 10,
     maxWidth: 760,
+    borderRadius: 8,
     paddingBottom: 10,
     paddingHorizontal: 8,
     paddingTop: 8,
@@ -3288,9 +3322,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 30
   },
-  navGlyphActive: { backgroundColor: "#1f8f62" },
+  navGlyphActive: { backgroundColor: "#b7f05a", transform: [{ rotate: "-2deg" }] },
   navGlyphText: { color: "#6f675d", fontSize: 13, fontWeight: "900" },
-  navGlyphTextActive: { color: "#ffffff" },
+  navGlyphTextActive: { color: "#18232b" },
   navLabel: { color: "#6f675d", fontSize: 11, fontWeight: "800" },
-  navLabelActive: { color: "#1f8f62" }
+  navLabelActive: { color: "#17a36b" }
 });

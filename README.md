@@ -49,6 +49,28 @@ EXPO_PUBLIC_APP_ENV=local EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:3001 npm sta
 
 For real email OTP login, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` instead of `EXPO_PUBLIC_ACCESS_TOKEN`.
 
+## UI Lab
+
+Local builds expose a lightweight Storybook-style UI Lab for previewing shared mobile components with the same React Native runtime as the app.
+
+It is enabled when `EXPO_PUBLIC_APP_ENV=local`, or explicitly with:
+
+```bash
+EXPO_PUBLIC_SHOW_UI_LAB=true npm start
+```
+
+The UI Lab is hidden outside local/dev mode. Shared tokens live in `src/ui/tokens.ts`, reusable primitives live in `src/ui/components.tsx`, and the preview surface lives in `src/screens/dev/UiLabScreen.tsx`.
+
+The token layer is theme-ready. `src/ui/tokens.ts` exports `activeTheme` and `uiThemes`; the current default is the Chinese pseudo-pixel rest theme, branded as `摸鱼证`. A future theme should be added as a full visual pack instead of changing isolated constants:
+
+- brand voice and product name
+- semantic color palette and activity accents
+- spacing density, radius, border, shadow, and typography
+- icon and illustration style hints
+- target mobile viewport range
+
+Keep theme switching local/dev-only until at least two complete themes exist and the core screens consume shared primitives consistently.
+
 The app scheme is `slackoff`; configure the Supabase auth redirect allow-list for the app callback URL:
 
 ```text
