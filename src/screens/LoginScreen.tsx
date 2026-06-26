@@ -8,6 +8,7 @@ import {
   TextInput,
   View
 } from "react-native";
+import { useBrandName } from "../ui/useBrandName";
 
 type LoginScreenProps = {
   error?: string;
@@ -19,6 +20,7 @@ export function LoginScreen({ error, onOpenUiLab, onSignInWithEmail }: LoginScre
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(error ?? null);
+  const brand = useBrandName();
 
   async function submit() {
     setLoading(true);
@@ -31,7 +33,7 @@ export function LoginScreen({ error, onOpenUiLab, onSignInWithEmail }: LoginScre
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Slack Off</Text>
+        <Text style={styles.title}>{brand}</Text>
         <Text style={styles.subtitle}>先登录，再认真地不那么认真。</Text>
       </View>
 

@@ -67,6 +67,7 @@ import {
 } from "../gameplay/dashboardTabs";
 import { deriveGameplayStep } from "../gameplay/nextStep";
 import { logEvent } from "../observability/logger";
+import { useBrandName } from "../ui/useBrandName";
 
 type HomeScreenProps = {
   authLabel?: string;
@@ -102,6 +103,8 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
       social: new SocialApi(client)
     };
   }, [getAccessToken]);
+
+  const brand = useBrandName();
 
   const [selectedTab, setSelectedTab] = useState<DashboardTab>("home");
   const [activeSession, setActiveSession] = useState<CheckInSession | null>(null);
@@ -665,7 +668,7 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerTopRow}>
-            <Text style={styles.brand}>Slack Off</Text>
+            <Text style={styles.brand}>{brand}</Text>
             {onOpenUiLab ? (
               <Pressable
                 accessibilityRole="button"
