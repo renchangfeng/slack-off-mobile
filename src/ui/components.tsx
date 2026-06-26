@@ -7,6 +7,7 @@ import {
   type StyleProp,
   type ViewStyle
 } from "react-native";
+import { getPixelBorderStyle } from "./borders";
 import {
   activityAccentForTone,
   brandVoice,
@@ -398,5 +399,357 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     marginTop: spacing.xs
+  },
+  statusBadge: {
+    alignSelf: "flex-start",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  framedCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg
+  },
+  iconTile: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    justifyContent: "center"
+  },
+  rewardRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm
+  },
+  rewardIcon: {
+    fontSize: 16
+  },
+  rewardLabel: {
+    color: colors.inkMuted,
+    flex: 1,
+    fontSize: 14
+  },
+  rewardValue: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  rewardValuePositive: {
+    color: colors.primary
+  },
+  emptyState: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 200,
+    padding: spacing.lg
+  },
+  emptyStateIcon: {
+    fontSize: 28,
+    marginBottom: spacing.sm
+  },
+  emptyStateTitle: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  emptyStateBody: {
+    color: colors.inkMuted,
+    fontSize: 14,
+    marginTop: spacing.xs,
+    textAlign: "center"
+  },
+  sectionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  sectionHeaderText: {
+    flex: 1
+  },
+  sectionHeaderKicker: {
+    color: colors.primary,
+    marginBottom: spacing.xs,
+    ...typography.kicker
+  },
+  sectionHeaderTitle: {
+    color: colors.ink,
+    ...typography.title
+  },
+  sectionHeaderTrailing: {
+    marginLeft: spacing.md
+  },
+  pixelArt: {
+    borderWidth: 1
+  },
+  pixelArtBean: {
+    backgroundColor: colors.acid,
+    borderColor: colors.ink
+  },
+  pixelArtBadge: {
+    alignItems: "center",
+    backgroundColor: colors.gold,
+    borderColor: colors.ink,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    justifyContent: "center",
+    overflow: "hidden"
+  },
+  pixelArtBadgeCrossH: {
+    backgroundColor: colors.ink,
+    height: 2,
+    width: "70%"
+  },
+  pixelArtBadgeCrossV: {
+    backgroundColor: colors.ink,
+    height: "70%",
+    position: "absolute",
+    width: 2
+  },
+  pixelArtActivity: {
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.sm
+  },
+  pixelArtActivityBar: {
+    backgroundColor: colors.ink,
+    borderRadius: 1,
+    height: 4,
+    marginBottom: 4,
+    width: "100%"
+  },
+  pixelArtActivityBarShort: {
+    width: "60%"
+  },
+  pixelArtCharacter: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceSignal,
+    borderColor: colors.ink,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    justifyContent: "center"
+  },
+  pixelArtCharacterHead: {
+    backgroundColor: colors.ink
   }
 });
+
+type StatusBadgeTone = "active" | "completed" | "locked" | "warning" | "default";
+
+const statusBadgePalette: Record<StatusBadgeTone, { bg: string; fg: string; border: string }> = {
+  active: { bg: colors.acid, fg: colors.inkBlue, border: colors.ink },
+  completed: { bg: colors.primarySoft, fg: colors.primaryDeep, border: colors.primary },
+  locked: { bg: colors.surfaceMuted, fg: colors.inkMuted, border: colors.border },
+  warning: { bg: colors.warningSoft, fg: colors.warning, border: colors.warning },
+  default: { bg: colors.surface, fg: colors.inkMuted, border: colors.border }
+};
+
+type StatusBadgeProps = {
+  tone: StatusBadgeTone;
+  label?: string;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function StatusBadge({ tone, label, style }: StatusBadgeProps) {
+  const palette = statusBadgePalette[tone];
+  return (
+    <View
+      style={[
+        styles.statusBadge,
+        { backgroundColor: palette.bg, borderColor: palette.border },
+        style
+      ]}
+    >
+      {label ? <Text style={[styles.statusBadgeText, { color: palette.fg }]}>{label}</Text> : null}
+    </View>
+  );
+}
+
+type FramedCardProps = {
+  children: ReactNode;
+  accent?: string;
+  pixelBorder?: boolean;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function FramedCard({ children, accent, pixelBorder, style }: FramedCardProps) {
+  return (
+    <View
+      style={[
+        styles.framedCard,
+        pixelBorder && getPixelBorderStyle(2, accent ?? colors.border),
+        style
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+type IconTileProps = {
+  children: ReactNode;
+  size?: number;
+  accent?: string;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function IconTile({ children, size = 36, accent = colors.acid, style }: IconTileProps) {
+  return (
+    <View
+      style={[
+        styles.iconTile,
+        {
+          width: size,
+          height: size,
+          borderColor: accent,
+          borderRadius: size / 2
+        },
+        style
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+type RewardRowProps = {
+  label: string;
+  value: string;
+  icon?: string;
+  positive?: boolean;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function RewardRow({ label, value, icon, positive, style }: RewardRowProps) {
+  return (
+    <View style={[styles.rewardRow, style]}>
+      {icon ? <Text style={styles.rewardIcon}>{icon}</Text> : null}
+      <Text style={styles.rewardLabel}>{label}</Text>
+      <Text style={[styles.rewardValue, positive && styles.rewardValuePositive]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+type EmptyStateProps = {
+  title: string;
+  body?: string;
+  icon?: string;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function EmptyState({ title, body, icon, style }: EmptyStateProps) {
+  return (
+    <View style={[styles.emptyState, style]}>
+      {icon ? <Text style={styles.emptyStateIcon}>{icon}</Text> : null}
+      <Text style={styles.emptyStateTitle}>{title}</Text>
+      {body ? <Text style={styles.emptyStateBody}>{body}</Text> : null}
+    </View>
+  );
+}
+
+type SectionHeaderProps = {
+  title: string;
+  kicker?: string;
+  trailing?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function SectionHeader({ title, kicker, trailing, style }: SectionHeaderProps) {
+  return (
+    <View style={[styles.sectionHeader, style]}>
+      <View style={styles.sectionHeaderText}>
+        {kicker ? <Text style={styles.sectionHeaderKicker}>{kicker}</Text> : null}
+        <Text style={styles.sectionHeaderTitle}>{title}</Text>
+      </View>
+      {trailing ? <View style={styles.sectionHeaderTrailing}>{trailing}</View> : null}
+    </View>
+  );
+}
+
+type PixelArtKind = "bean" | "badge" | "activity" | "character";
+
+type PixelArtPlaceholderProps = {
+  kind: PixelArtKind;
+  size?: number;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function PixelArtPlaceholder({ kind, size = 64, style }: PixelArtPlaceholderProps) {
+  if (kind === "bean") {
+    return (
+      <View
+        style={[
+          styles.pixelArt,
+          styles.pixelArtBean,
+          { width: size, height: size, borderRadius: size / 2 },
+          style
+        ]}
+      />
+    );
+  }
+  if (kind === "badge") {
+    return (
+      <View
+        style={[
+          styles.pixelArt,
+          styles.pixelArtBadge,
+          { width: size, height: size },
+          style
+        ]}
+      >
+        <View style={styles.pixelArtBadgeCrossH} />
+        <View style={styles.pixelArtBadgeCrossV} />
+      </View>
+    );
+  }
+  if (kind === "activity") {
+    return (
+      <View
+        style={[
+          styles.pixelArt,
+          styles.pixelArtActivity,
+          { width: size, height: Math.round(size * 0.66) },
+          style
+        ]}
+      >
+        <View style={styles.pixelArtActivityBar} />
+        <View style={styles.pixelArtActivityBar} />
+        <View style={[styles.pixelArtActivityBar, styles.pixelArtActivityBarShort]} />
+      </View>
+    );
+  }
+  return (
+    <View
+      style={[
+        styles.pixelArt,
+        styles.pixelArtCharacter,
+        { width: size, height: size },
+        style
+      ]}
+    >
+      <View
+        style={[
+          styles.pixelArtCharacterHead,
+          {
+            width: Math.round(size * 0.5),
+            height: Math.round(size * 0.5),
+            borderRadius: Math.round(size * 0.25)
+          }
+        ]}
+      />
+    </View>
+  );
+}
