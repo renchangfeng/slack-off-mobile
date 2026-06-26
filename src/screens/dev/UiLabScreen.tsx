@@ -3,13 +3,68 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   ActivityPreviewCard,
   BrandManifestoCard,
+  EmptyState,
+  FramedCard,
+  IconTile,
+  PixelArtPlaceholder,
   Pill,
   PrimaryButton,
   ProgressMeter,
+  RewardRow,
+  SectionHeader,
   SignalTile,
+  StatusBadge,
   Surface
 } from "../../ui/components";
 import { activeTheme, brandVoice, colors, spacing, typography } from "../../ui/tokens";
+
+const TONE_PREVIEWS = [
+  {
+    tone: "absurd",
+    badge: "加载中演员",
+    headline: "表情进度条缓慢前进",
+    scene: "眉头轻皱，像是在等待一个非常重要的响应。",
+    prompt: "选择你的加载中表情，维持短短几秒。",
+    statLabel: "表演值",
+    statValue: "83%"
+  },
+  {
+    tone: "calm",
+    badge: "水杯研究所",
+    headline: "凝视水杯，暂停世界",
+    scene: "这只杯子什么都不催，是难得的稳定同事。",
+    prompt: "盯住它 30 秒，不分析根因。",
+    statLabel: "液体哲学",
+    statValue: "58%"
+  },
+  {
+    tone: "game",
+    badge: "像素挑战",
+    headline: "三秒破纪录",
+    scene: "短时决策小游戏，专注度比手速重要。",
+    prompt: "三秒内完成组合键。",
+    statLabel: "反应",
+    statValue: "92%"
+  },
+  {
+    tone: "physical",
+    badge: "工位伸展",
+    headline: "脊椎的请愿书",
+    scene: "让上半身告状的部分稍息片刻。",
+    prompt: "30 秒拉伸肩颈。",
+    statLabel: "韧带",
+    statValue: "65%"
+  },
+  {
+    tone: "daydream",
+    badge: "神游太虚",
+    headline: "假装在思考方案",
+    scene: "目光失焦，进入合法的精神离线。",
+    prompt: "三分钟不被打断。",
+    statLabel: "灵感",
+    statValue: "47%"
+  }
+];
 
 type UiLabScreenProps = {
   onClose: () => void;
@@ -34,7 +89,7 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         <BrandManifestoCard />
 
         <Surface>
-          <Text style={styles.sectionTitle}>Signals</Text>
+          <SectionHeader title="Signals" />
           <View style={styles.tileRow}>
             <SignalTile
               label="今日卷度"
@@ -48,7 +103,7 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         </Surface>
 
         <Surface>
-          <Text style={styles.sectionTitle}>Actions</Text>
+          <SectionHeader title="Actions" />
           <View style={styles.stack}>
             <PrimaryButton label="领取摸鱼任务" onPress={() => undefined} />
             <PrimaryButton label="深色操作" dark onPress={() => undefined} />
@@ -57,7 +112,7 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         </Surface>
 
         <Surface>
-          <Text style={styles.sectionTitle}>Pills</Text>
+          <SectionHeader title="Pills" />
           <View style={styles.pillRow}>
             <Pill label="全部" selected />
             <Pill label="小游戏" />
@@ -66,32 +121,140 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         </Surface>
 
         <Surface>
-          <Text style={styles.sectionTitle}>Progress</Text>
+          <SectionHeader title="Progress" />
           <View style={styles.stack}>
             <ProgressMeter label="今日目标" value={2} total={3} />
             <ProgressMeter label="抽豆进度" value={1} total={3} />
           </View>
         </Surface>
 
-        <ActivityPreviewCard
-          badge="水杯研究所"
-          headline="凝视水杯，暂停世界"
-          scene="这只杯子什么都不催，是难得的稳定同事。"
-          prompt="盯住它 30 秒，不分析根因，不刷新消息。"
-          statLabel="液体哲学"
-          statValue="58%"
-          tone="calm"
-        />
+        <Surface>
+          <SectionHeader title="Status badges" />
+          <View style={styles.pillRow}>
+            <StatusBadge tone="active" label="ACTIVE" />
+            <StatusBadge tone="completed" label="完成" />
+            <StatusBadge tone="warning" label="即将重置" />
+            <StatusBadge tone="locked" label="未解锁" />
+            <StatusBadge tone="default" label="默认" />
+          </View>
+        </Surface>
 
-        <ActivityPreviewCard
-          badge="加载中演员"
-          headline="表情进度条缓慢前进"
-          scene="眉头轻皱，像是在等待一个非常重要的响应。"
-          prompt="选择你的加载中表情，维持短短几秒，注意别演过头。"
-          statLabel="表演可信度"
-          statValue="83%"
-          tone="absurd"
-        />
+        <Surface>
+          <SectionHeader title="Framed cards" />
+          <View style={styles.stack}>
+            <FramedCard>
+              <Text style={styles.cardTitle}>基础 FramedCard</Text>
+              <Text style={styles.copy}>没有 pixel 边框，靠 padding 撑开。</Text>
+            </FramedCard>
+            <FramedCard pixelBorder>
+              <Text style={styles.cardTitle}>Pixel 边框</Text>
+              <Text style={styles.copy}>2px 实线带软像素角。</Text>
+            </FramedCard>
+            <FramedCard pixelBorder accent={colors.gold}>
+              <Text style={styles.cardTitle}>Pixel 边框 + 金色 accent</Text>
+              <Text style={styles.copy}>强调"刚刚解锁"或"特别提醒"。</Text>
+            </FramedCard>
+          </View>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Icon tiles" />
+          <View style={styles.tileRow}>
+            <IconTile size={48} accent={colors.acid}>
+              <Text style={styles.iconTileText}>休</Text>
+            </IconTile>
+            <IconTile size={36} accent={colors.cyan}>
+              <Text style={styles.iconTileText}>豆</Text>
+            </IconTile>
+            <IconTile size={28} accent={colors.coral}>
+              <Text style={styles.iconTileText}>我</Text>
+            </IconTile>
+          </View>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Reward rows" />
+          <View style={styles.stack}>
+            <RewardRow label="摸鱼指数" value="+12" icon="🐟" positive />
+            <RewardRow label="抽豆进度" value="+1/3" icon="🫘" positive />
+            <RewardRow label="本次奖励" value="0" />
+            <RewardRow label="下一档解锁" value="3/5" icon="🏆" />
+          </View>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Empty states" />
+          <View style={styles.stack}>
+            <EmptyState
+              icon="🫘"
+              title="豆仓还没有收藏"
+              body="完成一次抽豆，bean 就会出现在这里。"
+            />
+            <EmptyState
+              icon="🏆"
+              title="排行榜暂无人上榜"
+              body="等你先完成一个摸鱼打卡。"
+            />
+          </View>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Section headers" />
+          <View style={styles.stack}>
+            <SectionHeader kicker="TODAY" title="今日摸鱼" />
+            <SectionHeader
+              kicker="COLLECTION"
+              title="你的豆仓"
+              trailing={<Pill label="3 / 12" selected accentColor={colors.primary} />}
+            />
+          </View>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Pixel art placeholders" />
+          <View style={styles.tileRow}>
+            <View style={styles.pixelArtStack}>
+              <PixelArtPlaceholder kind="bean" size={48} />
+              <Text style={styles.pixelArtLabel}>bean</Text>
+            </View>
+            <View style={styles.pixelArtStack}>
+              <PixelArtPlaceholder kind="badge" size={48} />
+              <Text style={styles.pixelArtLabel}>badge</Text>
+            </View>
+            <View style={styles.pixelArtStack}>
+              <PixelArtPlaceholder kind="activity" size={80} />
+              <Text style={styles.pixelArtLabel}>activity</Text>
+            </View>
+            <View style={styles.pixelArtStack}>
+              <PixelArtPlaceholder kind="character" size={64} />
+              <Text style={styles.pixelArtLabel}>character</Text>
+            </View>
+          </View>
+          <View style={styles.tileRow}>
+            <PixelArtPlaceholder kind="bean" size={24} />
+            <PixelArtPlaceholder kind="badge" size={24} />
+            <PixelArtPlaceholder kind="activity" size={40} />
+            <PixelArtPlaceholder kind="character" size={40} />
+          </View>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Activity tones" />
+          <View style={styles.stack}>
+            {TONE_PREVIEWS.map((item) => (
+              <ActivityPreviewCard
+                key={item.tone}
+                badge={item.badge}
+                headline={item.headline}
+                scene={item.scene}
+                prompt={item.prompt}
+                statLabel={item.statLabel}
+                statValue={item.statValue}
+                tone={item.tone}
+              />
+            ))}
+          </View>
+        </Surface>
 
         <PrimaryButton label="返回 App" dark onPress={onClose} />
       </ScrollView>
@@ -133,22 +296,42 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: spacing.md
   },
-  sectionTitle: {
-    color: colors.ink,
-    marginBottom: spacing.md,
-    ...typography.title
-  },
   stack: {
-    gap: spacing.md
+    gap: spacing.md,
+    marginTop: spacing.md
   },
   pillRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.sm
+    gap: spacing.sm,
+    marginTop: spacing.md
   },
   tileRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.md
+    gap: spacing.md,
+    marginTop: spacing.md
+  },
+  cardTitle: {
+    color: colors.ink,
+    ...typography.title
+  },
+  copy: {
+    color: colors.inkMuted,
+    marginTop: spacing.xs,
+    ...typography.body
+  },
+  iconTileText: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  pixelArtStack: {
+    alignItems: "center",
+    gap: spacing.xs
+  },
+  pixelArtLabel: {
+    color: colors.inkMuted,
+    fontSize: 11
   }
 });
