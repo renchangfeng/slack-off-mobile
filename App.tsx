@@ -1,15 +1,29 @@
-import { useState, type ReactNode } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
 import { useAuthSession } from "./src/auth/useAuthSession";
 import { env } from "./src/config/env";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { UiLabScreen } from "./src/screens/dev/UiLabScreen";
 import { colors, targetViewport } from "./src/ui/tokens";
+import { useBrandName } from "./src/ui/useBrandName";
 
 export default function App() {
   const auth = useAuthSession();
   const [showUiLab, setShowUiLab] = useState(false);
+  const brand = useBrandName();
+
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      document.title = brand;
+    }
+  }, [brand]);
 
   let content: ReactNode;
   if (showUiLab && env.showUiLab) {
@@ -43,12 +57,19 @@ export default function App() {
   return <View style={styles.root}>{content}</View>;
 }
 
+const ROOT_HEIGHT = Platform.select({
+  web: "100vh",
+  default: "100%"
+}) as `${number}%`;
+
 const styles = StyleSheet.create({
   root: {
     alignSelf: "center",
     backgroundColor: colors.background,
     flex: 1,
+    height: ROOT_HEIGHT,
     maxWidth: targetViewport.maxContentWidth,
+    overflow: "hidden",
     width: "100%"
   },
   loading: {
