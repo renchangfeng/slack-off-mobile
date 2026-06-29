@@ -2,7 +2,10 @@ import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -31,60 +34,70 @@ export function LoginScreen({ error, onOpenUiLab, onSignInWithEmail }: LoginScre
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{brand}</Text>
-        <Text style={styles.subtitle}>先登录，再认真地不那么认真。</Text>
-      </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.container}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>{brand}</Text>
+          <Text style={styles.subtitle}>先登录，再认真地不那么认真。</Text>
+        </View>
 
-      <View style={styles.panel}>
-        <Text style={styles.kicker}>邮箱登录</Text>
-        <Text style={styles.copy}>
-          输入邮箱获取一次性登录入口。你的摸鱼豆、成就和排行榜身份会跟着账号走。
-        </Text>
-        <TextInput
-          autoCapitalize="none"
-          autoComplete="email"
-          inputMode="email"
-          onChangeText={setEmail}
-          placeholder="you@example.com"
-          placeholderTextColor="#9b9186"
-          style={styles.input}
-          value={email}
-        />
-        <Pressable
-          accessibilityRole="button"
-          disabled={loading}
-          onPress={submit}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            (pressed || loading) && styles.buttonMuted
-          ]}
-        >
-          <Text style={styles.primaryButtonText}>发送登录邮件</Text>
-        </Pressable>
-        {loading ? <ActivityIndicator color="#232323" style={styles.loader} /> : null}
-        {message ? <Text style={styles.message}>{message}</Text> : null}
-        {onOpenUiLab ? (
+        <View style={styles.panel}>
+          <Text style={styles.kicker}>邮箱登录</Text>
+          <Text style={styles.copy}>
+            输入邮箱获取一次性登录入口。你的摸鱼豆、成就和排行榜身份会跟着账号走。
+          </Text>
+          <TextInput
+            autoCapitalize="none"
+            autoComplete="email"
+            inputMode="email"
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            placeholderTextColor="#9b9186"
+            style={styles.input}
+            value={email}
+          />
           <Pressable
             accessibilityRole="button"
-            onPress={onOpenUiLab}
-            style={styles.secondaryButton}
+            disabled={loading}
+            onPress={submit}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              (pressed || loading) && styles.buttonMuted
+            ]}
           >
-            <Text style={styles.secondaryButtonText}>打开 UI Lab</Text>
+            <Text style={styles.primaryButtonText}>发送登录邮件</Text>
           </Pressable>
-        ) : null}
-      </View>
-
+          {loading ? <ActivityIndicator color="#232323" style={styles.loader} /> : null}
+          {message ? <Text style={styles.message}>{message}</Text> : null}
+          {onOpenUiLab ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={onOpenUiLab}
+              style={styles.secondaryButton}
+            >
+              <Text style={styles.secondaryButtonText}>打开 UI Lab</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </ScrollView>
       <StatusBar style="auto" />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#f6f1e8",
-    flex: 1,
+    flex: 1
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
     padding: 20
   },
