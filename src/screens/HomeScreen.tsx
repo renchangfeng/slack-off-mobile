@@ -74,6 +74,7 @@ import {
   EmptyState,
   FramedCard,
   IconTile,
+  PixelArtPlaceholder,
   PrimaryButton,
   SectionHeader,
   StatusBadge
@@ -995,11 +996,8 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
         {selectedTab === "beans" ? (
           <>
             <GoalBanner goal={findGoal(progression, "bean_draw")} />
-            <View style={styles.featurePanel}>
-              <Text style={styles.kicker}>抽豆账户</Text>
-              <Text style={styles.sectionTitle}>
-                {beanCollection?.drawChances ?? 0} 次机会
-              </Text>
+            <FramedCard>
+              <SectionHeader kicker="抽豆账户" title={`${beanCollection?.drawChances ?? 0} 次机会`} />
               <Text style={styles.copy}>
                 当前进度 {beanCollection?.drawProgress ?? 0}/3。每满 3 点自动兑换一次机会。
               </Text>
@@ -1126,10 +1124,9 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   </Text>
                 </View>
               ) : null}
-            </View>
-            <View style={styles.panel}>
-              <Text style={styles.kicker}>展示柜</Text>
-              <Text style={styles.sectionTitle}>选一个槽位，再点一颗已拥有的豆</Text>
+            </FramedCard>
+            <FramedCard>
+              <SectionHeader kicker="展示柜" title="选一个槽位，再点一颗已拥有的豆" />
               <View style={styles.showcaseRow}>
                 {[1, 2, 3].map((position) => {
                   const item = beanCollection?.showcase.find(
@@ -1146,6 +1143,7 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                         showcasePosition === position && styles.showcaseSlotActive
                       ]}
                     >
+                      <PixelArtPlaceholder kind="bean" size={48} style={styles.showcasePlaceholder} />
                       <Text style={styles.kicker}>第 {position} 格</Text>
                       <Text style={styles.showcaseBeanName}>
                         {item?.bean.name ?? "空位"}
@@ -1154,13 +1152,12 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   );
                 })}
               </View>
-            </View>
-            <View style={styles.panel}>
-              <Text style={styles.kicker}>豆子图鉴</Text>
-              <Text style={styles.sectionTitle}>
-                已收集 {beanCollection?.beans.filter((bean) => bean.owned).length ?? 0}/
-                {beanCollection?.beans.length ?? 0}
-              </Text>
+            </FramedCard>
+            <FramedCard>
+              <SectionHeader
+                kicker="豆子图鉴"
+                title={`已收集 ${beanCollection?.beans.filter((bean) => bean.owned).length ?? 0}/${beanCollection?.beans.length ?? 0}`}
+              />
               <View style={styles.raritySummaryRow}>
                 {beanRarities.map((rarity) => {
                   const rarityBeans = beanCollection?.beans.filter(
@@ -1176,49 +1173,65 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   );
                 })}
               </View>
-              <View style={styles.grid}>
-                {beanCollection?.beans
-                  .filter((bean) => bean.theme === beanTheme)
-                  .map((bean) => (
-                  <Pressable
-                    key={bean.id}
-                    accessibilityRole={bean.owned ? "button" : undefined}
-                    disabled={!bean.owned || loading}
-                    onPress={() => setBeanShowcase(bean.id)}
-                    style={[styles.beanTile, bean.owned && styles.beanTileOwned]}
-                  >
-                    <Text style={styles.rowTitle}>{bean.name}</Text>
-                    <Text style={styles.rowMeta}>
-                      {rarityLabel(bean.rarity)} · x{bean.quantity}
-                    </Text>
-                    <Text style={styles.smallCopy}>
-                      {bean.owned ? bean.description : "尚未获得，先保持一点神秘。"}
-                    </Text>
-                    {bean.owned ? (
-                      <Text style={styles.showcaseHint}>放入第 {showcasePosition} 格</Text>
-                    ) : null}
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-            <View style={styles.panel}>
-              <Text style={styles.kicker}>豆子组合</Text>
-              <Text style={styles.sectionTitle}>只看收藏，不消耗豆子</Text>
-              {beanCollection?.combinations.map((combination) => (
-                <View
-                  key={combination.code}
-                  style={[styles.listRow, combination.completed && styles.listRowCompleted]}
-                >
-                  <View style={styles.flex}>
-                    <Text style={styles.rowTitle}>{combination.name}</Text>
-                    <Text style={styles.rowMeta}>收集指定豆子即可自动完成</Text>
-                  </View>
-                  <Text style={combination.completed ? styles.completedMark : styles.progressValue}>
-                    {combination.owned}/{combination.required}
-                  </Text>
+              {beanCollection?.beans.filter((bean) => bean.theme === beanTheme).length ? (
+                <View style={styles.grid}>
+                  {beanCollection?.beans
+                    .filter((bean) => bean.theme === beanTheme)
+                    .map((bean) => (
+                    <Pressable
+                      key={bean.id}
+                      accessibilityRole={bean.owned ? "button" : undefined}
+                      disabled={!bean.owned || loading}
+                      onPress={() => setBeanShowcase(bean.id)}
+                      style={[styles.beanTile, bean.owned && styles.beanTileOwned]}
+                    >
+                      <PixelArtPlaceholder kind="bean" size={56} style={styles.beanTileArt} />
+                      <Text style={styles.rowTitle}>{bean.name}</Text>
+                      <Text style={styles.rowMeta}>
+                        {rarityLabel(bean.rarity)} · x{bean.quantity}
+                      </Text>
+                      <Text style={styles.smallCopy}>
+                        {bean.owned ? bean.description : "尚未获得，先保持一点神秘。"}
+                      </Text>
+                      {bean.owned ? (
+                        <Text style={styles.showcaseHint}>放入第 {showcasePosition} 格</Text>
+                      ) : null}
+                    </Pressable>
+                  ))}
                 </View>
-              ))}
-            </View>
+              ) : (
+                <EmptyState
+                  title="这个卡池空空如也"
+                  body="完成任意一次活动来攒抽豆机会"
+                  icon="🫘"
+                />
+              )}
+            </FramedCard>
+            <FramedCard>
+              <SectionHeader kicker="豆子组合" title="只看收藏，不消耗豆子" />
+              {beanCollection?.combinations.length ? (
+                beanCollection.combinations.map((combination) => (
+                  <View
+                    key={combination.code}
+                    style={[styles.listRow, combination.completed && styles.listRowCompleted]}
+                  >
+                    <View style={styles.flex}>
+                      <Text style={styles.rowTitle}>{combination.name}</Text>
+                      <Text style={styles.rowMeta}>收集指定豆子即可自动完成</Text>
+                    </View>
+                    <Text style={combination.completed ? styles.completedMark : styles.progressValue}>
+                      {combination.owned}/{combination.required}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <EmptyState
+                  title="组合表还在路上"
+                  body="先把豆子收齐，组合就会自动出现"
+                  icon="🧩"
+                />
+              )}
+            </FramedCard>
           </>
         ) : null}
 
@@ -3037,12 +3050,13 @@ const styles = StyleSheet.create({
   progressFill: { borderRadius: 4, height: 8 },
   grid: { gap: 10, marginTop: 14 },
   beanTile: {
-    borderColor: "#dfd8ce",
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     padding: 13
   },
-  beanTileOwned: { backgroundColor: "#edf8f2", borderColor: "#82b99f" },
+  beanTileOwned: { backgroundColor: colors.mintLight, borderColor: colors.mintMid },
+  beanTileArt: { marginBottom: 8 },
   beanThemeRow: { flexDirection: "row", gap: 8, marginTop: 10 },
   beanThemeButton: {
     alignItems: "center",
@@ -3080,16 +3094,17 @@ const styles = StyleSheet.create({
   beanEconomyValue: { color: "#232323", fontSize: 24, fontWeight: "900", marginTop: 5 },
   showcaseRow: { flexDirection: "row", gap: 8, marginTop: 14 },
   showcaseSlot: {
-    borderColor: "#d8d0c4",
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
     minHeight: 76,
     padding: 10
   },
-  showcaseSlotActive: { backgroundColor: "#fff4c9", borderColor: "#d4a838" },
-  showcaseBeanName: { color: "#232323", fontSize: 13, fontWeight: "900", marginTop: 7 },
-  showcaseHint: { color: "#1f8f62", fontSize: 11, fontWeight: "900", marginTop: 9 },
+  showcaseSlotActive: { backgroundColor: colors.warningSoft, borderColor: colors.goldDeep },
+  showcasePlaceholder: { marginBottom: 6 },
+  showcaseBeanName: { color: colors.ink, fontSize: 13, fontWeight: "900", marginTop: 7 },
+  showcaseHint: { color: colors.primary, fontSize: 11, fontWeight: "900", marginTop: 9 },
   raritySummaryRow: { flexDirection: "row", gap: 5, marginTop: 14 },
   raritySummaryCell: {
     alignItems: "center",
