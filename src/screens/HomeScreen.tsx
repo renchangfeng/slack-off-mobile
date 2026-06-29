@@ -714,9 +714,8 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
               loading={loading}
               onClaim={() => claimProgressionReward("weekly")}
             />
-            <View style={styles.panel}>
-              <Text style={styles.kicker}>当前打卡</Text>
-              <Text style={styles.timer}>{elapsedLabel}</Text>
+            <FramedCard>
+              <SectionHeader kicker="当前打卡" title={elapsedLabel} />
               <Text style={styles.copy}>
                 {activeSession
                   ? activeSessionOverLimit
@@ -737,7 +736,7 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   onPress={finishSession}
                 />
               </View>
-            </View>
+            </FramedCard>
             <View style={styles.nextStepPanel}>
               <Text style={styles.darkKicker}>下一步</Text>
               <Text style={styles.nextStepTitle}>{nextStep.title}</Text>
@@ -1562,7 +1561,7 @@ function ProgressionOverview({ progression }: { progression: ProgressionSummary 
       <ProgressBar
         value={progression?.currentLevelExperience ?? 0}
         max={progression?.nextLevelExperience ?? 100}
-        color="#f0c95a"
+        color={colors.gold}
       />
       <Text style={styles.progressionMeta}>
         距离下一级还差{" "}
@@ -1628,11 +1627,10 @@ function GoalPeriodPanel({
   onClaim: () => void | Promise<void>;
 }) {
   return (
-    <View style={styles.panel}>
+    <FramedCard>
       <View style={styles.rowBetween}>
-        <View>
-          <Text style={styles.kicker}>{kicker}</Text>
-          <Text style={styles.sectionTitle}>{title}</Text>
+        <View style={styles.flex}>
+          <SectionHeader kicker={kicker} title={title} />
         </View>
         <Text style={styles.goalCount}>
           {period?.completed ?? 0}/{period?.total ?? 3}
@@ -1646,8 +1644,8 @@ function GoalPeriodPanel({
             <ProgressBar
               value={goal.current}
               max={goal.target}
-              color={goal.completed ? "#1f8f62" : "#d4a838"}
-              trackColor="#e2dbd0"
+              color={goal.completed ? colors.primary : colors.goldDeep}
+              trackColor={colors.border}
             />
           </View>
           <Text style={goal.completed ? styles.completedMark : styles.progressValue}>
@@ -1675,7 +1673,7 @@ function GoalPeriodPanel({
       {period?.allCompleted && !period.rewardClaimed ? (
         <ActionButton label="领取成长奖励" disabled={loading} onPress={onClaim} />
       ) : null}
-    </View>
+    </FramedCard>
   );
 }
 
@@ -1687,23 +1685,23 @@ function ProgressionClaimResultPanel({
   nextStep: ReturnType<typeof deriveGameplayStep>;
 }) {
   return (
-    <View style={[styles.resultPanel, result.progression.leveledUp && styles.levelUpPanel]}>
-      <Text style={styles.kicker}>
-        {result.progression.leveledUp ? "等级提升" : "成长奖励"}
-      </Text>
-      <Text style={styles.sectionTitle}>
-        {result.progression.leveledUp
-          ? `LV ${result.progression.previousLevel} → LV ${result.progression.currentLevel}`
-          : result.awarded
-            ? "这份努力被正式记下了"
-            : "这份奖励已经领过了"}
-      </Text>
+    <FramedCard>
+      <SectionHeader
+        kicker={result.progression.leveledUp ? "等级提升" : "成长奖励"}
+        title={
+          result.progression.leveledUp
+            ? `LV ${result.progression.previousLevel} → LV ${result.progression.currentLevel}`
+            : result.awarded
+              ? "这份努力被正式记下了"
+              : "这份奖励已经领过了"
+        }
+      />
       <Text style={styles.copy}>
         得分 +{result.reward.score} · 抽豆进度 +{result.reward.drawProgress} · 机会 +
         {result.reward.drawChancesGranted}
       </Text>
       <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
-    </View>
+    </FramedCard>
   );
 }
 
@@ -1720,13 +1718,13 @@ function DailyRhythmChecklist({
   const incompleteGoals = goals.filter((goal) => !goal.completed);
 
   return (
-    <View style={styles.panel}>
+    <FramedCard>
       <View style={styles.rowBetween}>
         <View style={styles.flex}>
-          <Text style={styles.kicker}>今天还能做什么</Text>
-          <Text style={styles.sectionTitle}>
-            {incompleteGoals.length ? "把闭环补完整" : "今天已经很会休息"}
-          </Text>
+          <SectionHeader
+            kicker="今天还能做什么"
+            title={incompleteGoals.length ? "把闭环补完整" : "今天已经很会休息"}
+          />
         </View>
         <Text style={styles.goalCount}>
           {progression?.dailyGoals.completed ?? 0}/{progression?.dailyGoals.total ?? 3}
@@ -1741,8 +1739,8 @@ function DailyRhythmChecklist({
               <ProgressBar
                 value={goal.current}
                 max={goal.target}
-                color="#d4a838"
-                trackColor="#e2dbd0"
+                color={colors.goldDeep}
+                trackColor={colors.border}
               />
             </View>
             <Pressable
@@ -1759,11 +1757,13 @@ function DailyRhythmChecklist({
           </View>
         ))
       ) : (
-        <Text style={styles.emptyText}>
-          今日目标已经完成，领完奖励后就可以去抽豆、看榜，或者什么都不做。
-        </Text>
+        <EmptyState
+          title="今日目标已经完成"
+          body="领完奖励后就可以去抽豆、看榜，或者什么都不做"
+          icon="🌙"
+        />
       )}
-    </View>
+    </FramedCard>
   );
 }
 
@@ -2128,17 +2128,17 @@ function CheckInResult({
   nextStep: ReturnType<typeof deriveGameplayStep>;
 }) {
   return (
-    <View style={styles.resultPanel}>
-      <Text style={styles.kicker}>本次结算</Text>
-      <Text style={styles.sectionTitle}>
-        {result.reward.rewarded ? "这次休息被系统正式承认" : "这次太短，精神上仍然算数"}
-      </Text>
+    <FramedCard>
+      <SectionHeader
+        kicker="本次结算"
+        title={result.reward.rewarded ? "这次休息被系统正式承认" : "这次太短，精神上仍然算数"}
+      />
       <Text style={styles.copy}>
         得分 +{result.reward.score} · 抽豆进度 +{result.reward.drawProgress} · 机会 +
         {result.reward.drawChancesGranted ?? 0}
       </Text>
       <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
-    </View>
+    </FramedCard>
   );
 }
 
