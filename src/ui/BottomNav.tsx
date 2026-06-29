@@ -1,0 +1,89 @@
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { colors, radius, spacing, typography } from "./tokens";
+import { IconTile } from "./components";
+
+export type BottomNavTab<T extends string> = {
+  value: T;
+  label: string;
+  glyph: string;
+};
+
+type BottomNavProps<T extends string> = {
+  tabs: BottomNavTab<T>[];
+  selected: T;
+  onSelect: (value: T) => void;
+};
+
+export function BottomNav<T extends string>({ tabs, selected, onSelect }: BottomNavProps<T>) {
+  return (
+    <View style={styles.container}>
+      {tabs.map((tab) => {
+        const active = selected === tab.value;
+        return (
+          <Pressable
+            key={tab.value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            onPress={() => onSelect(tab.value)}
+            style={styles.item}
+          >
+            <IconTile
+              size={32}
+              accent={active ? colors.acid : colors.inkMuted}
+              style={active ? styles.glyphActive : undefined}
+            >
+              <Text
+                style={[
+                  styles.glyph,
+                  { color: active ? colors.ink : colors.inkMuted }
+                ]}
+              >
+                {tab.glyph}
+              </Text>
+            </IconTile>
+            <Text style={[styles.label, active && styles.labelActive]}>{tab.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    alignSelf: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
+    borderRadius: radius.md,
+    borderTopWidth: 1,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: spacing.sm,
+    maxWidth: 760,
+    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+    width: "100%"
+  },
+  item: {
+    alignItems: "center",
+    flex: 1,
+    gap: spacing.xs,
+    justifyContent: "center",
+    minHeight: 56
+  },
+  glyph: {
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  glyphActive: {
+    transform: [{ rotate: "-2deg" }]
+  },
+  label: {
+    ...typography.kicker,
+    color: colors.inkMuted
+  },
+  labelActive: {
+    color: colors.primary
+  }
+});

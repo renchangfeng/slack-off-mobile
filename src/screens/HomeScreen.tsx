@@ -68,6 +68,7 @@ import {
 import { deriveGameplayStep } from "../gameplay/nextStep";
 import { logEvent } from "../observability/logger";
 import { useBrandName } from "../ui/useBrandName";
+import { BottomNav } from "../ui/BottomNav";
 
 type HomeScreenProps = {
   authLabel?: string;
@@ -1475,27 +1476,11 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
         <StatusBar style="auto" />
       </ScrollView>
 
-      <View style={styles.bottomNav}>
-        {dashboardTabs.map((tab) => {
-          const selected = selectedTab === tab.value;
-          return (
-            <Pressable
-              key={tab.value}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => setSelectedTab(tab.value)}
-              style={styles.navItem}
-            >
-              <View style={[styles.navGlyph, selected && styles.navGlyphActive]}>
-                <Text style={[styles.navGlyphText, selected && styles.navGlyphTextActive]}>
-                  {tab.glyph}
-                </Text>
-              </View>
-              <Text style={[styles.navLabel, selected && styles.navLabelActive]}>{tab.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <BottomNav
+        tabs={dashboardTabs}
+        selected={selectedTab}
+        onSelect={setSelectedTab}
+      />
       <AchievementUnlockOverlay
         unlock={achievementUnlockQueue[0] ?? null}
         cosmeticInventory={cosmeticInventory}
@@ -3295,39 +3280,5 @@ const styles = StyleSheet.create({
     marginTop: 14,
     textAlign: "center"
   },
-  emptyText: { color: "#746b60", fontSize: 14, lineHeight: 21, marginTop: 12 },
-  bottomNav: {
-    alignSelf: "center",
-    backgroundColor: "#fffdf8",
-    borderColor: "#18232b",
-    borderTopWidth: 1,
-    borderWidth: 1,
-    flexDirection: "row",
-    marginBottom: 10,
-    maxWidth: 760,
-    borderRadius: 8,
-    paddingBottom: 10,
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    width: "100%"
-  },
-  navItem: {
-    alignItems: "center",
-    flex: 1,
-    gap: 4,
-    justifyContent: "center",
-    minHeight: 54
-  },
-  navGlyph: {
-    alignItems: "center",
-    borderRadius: 6,
-    height: 26,
-    justifyContent: "center",
-    width: 30
-  },
-  navGlyphActive: { backgroundColor: "#b7f05a", transform: [{ rotate: "-2deg" }] },
-  navGlyphText: { color: "#6f675d", fontSize: 13, fontWeight: "900" },
-  navGlyphTextActive: { color: "#18232b" },
-  navLabel: { color: "#6f675d", fontSize: 11, fontWeight: "800" },
-  navLabelActive: { color: "#17a36b" }
+  emptyText: { color: "#746b60", fontSize: 14, lineHeight: 21, marginTop: 12 }
 });
