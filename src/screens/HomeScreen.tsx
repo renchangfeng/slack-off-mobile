@@ -1224,12 +1224,11 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
 
         {selectedTab === "rankings" ? (
           <>
-          <View style={styles.panel}>
-            <Text style={styles.kicker}>排行范围</Text>
-            <Text style={styles.rowMeta}>
-              今日固定善意还可送 {social?.reactions.remainingToday ?? 0}/
-              {social?.reactions.dailyLimit ?? 10} 次 · {social?.reactions.resetTimezone ?? "UTC"} 重置
-            </Text>
+          <FramedCard>
+            <SectionHeader
+              kicker="今日休息榜"
+              title={`${social?.reactions.remainingToday ?? 0}/${social?.reactions.dailyLimit ?? 10} 次善意额度`}
+            />
             <View style={styles.segmented}>
               {leaderboardScopes.map((scope) => (
                 <Pressable
@@ -1268,40 +1267,60 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
             </View>
             <View style={styles.leaderboardBody}>
               {leaderboard?.items.length ? (
-                leaderboard.items.map((item) => (
-                  <View key={`${item.rank}-${item.userId}`} style={styles.rankRow}>
-                    <Text style={styles.rankNo}>#{item.rank}</Text>
-                    <View style={styles.flex}>
-                      <Text style={styles.rowTitle}>{item.displayName}</Text>
-                      <Text style={styles.rowMeta}>
-                        {item.equippedBadge ?? item.equippedTitle ?? "认真摸鱼中"}
-                      </Text>
+                leaderboard.items.map((item) => {
+                  const isCurrentUser =
+                    !!item.userId && item.userId === leaderboard?.currentUser?.userId;
+                  return (
+                    <View
+                      key={`${item.rank}-${item.userId}`}
+                      style={[styles.rankRow, isCurrentUser && styles.rankRowMine]}
+                    >
+                      <View style={styles.rankBadge}>
+                        <Text style={styles.rankNo}>#{item.rank}</Text>
+                      </View>
+                      <View style={styles.flex}>
+                        <Text style={styles.rowTitle}>
+                          {item.displayName}
+                          {isCurrentUser ? "（你）" : ""}
+                        </Text>
+                        <Text style={styles.rowMeta}>
+                          {item.equippedBadge ?? item.equippedTitle ?? "认真摸鱼中"}
+                        </Text>
+                      </View>
+                      <View style={styles.rankActions}>
+                        <Text style={styles.rankScore}>{item.score}</Text>
+                        {item.userId && item.userId !== leaderboard.currentUser?.userId ? (
+                          <View style={styles.reactionRow}>
+                            <Pressable accessibilityRole="button" onPress={() => void sendReaction(item.userId!, "tissue")} style={styles.reactionButton}>
+                              <Text style={styles.reactionText}>纸 {item.reactions.tissue}</Text>
+                            </Pressable>
+                            <Pressable accessibilityRole="button" onPress={() => void sendReaction(item.userId!, "like")} style={styles.reactionButton}>
+                              <Text style={styles.reactionText}>赞 {item.reactions.like}</Text>
+                            </Pressable>
+                          </View>
+                        ) : null}
+                      </View>
                     </View>
-                    <View style={styles.rankActions}>
-                      <Text style={styles.rankScore}>{item.score}</Text>
-                      {item.userId && item.userId !== leaderboard.currentUser?.userId ? (
-                        <View style={styles.reactionRow}>
-                          <Pressable accessibilityRole="button" onPress={() => void sendReaction(item.userId!, "tissue")} style={styles.reactionButton}>
-                            <Text style={styles.reactionText}>纸 {item.reactions.tissue}</Text>
-                          </Pressable>
-                          <Pressable accessibilityRole="button" onPress={() => void sendReaction(item.userId!, "like")} style={styles.reactionButton}>
-                            <Text style={styles.reactionText}>赞 {item.reactions.like}</Text>
-                          </Pressable>
-                        </View>
-                      ) : null}
-                    </View>
-                  </View>
-                ))
+                  );
+                })
               ) : (
-                <View style={styles.leaderboardEmptyState}>
-                  <Text style={styles.emptyText}>
-                    {leaderboard?.suppressed
+                <EmptyState
+                  title={
+                    leaderboard?.suppressed
+                      ? leaderboard.suppressionReason === "COMPANY_TOO_SMALL"
+                        ? "公司榜还差几位"
+                        : "加入小队或公司后开始热闹"
+                      : "榜单还空着"
+                  }
+                  body={
+                    leaderboard?.suppressed
                       ? leaderboard.suppressionReason === "COMPANY_TOO_SMALL"
                         ? "公司榜至少需要 3 位成员，避免一眼认出谁是谁。"
                         : "加入对应的小队或公司后，这里才会开始热闹。"
-                      : "榜单还空着，第一位休息的人会获得心理优势。"}
-                  </Text>
-                </View>
+                      : "完成一次摸鱼活动，就能挤进前三名。"
+                  }
+                  icon="🐟"
+                />
               )}
               <View style={styles.myRankSlot}>
                 {leaderboard?.currentUser ? (
@@ -1314,10 +1333,9 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                 ) : null}
               </View>
             </View>
-          </View>
-          <View style={styles.panel}>
-            <Text style={styles.kicker}>轻社交</Text>
-            <Text style={styles.sectionTitle}>好友码 {social?.friendCode ?? "加载中"}</Text>
+          </FramedCard>
+          <FramedCard>
+            <SectionHeader kicker="轻社交" title={`好友码 ${social?.friendCode ?? "加载中"}`} />
             <Text style={styles.smallCopy}>
               没有私信，没有动态，只有排行和一点善意。今天已送{" "}
               {social?.reactions.sentToday ?? 0} 次。
@@ -1352,7 +1370,7 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                 <ActionButton label="离开公司" onPress={() => leaveSocialGroup("company")} dark />
               </>
             ) : null}
-          </View>
+          </FramedCard>
           </>
         ) : null}
 
@@ -3109,19 +3127,33 @@ const styles = StyleSheet.create({
   },
   rankRow: {
     alignItems: "center",
-    borderTopColor: "#e4ddd3",
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
     gap: 12,
     minHeight: 64,
     paddingVertical: 10
   },
-  rankNo: { color: "#1f8f62", fontSize: 17, fontWeight: "900", width: 44 },
-  rankScore: { color: "#232323", fontSize: 20, fontWeight: "900" },
+  rankRowMine: {
+    backgroundColor: colors.mintLight,
+    borderRadius: 8,
+    marginTop: 6,
+    paddingHorizontal: 8
+  },
+  rankBadge: {
+    alignItems: "center",
+    backgroundColor: colors.acid,
+    borderRadius: 6,
+    justifyContent: "center",
+    minHeight: 32,
+    minWidth: 44
+  },
+  rankNo: { color: colors.inkBlue, fontSize: 14, fontWeight: "900" },
+  rankScore: { color: colors.ink, fontSize: 20, fontWeight: "900" },
   rankActions: { alignItems: "flex-end", gap: 6 },
   reactionRow: { flexDirection: "row", gap: 5 },
-  reactionButton: { backgroundColor: "#eee8df", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 5 },
-  reactionText: { color: "#47413a", fontSize: 11, fontWeight: "900" },
+  reactionButton: { backgroundColor: colors.surfaceMuted, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 5 },
+  reactionText: { color: colors.inkMuted, fontSize: 11, fontWeight: "900" },
   socialInput: {
     backgroundColor: "#f4f0e8",
     borderColor: "#d8d0c4",
