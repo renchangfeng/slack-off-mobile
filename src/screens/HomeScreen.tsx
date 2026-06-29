@@ -69,6 +69,15 @@ import { deriveGameplayStep } from "../gameplay/nextStep";
 import { logEvent } from "../observability/logger";
 import { useBrandName } from "../ui/useBrandName";
 import { BottomNav } from "../ui/BottomNav";
+import { colors } from "../ui/tokens";
+import {
+  EmptyState,
+  FramedCard,
+  IconTile,
+  PrimaryButton,
+  SectionHeader,
+  StatusBadge
+} from "../ui/components";
 
 type HomeScreenProps = {
   authLabel?: string;
@@ -1349,12 +1358,14 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
 
         {selectedTab === "profile" ? (
           <>
-            <View style={styles.profileHeader}>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelBadgeText}>LV {progression?.level ?? 1}</Text>
-              </View>
+            <FramedCard>
+              <IconTile size={64} accent={colors.gold} style={styles.profileLevelTile}>
+                <Text style={styles.profileLevelText}>
+                  LV {progression?.level ?? 1}
+                </Text>
+              </IconTile>
               <View style={styles.flex}>
-                <Text style={styles.sectionTitle}>{authLabel ?? "摸鱼同学"}</Text>
+                <Text style={styles.profileName}>{authLabel ?? "摸鱼同学"}</Text>
                 <Text style={styles.rowMeta}>
                   连续休息 {progression?.currentStreakDays ?? 0} 天 · 最长{" "}
                   {progression?.longestStreakDays ?? 0} 天
@@ -1364,20 +1375,16 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   {equippedBadge ? `徽章：${equippedBadge}` : "徽章：还没装备"}
                 </Text>
               </View>
-            </View>
+            </FramedCard>
             <LifetimeStats progression={progression} />
-            <View style={styles.panel}>
-              <Text style={styles.kicker}>休息连续性</Text>
-              <Text style={styles.sectionTitle}>
-                已连续 {progression?.currentStreakDays ?? 0} 天
-              </Text>
+            <FramedCard>
+              <SectionHeader kicker="休息连续性" title={`已连续 ${progression?.currentStreakDays ?? 0} 天`} />
               <Text style={styles.copy}>
                 最长记录 {progression?.longestStreakDays ?? 0} 天。漏掉一天不会扣分，也不需要付费恢复，想起来时继续就好。
               </Text>
-            </View>
-            <View style={styles.panel}>
-              <Text style={styles.kicker}>目标板</Text>
-              <Text style={styles.sectionTitle}>今天别乱卷，挑一个顺手的</Text>
+            </FramedCard>
+            <FramedCard>
+              <SectionHeader kicker="目标板" title="今天别乱卷，挑一个顺手的" />
               <AchievementFocusCard
                 achievement={achievementFocus}
                 unlockedCount={unlockedAchievements.length}
@@ -1412,15 +1419,18 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                 onPress={jumpToAchievementTarget}
               />
               {!achievementFocus && !secondaryAchievementRecommendations.length ? (
-                <Text style={styles.emptyText}>当前成就目标都很安静，你已经把休息做得挺像回事了。</Text>
+                <EmptyState
+                  title="今天没有催你的目标"
+                  body="成就板很安静，你已经把休息做得挺像回事了。"
+                  icon="🌿"
+                />
               ) : null}
-            </View>
-            <View style={styles.panel}>
-              <Text style={styles.kicker}>成就墙</Text>
-              <Text style={styles.sectionTitle}>
-                已解锁 {unlockedAchievements.length}/
-                {achievementList?.achievements.length ?? 0}
-              </Text>
+            </FramedCard>
+            <FramedCard>
+              <SectionHeader
+                kicker="成就墙"
+                title={`已解锁 ${unlockedAchievements.length}/${achievementList?.achievements.length ?? 0}`}
+              />
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -1440,16 +1450,23 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   />
                 ))}
               </ScrollView>
-              {filteredAchievements.map((achievement) => (
-                <AchievementWallRow
-                  key={achievement.id}
-                  achievement={achievement}
+              {filteredAchievements.length ? (
+                filteredAchievements.map((achievement) => (
+                  <AchievementWallRow
+                    key={achievement.id}
+                    achievement={achievement}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  title="这个分类还没有成就"
+                  body="完成任意一个活动来解锁第一枚徽章"
+                  icon="🎖️"
                 />
-              ))}
-            </View>
-            <View style={styles.panel}>
-              <Text style={styles.kicker}>徽章与称号</Text>
-              <Text style={styles.sectionTitle}>奖励墙</Text>
+              )}
+            </FramedCard>
+            <FramedCard>
+              <SectionHeader kicker="徽章与称号" title="奖励墙" />
               {cosmeticInventory?.cosmetics.length ? (
                 cosmeticInventory.cosmetics.map((cosmetic) => (
                   <CosmeticRewardRow
@@ -1460,16 +1477,18 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   />
                 ))
               ) : (
-                <Text style={styles.emptyText}>还没有装扮，先认真完成几次休息。</Text>
+                <EmptyState
+                  title="还没有装扮"
+                  body="先认真完成几次休息，再来挑一个喜欢的称号"
+                  icon="✨"
+                />
               )}
-            </View>
-            <Pressable
-              accessibilityRole="button"
+            </FramedCard>
+            <PrimaryButton
+              label="退出当前账号"
+              dark
               onPress={() => void onSignOut()}
-              style={styles.signOutButton}
-            >
-              <Text style={styles.signOutText}>退出当前账号</Text>
-            </Pressable>
+            />
           </>
         ) : null}
 
@@ -3118,46 +3137,35 @@ const styles = StyleSheet.create({
   myRankSlot: { minHeight: 54 },
   myRank: { backgroundColor: "#232323", borderRadius: 8, marginTop: 14, padding: 13 },
   myRankText: { color: "#ffffff", fontSize: 14, fontWeight: "900" },
-  profileHeader: {
-    alignItems: "center",
-    backgroundColor: "#fffdf8",
-    borderRadius: 8,
-    flexDirection: "row",
-    gap: 14,
-    marginBottom: 16,
-    padding: 18
+  profileLevelTile: {
+    backgroundColor: colors.ink,
+    borderColor: colors.goldDeep,
+    borderWidth: 2
   },
-  levelBadge: {
-    alignItems: "center",
-    backgroundColor: "#232323",
-    borderRadius: 8,
-    height: 58,
-    justifyContent: "center",
-    width: 70
-  },
-  levelBadgeText: { color: "#f0c95a", fontSize: 16, fontWeight: "900" },
+  profileLevelText: { color: colors.gold, fontSize: 18, fontWeight: "900" },
+  profileName: { color: colors.ink, fontSize: 22, fontWeight: "900", marginBottom: 4 },
   statGrid: { flexDirection: "row", gap: 8, marginBottom: 16 },
   statCell: {
     alignItems: "center",
-    backgroundColor: "#fffdf8",
+    backgroundColor: colors.surface,
     borderRadius: 8,
     flex: 1,
     justifyContent: "center",
     minHeight: 82,
     padding: 8
   },
-  statValue: { color: "#232323", fontSize: 22, fontWeight: "900" },
-  statLabel: { color: "#746b60", fontSize: 11, marginTop: 4, textAlign: "center" },
+  statValue: { color: colors.ink, fontSize: 22, fontWeight: "900" },
+  statLabel: { color: colors.inkMuted, fontSize: 11, marginTop: 4, textAlign: "center" },
   recommendationBlock: {
-    borderTopColor: "#e2dbd0",
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     marginTop: 14,
     paddingTop: 12
   },
   focusAchievementCard: {
     alignItems: "center",
-    backgroundColor: "#eef7f3",
-    borderColor: "#b7d9c8",
+    backgroundColor: colors.mintLight,
+    borderColor: colors.mintMid,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: "row",
@@ -3173,7 +3181,7 @@ const styles = StyleSheet.create({
   },
   cosmeticRow: {
     alignItems: "center",
-    borderColor: "#e2dbd0",
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: "row",
@@ -3181,18 +3189,9 @@ const styles = StyleSheet.create({
     padding: 12
   },
   cosmeticRowLocked: {
-    backgroundColor: "#f7f1e8",
+    backgroundColor: colors.surfaceMuted,
     opacity: 0.82
   },
-  signOutButton: {
-    alignItems: "center",
-    borderColor: "#8b4d36",
-    borderRadius: 8,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 48
-  },
-  signOutText: { color: "#8b4d36", fontSize: 15, fontWeight: "900" },
   message: {
     color: "#a23b3b",
     fontSize: 13,
