@@ -757,9 +757,8 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
         {selectedTab === "activities" ? (
           <>
             <GoalBanner goal={findGoal(progression, "activity")} />
-            <View style={styles.panel}>
-              <Text style={styles.kicker}>这次想怎么休息</Text>
-              <Text style={styles.sectionTitle}>选一个偏好，推荐会更懂你</Text>
+            <FramedCard>
+              <SectionHeader kicker="这次想怎么休息" title="选一个偏好，推荐会更懂你" />
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -779,8 +778,8 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   />
                 ))}
               </ScrollView>
-            </View>
-            <View style={styles.featurePanel}>
+            </FramedCard>
+            <FramedCard>
               {activityAssignment ? (
                 <>
                   <View
@@ -878,23 +877,23 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   ) : null}
                 </>
               ) : (
-                <>
-                  <Text style={styles.kicker}>暂无任务</Text>
-                  <Text style={styles.sectionTitle}>给自己找个合理的离线理由</Text>
-                  <Text style={styles.copy}>系统会从安全、荒诞的小任务中随机选一个。</Text>
-                </>
+                <EmptyState
+                  title="还没有任务"
+                  body="给自己找个合理的离线理由，点下面的按钮抽一个"
+                  icon="🪣"
+                />
               )}
               {activityResult ? (
                 <View
                   style={[
                     styles.activityResultCertificate,
-                    { borderColor: activityResultPresentation?.accentColor ?? "#1f8f62" }
+                    { borderColor: activityResultPresentation?.accentColor ?? colors.primary }
                   ]}
                 >
                   <Text
                     style={[
                       styles.activityBadge,
-                      { backgroundColor: activityResultPresentation?.accentColor ?? "#1f8f62" }
+                      { backgroundColor: activityResultPresentation?.accentColor ?? colors.primary }
                     ]}
                   >
                     {activityResultPresentation?.badge ?? "活动完成"}
@@ -928,14 +927,14 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   onPress={randomActivity}
                 />
               ) : null}
-            </View>
-            <View style={styles.panel}>
+            </FramedCard>
+            <FramedCard>
               <View style={styles.rowBetween}>
                 <View style={styles.flex}>
-                  <Text style={styles.kicker}>活动目录</Text>
-                  <Text style={styles.sectionTitle}>
-                    {activityCategory ? activityCategoryLabel(activityCategory) : "全部活动"}
-                  </Text>
+                  <SectionHeader
+                    kicker="活动目录"
+                    title={activityCategory ? activityCategoryLabel(activityCategory) : "全部活动"}
+                  />
                 </View>
                 <Text style={styles.goalCount}>{activityCatalog?.items.length ?? 0}</Text>
               </View>
@@ -965,12 +964,15 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   );
                 })
               ) : (
-                <Text style={styles.emptyText}>这个分类暂时没有活动。</Text>
+                <EmptyState
+                  title="这个分类暂时没有活动"
+                  body="换个分类，或者抽一个随机的"
+                  icon="🌫️"
+                />
               )}
-            </View>
-            <View style={styles.panel}>
-              <Text style={styles.kicker}>完成记录</Text>
-              <Text style={styles.sectionTitle}>最近休息过什么</Text>
+            </FramedCard>
+            <FramedCard>
+              <SectionHeader kicker="完成记录" title="最近休息过什么" />
               {activityHistory.length ? (
                 activityHistory.map((item) => (
                   <View key={item.assignmentId} style={styles.listRow}>
@@ -987,9 +989,13 @@ export function HomeScreen({ authLabel, getAccessToken, onOpenUiLab, onSignOut }
                   </View>
                 ))
               ) : (
-                <Text style={styles.emptyText}>还没有完成记录，挑一个顺眼的开始。</Text>
+                <EmptyState
+                  title="还没有完成记录"
+                  body="挑一个顺眼的活动开始今天的摸鱼"
+                  icon="🐟"
+                />
               )}
-            </View>
+            </FramedCard>
           </>
         ) : null}
 
