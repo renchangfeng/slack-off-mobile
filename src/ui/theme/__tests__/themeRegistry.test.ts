@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calmOfficeTheme,
   defaultThemeId,
   listThemes,
   pixelRestTheme,
@@ -15,9 +16,11 @@ function assertCompleteTheme(theme: MobileTheme) {
   expect(theme.colors.background).toBeTruthy();
   expect(theme.colors.surface).toBeTruthy();
   expect(theme.colors.surfaceMuted).toBeTruthy();
+  expect(theme.colors.surfaceWarm).toBeTruthy();
   expect(theme.colors.text).toBeTruthy();
   expect(theme.colors.textMuted).toBeTruthy();
   expect(theme.colors.primary).toBeTruthy();
+  expect(theme.colors.accent).toBeTruthy();
   expect(theme.colors.border).toBeTruthy();
   expect(theme.colors.danger).toBeTruthy();
   expect(theme.colors.warning).toBeTruthy();
@@ -36,22 +39,31 @@ function assertCompleteTheme(theme: MobileTheme) {
   expect(theme.typography.bodyFamilyHint).toBeTruthy();
   expect(Object.keys(theme.gameplay.activityAccents).length).toBeGreaterThan(0);
   expect(Object.keys(theme.gameplay.rarityAccents).length).toBeGreaterThan(0);
+  expect(theme.status.active.bg).toBeTruthy();
+  expect(theme.status.completed.bg).toBeTruthy();
+  expect(theme.status.locked.bg).toBeTruthy();
+  expect(theme.status.warning.bg).toBeTruthy();
+  expect(theme.status.default.bg).toBeTruthy();
   expect(theme.art.iconStyle).toBeTruthy();
   expect(theme.art.placeholderStyle).toBeTruthy();
 }
 
 describe("theme registry", () => {
-  it("registers the default pixel-rest theme", () => {
-    expect(themeRegistry[defaultThemeId]).toBe(pixelRestTheme);
-    expect(pixelRestTheme.brand.appName).toBe("摸鱼证");
-    expect(pixelRestTheme.brand.manifestoTitle).toContain("休息");
-    expect(pixelRestTheme.brand.manifestoCopy).toContain("开心一下");
+  it("registers at least two themes", () => {
+    expect(listThemes().length).toBeGreaterThanOrEqual(2);
+    expect(themeRegistry["pixel-rest"]).toBe(pixelRestTheme);
+    expect(themeRegistry["calm-office"]).toBe(calmOfficeTheme);
   });
 
-  it("lists all registered themes", () => {
-    const themes = listThemes();
-    expect(themes.length).toBeGreaterThan(0);
-    expect(themes.some((t) => t.id === defaultThemeId)).toBe(true);
+  it("keeps pixel-rest as the default theme", () => {
+    expect(defaultThemeId).toBe("pixel-rest");
+    expect(resolveTheme().id).toBe("pixel-rest");
+    expect(resolveTheme(null).id).toBe("pixel-rest");
+  });
+
+  it("falls back to the default theme for unknown ids", () => {
+    expect(resolveTheme("not-a-theme").id).toBe(defaultThemeId);
+    expect(resolveTheme("").id).toBe(defaultThemeId);
   });
 
   it("requires every registered theme to define all required fields", () => {
@@ -60,15 +72,25 @@ describe("theme registry", () => {
     }
   });
 
-  it("falls back to the default theme for unknown ids", () => {
-    expect(resolveTheme("not-a-theme").id).toBe(defaultThemeId);
-    expect(resolveTheme("").id).toBe(defaultThemeId);
-    expect(resolveTheme(null).id).toBe(defaultThemeId);
-  });
-
-  it("preserves the pixel-rest visual identity", () => {
+  it("keeps the pixel-rest visual identity", () => {
     expect(pixelRestTheme.colors.background).toBe("#f4efe4");
     expect(pixelRestTheme.colors.primary).toBe("#17a36b");
+    expect(pixelRestTheme.colors.accent).toBe("#b7f05a");
     expect(pixelRestTheme.art.iconStyle).toBe("pseudo-pixel");
+  });
+
+  it("gives calm-office a distinct low-noise direction", () => {
+    expect(calmOfficeTheme.colors.background).not.toBe(pixelRestTheme.colors.background);
+    expect(calmOfficeTheme.colors.primary).not.toBe(pixelRestTheme.colors.primary);
+    expect(calmOfficeTheme.colors.accent).not.toBe(pixelRestTheme.colors.accent);
+    expect(calmOfficeTheme.colors.surface).not.toBe(pixelRestTheme.colors.surface);
+    expect(calmOfficeTheme.art.iconStyle).toBe("soft-office");
+    expect(calmOfficeTheme.brand.appName).toBe("离线证");
+  });
+
+  it("keeps the product voice available to UI previews", () => {
+    expect(pixelRestTheme.brand.manifestoTitle).toContain("休息");
+    expect(pixelRestTheme.brand.manifestoCopy).toContain("开心一下");
+    expect(calmOfficeTheme.brand.tagline).toContain("工位");
   });
 });

@@ -96,7 +96,14 @@ export function Pill({ label, selected, accentColor = colors.ink }: PillProps) {
         }
       ]}
     >
-      <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{label}</Text>
+      <Text
+        style={[
+          styles.pillText,
+          { color: selected ? colors.white : theme.colors.textMuted }
+        ]}
+      >
+        {label}
+      </Text>
     </View>
   );
 }
@@ -113,8 +120,8 @@ export function ProgressMeter({ label, value, total }: ProgressMeterProps) {
   return (
     <View style={styles.progressBlock}>
       <View style={styles.rowBetween}>
-        <Text style={styles.kicker}>{label}</Text>
-        <Text style={styles.progressValue}>
+        <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>{label}</Text>
+        <Text style={[styles.progressValue, { color: theme.colors.primary }]}>
           {value}/{total}
         </Text>
       </View>
@@ -163,7 +170,7 @@ export function ActivityPreviewCard({
     ? theme.gameplay.activityAccents[tone] ?? theme.colors.primary
     : theme.colors.primary;
   return (
-    <Surface accentColor={accentColor} style={styles.activityCard}>
+    <Surface accentColor={accentColor} style={{ backgroundColor: theme.colors.surfaceWarm, gap: spacing.sm }}>
       <View style={styles.activityTopRow}>
         <Pill label={badge} selected accentColor={accentColor} />
         <Text style={styles.statText}>
@@ -283,9 +290,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900"
   },
-  pillTextSelected: {
-    color: colors.white
-  },
   progressBlock: {
     gap: spacing.sm
   },
@@ -313,10 +317,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 12,
     fontWeight: "900"
-  },
-  activityCard: {
-    backgroundColor: colors.surfaceWarm,
-    gap: spacing.sm
   },
   activityTopRow: {
     alignItems: "flex-start",
@@ -600,20 +600,16 @@ type StatusBadgeProps = {
 
 export function StatusBadge({ tone, label, style }: StatusBadgeProps) {
   const theme = useTheme();
-  const palette = statusBadgePalette[tone];
-  const isDefault = tone === "default";
-  const bg = isDefault ? theme.colors.surface : palette.bg;
-  const fg = isDefault ? theme.colors.textMuted : palette.fg;
-  const border = isDefault ? theme.colors.border : palette.border;
+  const palette = theme.status[tone];
   return (
     <View
       style={[
         styles.statusBadge,
-        { backgroundColor: bg, borderColor: border },
+        { backgroundColor: palette.bg, borderColor: palette.border },
         style
       ]}
     >
-      {label ? <Text style={[styles.statusBadgeText, { color: fg }]}>{label}</Text> : null}
+      {label ? <Text style={[styles.statusBadgeText, { color: palette.fg }]}>{label}</Text> : null}
     </View>
   );
 }
@@ -651,7 +647,9 @@ type IconTileProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function IconTile({ children, size = 36, accent = colors.acid, style }: IconTileProps) {
+export function IconTile({ children, size = 36, accent, style }: IconTileProps) {
+  const theme = useTheme();
+  const resolvedAccent = accent ?? theme.colors.accent;
   return (
     <View
       style={[
@@ -659,7 +657,7 @@ export function IconTile({ children, size = 36, accent = colors.acid, style }: I
         {
           width: size,
           height: size,
-          borderColor: accent,
+          borderColor: resolvedAccent,
           borderRadius: size / 2
         },
         style
@@ -679,11 +677,17 @@ type RewardRowProps = {
 };
 
 export function RewardRow({ label, value, icon, positive, style }: RewardRowProps) {
+  const theme = useTheme();
   return (
     <View style={[styles.rewardRow, style]}>
       {icon ? <Text style={styles.rewardIcon}>{icon}</Text> : null}
-      <Text style={styles.rewardLabel}>{label}</Text>
-      <Text style={[styles.rewardValue, positive && styles.rewardValuePositive]}>
+      <Text style={[styles.rewardLabel, { color: theme.colors.textMuted }]}>{label}</Text>
+      <Text
+        style={[
+          styles.rewardValue,
+          { color: positive ? theme.colors.success : theme.colors.text }
+        ]}
+      >
         {value}
       </Text>
     </View>

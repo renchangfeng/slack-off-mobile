@@ -40,19 +40,26 @@ export function BottomNav<T extends string>({ tabs, selected, onSelect }: Bottom
           >
             <IconTile
               size={32}
-              accent={active ? colors.acid : colors.inkMuted}
+              accent={active ? theme.colors.accent : theme.colors.textMuted}
               style={active ? styles.glyphActive : undefined}
             >
               <Text
                 style={[
                   styles.glyph,
-                  { color: active ? colors.ink : colors.inkMuted }
+                  { color: active ? theme.colors.text : theme.colors.textMuted }
                 ]}
               >
                 {tab.glyph}
               </Text>
             </IconTile>
-            <Text style={[styles.label, active && styles.labelActive]}>{tab.label}</Text>
+            <Text
+              style={[
+                styles.label,
+                { color: active ? theme.colors.primary : theme.colors.textMuted }
+              ]}
+            >
+              {tab.label}
+            </Text>
           </Pressable>
         );
       })}

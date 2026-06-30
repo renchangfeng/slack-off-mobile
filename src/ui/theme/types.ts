@@ -10,9 +10,11 @@ export type MobileThemeColors = {
   background: string;
   surface: string;
   surfaceMuted: string;
+  surfaceWarm: string;
   text: string;
   textMuted: string;
   primary: string;
+  accent: string;
   border: string;
   danger: string;
   warning: string;
@@ -53,6 +55,12 @@ export type MobileThemeArt = {
   placeholderStyle: "pseudo-pixel" | string;
 };
 
+export type MobileThemeStatusTone = {
+  bg: string;
+  fg: string;
+  border: string;
+};
+
 export type MobileTheme = {
   id: string;
   name: string;
@@ -63,5 +71,12 @@ export type MobileTheme = {
   borders: MobileThemeBorders;
   typography: MobileThemeTypography;
   gameplay: MobileThemeGameplay;
+  status: {
+    active: MobileThemeStatusTone;
+    completed: MobileThemeStatusTone;
+    locked: MobileThemeStatusTone;
+    warning: MobileThemeStatusTone;
+    default: MobileThemeStatusTone;
+  };
   art: MobileThemeArt;
 };

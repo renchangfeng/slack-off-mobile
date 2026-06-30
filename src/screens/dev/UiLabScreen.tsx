@@ -69,11 +69,17 @@ const TONE_PREVIEWS = [
 
 function ThemeSpecimen() {
   const { theme, themeId, availableThemes, setThemeId } = useThemeSwitcher();
+  const specimenBlockStyle = {
+    backgroundColor: theme.colors.surfaceMuted,
+    borderColor: theme.colors.border
+  };
   const colorKeys: Array<keyof typeof theme.colors> = Object.keys(theme.colors) as Array<keyof typeof theme.colors>;
   const spacingKeys: Array<keyof typeof theme.spacing> = Object.keys(
     theme.spacing
   ) as Array<keyof typeof theme.spacing>;
   const radiusKeys: Array<keyof typeof theme.radius> = Object.keys(theme.radius) as Array<keyof typeof theme.radius>;
+  const activityToneKeys = Object.keys(theme.gameplay.activityAccents) as Array<keyof typeof theme.gameplay.activityAccents>;
+  const rarityKeys = Object.keys(theme.gameplay.rarityAccents) as Array<keyof typeof theme.gameplay.rarityAccents>;
 
   return (
     <Surface>
@@ -85,7 +91,7 @@ function ThemeSpecimen() {
 
       <Text style={styles.specimenSection}>Brand</Text>
       <View style={styles.specimenRow}>
-        <View style={styles.specimenBrandBlock}>
+        <View style={[styles.specimenBrandBlock, specimenBlockStyle]}>
           <Text style={styles.specimenBrandName}>{theme.brand.appName}</Text>
           {theme.brand.shortName ? (
             <Text style={styles.specimenBrandShort}>{theme.brand.shortName}</Text>
@@ -103,10 +109,13 @@ function ThemeSpecimen() {
             <View
               style={[
                 styles.colorBlock,
-                { backgroundColor: theme.colors[key] }
+                {
+                  backgroundColor: theme.colors[key],
+                  borderColor: theme.colors.border
+                }
               ]}
             />
-            <Text style={styles.colorLabel}>{key}</Text>
+            <Text style={[styles.colorLabel, { color: theme.colors.textMuted }]}>{key}</Text>
           </View>
         ))}
       </View>
@@ -118,10 +127,15 @@ function ThemeSpecimen() {
             <View
               style={[
                 styles.spacingBlock,
-                { width: theme.spacing[key], height: theme.spacing[key] }
+                {
+                  backgroundColor: theme.colors.primary,
+                  borderRadius: theme.radius.sm,
+                  width: theme.spacing[key],
+                  height: theme.spacing[key]
+                }
               ]}
             />
-            <Text style={styles.scaleLabel}>{key}</Text>
+            <Text style={[styles.scaleLabel, { color: theme.colors.textMuted }]}>{key}</Text>
           </View>
         ))}
       </View>
@@ -134,13 +148,50 @@ function ThemeSpecimen() {
               style={[
                 styles.radiusBlock,
                 {
+                  backgroundColor: theme.colors.primary,
                   borderRadius: theme.radius[key],
                   width: Math.max(24, theme.radius[key] * 3),
                   height: Math.max(24, theme.radius[key] * 3)
                 }
               ]}
             />
-            <Text style={styles.scaleLabel}>{key}</Text>
+            <Text style={[styles.scaleLabel, { color: theme.colors.textMuted }]}>{key}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.specimenSection}>Activity accents</Text>
+      <View style={styles.colorGrid}>
+        {activityToneKeys.map((key) => (
+          <View key={key} style={styles.colorSwatch}>
+            <View
+              style={[
+                styles.colorBlock,
+                {
+                  backgroundColor: theme.gameplay.activityAccents[key],
+                  borderColor: theme.colors.border
+                }
+              ]}
+            />
+            <Text style={[styles.colorLabel, { color: theme.colors.textMuted }]}>{key}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.specimenSection}>Rarity accents</Text>
+      <View style={styles.colorGrid}>
+        {rarityKeys.map((key) => (
+          <View key={key} style={styles.colorSwatch}>
+            <View
+              style={[
+                styles.colorBlock,
+                {
+                  backgroundColor: theme.gameplay.rarityAccents[key],
+                  borderColor: theme.colors.border
+                }
+              ]}
+            />
+            <Text style={[styles.colorLabel, { color: theme.colors.textMuted }]}>{key}</Text>
           </View>
         ))}
       </View>
@@ -153,13 +204,17 @@ function ThemeSpecimen() {
             onPress={() => setThemeId(t.id)}
             style={[
               styles.themeButton,
-              t.id === themeId && styles.themeButtonActive
+              t.id === themeId && {
+                backgroundColor: theme.colors.text,
+                borderColor: theme.colors.text
+              }
             ]}
           >
             <Text
               style={[
                 styles.themeButtonText,
-                t.id === themeId && styles.themeButtonTextActive
+                { color: theme.colors.text },
+                t.id === themeId && { color: theme.colors.surface }
               ]}
             >
               {t.name}
@@ -179,15 +234,19 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
   const theme = useTheme();
 
   return (
-    <View style={styles.app}>
+    <View style={[styles.app, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.brand}>{theme.brand.appName} UI Lab</Text>
-          <Text style={styles.title}>{theme.brand.tagline}</Text>
-          <Text style={styles.subtitle}>
-            年轻、抽象、但不闹眼睛。像一张允许你短暂离线的工位许可。
+          <Text style={[styles.brand, { color: theme.colors.primary }]}>
+            {theme.brand.appName} UI Lab
           </Text>
-          <Text style={styles.themeMeta}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            {theme.brand.tagline}
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+            {theme.brand.manifestoCopy}
+          </Text>
+          <Text style={[styles.themeMeta, { color: theme.colors.primary }]}>
             {theme.name} / {theme.art.iconStyle}
           </Text>
         </View>
@@ -202,11 +261,11 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
             <SignalTile
               label="今日卷度"
               value="37%"
-              accentColor={colors.acid}
+              accentColor={theme.colors.accent}
               tilted
             />
-            <SignalTile label="离线权" value="已批准" accentColor={colors.cyan} />
-            <SignalTile label="荒诞值" value="83" accentColor={colors.coral} tilted />
+            <SignalTile label="离线权" value="已批准" accentColor={theme.colors.primary} />
+            <SignalTile label="荒诞值" value="83" accentColor={theme.colors.warning} tilted />
           </View>
         </Surface>
 
@@ -224,7 +283,7 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
           <View style={styles.pillRow}>
             <Pill label="全部" selected />
             <Pill label="小游戏" />
-            <Pill label="办公室表演" accentColor={colors.danger} selected />
+            <Pill label="办公室表演" accentColor={theme.colors.danger} selected />
           </View>
         </Surface>
 
@@ -313,7 +372,7 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
             <SectionHeader
               kicker="COLLECTION"
               title="你的豆仓"
-              trailing={<Pill label="3 / 12" selected accentColor={colors.primary} />}
+              trailing={<Pill label="3 / 12" selected accentColor={theme.colors.primary} />}
             />
           </View>
         </Surface>
