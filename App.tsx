@@ -13,8 +13,9 @@ import { LoginScreen } from "./src/screens/LoginScreen";
 import { UiLabScreen } from "./src/screens/dev/UiLabScreen";
 import { colors, targetViewport } from "./src/ui/tokens";
 import { useBrandName } from "./src/ui/useBrandName";
+import { ThemeProvider } from "./src/ui/theme/ThemeProvider";
 
-export default function App() {
+function AppContent() {
   const auth = useAuthSession();
   const [showUiLab, setShowUiLab] = useState(false);
   const brand = useBrandName();
@@ -55,6 +56,14 @@ export default function App() {
   }
 
   return <View style={styles.root}>{content}</View>;
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
 }
 
 const ROOT_HEIGHT = Platform.select({

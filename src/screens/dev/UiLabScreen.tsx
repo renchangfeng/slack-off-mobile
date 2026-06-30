@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   ActivityPreviewCard,
   BrandManifestoCard,
@@ -16,7 +16,8 @@ import {
   StatusBadge,
   Surface
 } from "../../ui/components";
-import { activeTheme, brandVoice, colors, spacing, typography } from "../../ui/tokens";
+import { useTheme, useThemeSwitcher } from "../../ui/theme/useTheme";
+import { colors, radius, spacing, typography } from "../../ui/tokens";
 
 const TONE_PREVIEWS = [
   {
@@ -66,25 +67,132 @@ const TONE_PREVIEWS = [
   }
 ];
 
+function ThemeSpecimen() {
+  const { theme, themeId, availableThemes, setThemeId } = useThemeSwitcher();
+  const colorKeys: Array<keyof typeof theme.colors> = Object.keys(theme.colors) as Array<keyof typeof theme.colors>;
+  const spacingKeys: Array<keyof typeof theme.spacing> = Object.keys(
+    theme.spacing
+  ) as Array<keyof typeof theme.spacing>;
+  const radiusKeys: Array<keyof typeof theme.radius> = Object.keys(theme.radius) as Array<keyof typeof theme.radius>;
+
+  return (
+    <Surface>
+      <SectionHeader title="Theme" kicker="ACTIVE THEME" />
+      <View style={styles.specimenMeta}>
+        <Text style={styles.specimenName}>{theme.name}</Text>
+        <Text style={styles.specimenId}>{themeId} / {theme.art.iconStyle}</Text>
+      </View>
+
+      <Text style={styles.specimenSection}>Brand</Text>
+      <View style={styles.specimenRow}>
+        <View style={styles.specimenBrandBlock}>
+          <Text style={styles.specimenBrandName}>{theme.brand.appName}</Text>
+          {theme.brand.shortName ? (
+            <Text style={styles.specimenBrandShort}>{theme.brand.shortName}</Text>
+          ) : null}
+          {theme.brand.tagline ? (
+            <Text style={styles.specimenBrandTagline}>{theme.brand.tagline}</Text>
+          ) : null}
+        </View>
+      </View>
+
+      <Text style={styles.specimenSection}>Colors</Text>
+      <View style={styles.colorGrid}>
+        {colorKeys.map((key) => (
+          <View key={key} style={styles.colorSwatch}>
+            <View
+              style={[
+                styles.colorBlock,
+                { backgroundColor: theme.colors[key] }
+              ]}
+            />
+            <Text style={styles.colorLabel}>{key}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.specimenSection}>Spacing</Text>
+      <View style={styles.scaleRow}>
+        {spacingKeys.map((key) => (
+          <View key={key} style={styles.scaleItem}>
+            <View
+              style={[
+                styles.spacingBlock,
+                { width: theme.spacing[key], height: theme.spacing[key] }
+              ]}
+            />
+            <Text style={styles.scaleLabel}>{key}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.specimenSection}>Radius</Text>
+      <View style={styles.scaleRow}>
+        {radiusKeys.map((key) => (
+          <View key={key} style={styles.scaleItem}>
+            <View
+              style={[
+                styles.radiusBlock,
+                {
+                  borderRadius: theme.radius[key],
+                  width: Math.max(24, theme.radius[key] * 3),
+                  height: Math.max(24, theme.radius[key] * 3)
+                }
+              ]}
+            />
+            <Text style={styles.scaleLabel}>{key}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.specimenSection}>Preview themes (local/dev only)</Text>
+      <View style={styles.themeSwitchRow}>
+        {availableThemes.map((t) => (
+          <Pressable
+            key={t.id}
+            onPress={() => setThemeId(t.id)}
+            style={[
+              styles.themeButton,
+              t.id === themeId && styles.themeButtonActive
+            ]}
+          >
+            <Text
+              style={[
+                styles.themeButtonText,
+                t.id === themeId && styles.themeButtonTextActive
+              ]}
+            >
+              {t.name}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </Surface>
+  );
+}
+
 type UiLabScreenProps = {
   onClose: () => void;
 };
 
 export function UiLabScreen({ onClose }: UiLabScreenProps) {
+  const theme = useTheme();
+
   return (
     <View style={styles.app}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.brand}>{brandVoice.name} UI Lab</Text>
-          <Text style={styles.title}>{brandVoice.concept}</Text>
+          <Text style={styles.brand}>{theme.brand.appName} UI Lab</Text>
+          <Text style={styles.title}>{theme.brand.tagline}</Text>
           <Text style={styles.subtitle}>
             年轻、抽象、但不闹眼睛。像一张允许你短暂离线的工位许可。
           </Text>
           <Text style={styles.themeMeta}>
-            {activeTheme.name} / {activeTheme.iconStyle} / {activeTheme.targetViewport.minWidth}
-            px+
+            {theme.name} / {theme.art.iconStyle}
           </Text>
         </View>
+
+        <ThemeSpecimen />
 
         <BrandManifestoCard />
 
@@ -295,6 +403,119 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     marginTop: spacing.md
+  },
+  specimenMeta: {
+    marginTop: spacing.md
+  },
+  specimenName: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  specimenId: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    marginTop: spacing.xs
+  },
+  specimenSection: {
+    color: colors.inkSoft,
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: spacing.lg
+  },
+  specimenRow: {
+    marginTop: spacing.sm
+  },
+  specimenBrandBlock: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.md
+  },
+  specimenBrandName: {
+    color: colors.ink,
+    fontSize: 20,
+    fontWeight: "900"
+  },
+  specimenBrandShort: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    marginTop: spacing.xs
+  },
+  specimenBrandTagline: {
+    color: colors.inkSoft,
+    fontSize: 14,
+    marginTop: spacing.sm
+  },
+  colorGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.sm
+  },
+  colorSwatch: {
+    alignItems: "center",
+    width: 72
+  },
+  colorBlock: {
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    height: 36,
+    width: 36
+  },
+  colorLabel: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    marginTop: spacing.xs,
+    textAlign: "center"
+  },
+  scaleRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    marginTop: spacing.sm
+  },
+  scaleItem: {
+    alignItems: "center"
+  },
+  spacingBlock: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm
+  },
+  radiusBlock: {
+    backgroundColor: colors.primary
+  },
+  scaleLabel: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    marginTop: spacing.xs
+  },
+  themeSwitchRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.sm
+  },
+  themeButton: {
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  themeButtonActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink
+  },
+  themeButtonText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  themeButtonTextActive: {
+    color: colors.white
   },
   stack: {
     gap: spacing.md,

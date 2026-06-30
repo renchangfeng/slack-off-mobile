@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import type { StyleProp, ViewStyle } from "react-native";
+import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { FramedCard } from "../../../ui/components";
-import styles from "../styles";
+import { useTheme } from "../../../ui/theme/useTheme";
 
 export function DashboardCard({
   children,
@@ -10,5 +10,19 @@ export function DashboardCard({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  return <FramedCard style={[styles.dashboardCard, style]}>{children}</FramedCard>;
+  const theme = useTheme();
+  return (
+    <FramedCard
+      style={[
+        {
+          borderColor: theme.colors.border,
+          borderWidth: theme.borders.cardWidth,
+          marginBottom: theme.spacing.lg
+        },
+        style
+      ]}
+    >
+      {children}
+    </FramedCard>
+  );
 }

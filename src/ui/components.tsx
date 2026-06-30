@@ -9,14 +9,13 @@ import {
 } from "react-native";
 import { getPixelBorderStyle } from "./borders";
 import {
-  activityAccentForTone,
-  brandVoice,
   colors,
   radius,
   shadows,
   spacing,
   typography
 } from "./tokens";
+import { useTheme } from "./theme/useTheme";
 
 type SurfaceProps = {
   children: ReactNode;
@@ -26,11 +25,18 @@ type SurfaceProps = {
 };
 
 export function Surface({ children, accentColor, dark = false, style }: SurfaceProps) {
+  const theme = useTheme();
   return (
     <View
       style={[
         styles.surface,
-        dark && styles.surfaceDark,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+          borderRadius: theme.radius.md,
+          borderWidth: theme.borders.cardWidth
+        },
+        dark && { backgroundColor: theme.colors.text, borderColor: theme.colors.text },
         accentColor ? { borderColor: accentColor, borderLeftWidth: 6 } : null,
         style
       ]}
@@ -48,6 +54,7 @@ type PrimaryButtonProps = {
 };
 
 export function PrimaryButton({ label, disabled, dark, onPress }: PrimaryButtonProps) {
+  const theme = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -55,7 +62,10 @@ export function PrimaryButton({ label, disabled, dark, onPress }: PrimaryButtonP
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        dark && styles.buttonDark,
+        {
+          backgroundColor: dark ? theme.colors.text : theme.colors.primary,
+          borderRadius: theme.radius.md
+        },
         (pressed || disabled) && styles.buttonMuted
       ]}
     >
@@ -71,10 +81,15 @@ type PillProps = {
 };
 
 export function Pill({ label, selected, accentColor = colors.ink }: PillProps) {
+  const theme = useTheme();
   return (
     <View
       style={[
         styles.pill,
+        {
+          borderColor: theme.colors.border,
+          borderRadius: theme.radius.md
+        },
         selected && {
           backgroundColor: accentColor,
           borderColor: accentColor
@@ -93,6 +108,7 @@ type ProgressMeterProps = {
 };
 
 export function ProgressMeter({ label, value, total }: ProgressMeterProps) {
+  const theme = useTheme();
   const ratio = total <= 0 ? 0 : Math.max(0, Math.min(1, value / total));
   return (
     <View style={styles.progressBlock}>
@@ -102,8 +118,22 @@ export function ProgressMeter({ label, value, total }: ProgressMeterProps) {
           {value}/{total}
         </Text>
       </View>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${ratio * 100}%` }]} />
+      <View
+        style={[
+          styles.progressTrack,
+          { backgroundColor: theme.colors.border, borderRadius: theme.radius.sm }
+        ]}
+      >
+        <View
+          style={[
+            styles.progressFill,
+            {
+              backgroundColor: theme.colors.primary,
+              borderRadius: theme.radius.sm,
+              width: `${ratio * 100}%`
+            }
+          ]}
+        />
       </View>
     </View>
   );
@@ -128,7 +158,10 @@ export function ActivityPreviewCard({
   statValue,
   tone
 }: ActivityPreviewCardProps) {
-  const accentColor = activityAccentForTone(tone);
+  const theme = useTheme();
+  const accentColor = tone
+    ? theme.gameplay.activityAccents[tone] ?? theme.colors.primary
+    : theme.colors.primary;
   return (
     <Surface accentColor={accentColor} style={styles.activityCard}>
       <View style={styles.activityTopRow}>
@@ -152,9 +185,13 @@ type BrandManifestoCardProps = {
 };
 
 export function BrandManifestoCard({
-  title = brandVoice.concept,
-  copy = brandVoice.mantra
+  title,
+  copy
 }: BrandManifestoCardProps) {
+  const theme = useTheme();
+  const resolvedTitle = title ?? theme.brand.manifestoTitle ?? theme.brand.appName;
+  const resolvedCopy = copy ?? theme.brand.manifestoCopy ?? theme.brand.tagline;
+
   return (
     <View style={styles.manifestoCard}>
       <View style={styles.manifestoGrid}>
@@ -163,8 +200,8 @@ export function BrandManifestoCard({
         <View style={[styles.signalBlock, styles.signalBlockCyan]} />
       </View>
       <Text style={styles.manifestoKicker}>WORKPLACE UNDERGROUND RADIO</Text>
-      <Text style={styles.manifestoTitle}>{title}</Text>
-      <Text style={styles.manifestoCopy}>{copy}</Text>
+      <Text style={styles.manifestoTitle}>{resolvedTitle}</Text>
+      {resolvedCopy ? <Text style={styles.manifestoCopy}>{resolvedCopy}</Text> : null}
       <View style={styles.receiptRow}>
         <Text style={styles.receiptText}>REST PERMIT</Text>
         <Text style={styles.receiptText}>VALID TODAY</Text>
@@ -562,16 +599,21 @@ type StatusBadgeProps = {
 };
 
 export function StatusBadge({ tone, label, style }: StatusBadgeProps) {
+  const theme = useTheme();
   const palette = statusBadgePalette[tone];
+  const isDefault = tone === "default";
+  const bg = isDefault ? theme.colors.surface : palette.bg;
+  const fg = isDefault ? theme.colors.textMuted : palette.fg;
+  const border = isDefault ? theme.colors.border : palette.border;
   return (
     <View
       style={[
         styles.statusBadge,
-        { backgroundColor: palette.bg, borderColor: palette.border },
+        { backgroundColor: bg, borderColor: border },
         style
       ]}
     >
-      {label ? <Text style={[styles.statusBadgeText, { color: palette.fg }]}>{label}</Text> : null}
+      {label ? <Text style={[styles.statusBadgeText, { color: fg }]}>{label}</Text> : null}
     </View>
   );
 }
@@ -584,11 +626,16 @@ type FramedCardProps = {
 };
 
 export function FramedCard({ children, accent, pixelBorder, style }: FramedCardProps) {
+  const theme = useTheme();
   return (
     <View
       style={[
         styles.framedCard,
-        pixelBorder && getPixelBorderStyle(2, accent ?? colors.border),
+        {
+          backgroundColor: theme.colors.surface,
+          borderRadius: theme.radius.lg
+        },
+        pixelBorder && getPixelBorderStyle(2, accent ?? theme.colors.border),
         style
       ]}
     >
@@ -651,11 +698,24 @@ type EmptyStateProps = {
 };
 
 export function EmptyState({ title, body, icon, style }: EmptyStateProps) {
+  const theme = useTheme();
   return (
-    <View style={[styles.emptyState, style]}>
+    <View
+      style={[
+        styles.emptyState,
+        {
+          backgroundColor: theme.colors.surfaceMuted,
+          borderColor: theme.colors.border,
+          borderRadius: theme.radius.lg
+        },
+        style
+      ]}
+    >
       {icon ? <Text style={styles.emptyStateIcon}>{icon}</Text> : null}
-      <Text style={styles.emptyStateTitle}>{title}</Text>
-      {body ? <Text style={styles.emptyStateBody}>{body}</Text> : null}
+      <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>{title}</Text>
+      {body ? (
+        <Text style={[styles.emptyStateBody, { color: theme.colors.textMuted }]}>{body}</Text>
+      ) : null}
     </View>
   );
 }
@@ -668,11 +728,14 @@ type SectionHeaderProps = {
 };
 
 export function SectionHeader({ title, kicker, trailing, style }: SectionHeaderProps) {
+  const theme = useTheme();
   return (
     <View style={[styles.sectionHeader, style]}>
       <View style={styles.sectionHeaderText}>
-        {kicker ? <Text style={styles.sectionHeaderKicker}>{kicker}</Text> : null}
-        <Text style={styles.sectionHeaderTitle}>{title}</Text>
+        {kicker ? (
+          <Text style={[styles.sectionHeaderKicker, { color: theme.colors.primary }]}>{kicker}</Text>
+        ) : null}
+        <Text style={[styles.sectionHeaderTitle, { color: theme.colors.text }]}>{title}</Text>
       </View>
       {trailing ? <View style={styles.sectionHeaderTrailing}>{trailing}</View> : null}
     </View>

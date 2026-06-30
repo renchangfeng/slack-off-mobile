@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing, typography } from "./tokens";
 import { IconTile } from "./components";
+import { useTheme } from "./theme/useTheme";
 
 export type BottomNavTab<T extends string> = {
   value: T;
@@ -15,8 +16,18 @@ type BottomNavProps<T extends string> = {
 };
 
 export function BottomNav<T extends string>({ tabs, selected, onSelect }: BottomNavProps<T>) {
+  const theme = useTheme();
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+          borderRadius: theme.radius.md
+        }
+      ]}
+    >
       {tabs.map((tab) => {
         const active = selected === tab.value;
         return (
@@ -52,9 +63,6 @@ export function BottomNav<T extends string>({ tabs, selected, onSelect }: Bottom
 const styles = StyleSheet.create({
   container: {
     alignSelf: "center",
-    backgroundColor: colors.surface,
-    borderColor: colors.ink,
-    borderRadius: radius.md,
     borderTopWidth: 1,
     borderWidth: 1,
     flexDirection: "row",

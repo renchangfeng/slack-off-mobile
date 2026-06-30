@@ -1,14 +1,14 @@
 import { StyleSheet } from "react-native";
-import { colors } from "../../ui/tokens";
+import { colors, radius, spacing } from "../../ui/tokens";
 
 const styles = StyleSheet.create({
-  app: { backgroundColor: "#f4efe4", flex: 1 },
+  app: { backgroundColor: colors.background, flex: 1 },
   container: {
     alignSelf: "center",
     flexGrow: 1,
     maxWidth: 760,
-    padding: 20,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
     paddingTop: 52,
     width: "100%"
   },
@@ -18,29 +18,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between"
   },
-  brand: { color: "#17a36b", fontSize: 14, fontWeight: "900" },
+  brand: { color: colors.primary, fontSize: 14, fontWeight: "900" },
   uiLabButton: {
     alignItems: "center",
-    borderColor: "#18232b",
-    borderRadius: 8,
+    borderColor: colors.inkBlue,
+    borderRadius: radius.md,
     borderWidth: 1,
     justifyContent: "center",
     minHeight: 32,
     paddingHorizontal: 10
   },
   uiLabButtonText: {
-    color: "#18232b",
+    color: colors.inkBlue,
     fontSize: 12,
     fontWeight: "900"
   },
-  pageTitle: { color: "#18232b", fontSize: 30, fontWeight: "900", marginTop: 8 },
-  pageSubtitle: { color: "#5f574d", fontSize: 15, lineHeight: 22, marginTop: 6 },
-  topLoader: { marginBottom: 12 },
-  dashboardCard: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    marginBottom: 16
-  },
+  pageTitle: { color: colors.inkBlue, fontSize: 30, fontWeight: "900", marginTop: 8 },
+  pageSubtitle: { color: colors.inkMuted, fontSize: 15, lineHeight: 22, marginTop: 6 },
+  topLoader: { marginBottom: spacing.md },
   panel: {
     backgroundColor: "#fffdf8",
     borderColor: "#d8d0c4",
