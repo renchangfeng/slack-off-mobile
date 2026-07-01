@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isStepComplete, markTapPattern } from "../interactionProgress";
+import {
+  isStepComplete,
+  markTapPattern,
+  shouldLockChoiceSelection
+} from "../interactionProgress";
 import type { ActivityStep } from "../types";
 
 function makeStep(type: ActivityStep["type"], overrides: Partial<ActivityStep> = {}): ActivityStep {
@@ -122,6 +126,33 @@ describe("isStepComplete", () => {
     });
     expect(isStepComplete(step, { selectedOptions: { step: "c" } })).toBe(false);
     expect(isStepComplete(step, { selectedOptions: { step: "b" } })).toBe(true);
+  });
+});
+
+describe("shouldLockChoiceSelection", () => {
+  it("locks open-ended choices after any valid selection", () => {
+    const step = makeStep("choice", {
+      options: [
+        { id: "a", label: "A", resultText: "" },
+        { id: "b", label: "B", resultText: "" }
+      ]
+    });
+
+    expect(shouldLockChoiceSelection(step, {})).toBe(false);
+    expect(shouldLockChoiceSelection(step, { choiceAnswers: { step: "a" } })).toBe(true);
+  });
+
+  it("keeps correct-answer choices editable until the correct option is selected", () => {
+    const step = makeStep("choice", {
+      options: [
+        { id: "a", label: "A", resultText: "" },
+        { id: "b", label: "B", resultText: "" }
+      ],
+      correctOptionId: "b"
+    });
+
+    expect(shouldLockChoiceSelection(step, { choiceAnswers: { step: "a" } })).toBe(false);
+    expect(shouldLockChoiceSelection(step, { choiceAnswers: { step: "b" } })).toBe(true);
   });
 });
 

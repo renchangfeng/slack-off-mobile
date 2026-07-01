@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import type { ActivityInteractionProgress } from "../../../../api/activities";
-import { ActionButton } from "../SharedControls";
 import { markTapPattern } from "./interactionProgress";
 import type { ActivityStepInteractionProps } from "./types";
 import styles from "../../styles";
@@ -10,11 +8,12 @@ export function TapPatternInteraction({
   step,
   progress,
   onChange,
-  reducedMotion: _reducedMotion
+  reducedMotion
 }: ActivityStepInteractionProps) {
   const required = step.requiredTaps ?? 1;
   const current = progress.tapCounts?.[step.id] ?? 0;
   const completed = current >= required;
+  const remaining = Math.max(0, required - current);
   const [pulse, setPulse] = useState(false);
 
   function tap() {
@@ -22,34 +21,42 @@ export function TapPatternInteraction({
     const next = current + 1;
     markTapPattern(onChange, step.id, next);
     setPulse(true);
-    setTimeout(() => setPulse(false), 120);
+    setTimeout(() => setPulse(false), reducedMotion ? 50 : 120);
   }
+
+  const actionLabel = step.tapLabel ? `点一下${step.tapLabel}` : "点一下";
 
   return (
     <View>
-      <Text style={styles.timerMini}>
-        {current}/{required} {step.tapLabel ?? "次"}
-      </Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`点击区域，当前 ${current}/${required}`}
+        accessibilityLabel={`${actionLabel}，还剩 ${remaining} 次`}
         disabled={completed}
         onPress={tap}
         style={({ pressed }) => [
           tapStyles.area,
-          (pressed || pulse) && tapStyles.pulse
+          (pressed || pulse) && tapStyles.pulse,
+          completed && styles.tapAreaCompleted
         ]}
       >
-        <Text style={tapStyles.areaText}>
-          {completed ? "已完成" : step.tapLabel ? `点一下${step.tapLabel}` : "点一下"}
+        <Text
+          style={[
+            tapStyles.areaText,
+            completed && styles.tapAreaCompletedText
+          ]}
+        >
+          {completed ? "已完成" : actionLabel}
+        </Text>
+        <Text style={tapStyles.countText}>
+          {completed ? `${required}/${required}` : `${current}/${required}`}
         </Text>
       </Pressable>
-      {completed ? null : (
-        <ActionButton
-          label="点一次"
-          onPress={tap}
-          disabled={completed}
-        />
+      {completed ? (
+        <Text style={styles.helperText}>点够了，这一步已完成。</Text>
+      ) : (
+        <Text style={styles.helperText}>
+          再点 {remaining} 次即可完成
+        </Text>
       )}
     </View>
   );
@@ -76,5 +83,11 @@ const tapStyles = {
     color: "#625b52",
     fontSize: 15,
     fontWeight: "900" as const
+  },
+  countText: {
+    color: "#746b60",
+    fontSize: 12,
+    fontWeight: "900" as const,
+    marginTop: 4
   }
 };

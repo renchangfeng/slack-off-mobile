@@ -90,6 +90,17 @@ export function isStepComplete(
   return false;
 }
 
+export function shouldLockChoiceSelection(
+  step: ActivityStep,
+  progress: ActivityInteractionProgress
+): boolean {
+  if (step.type !== "choice") return false;
+  const answer = progress.choiceAnswers?.[step.id];
+  if (!answer) return false;
+  if (!step.correctOptionId) return true;
+  return answer === step.correctOptionId;
+}
+
 export function markAck(
   onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>,
   stepId: string

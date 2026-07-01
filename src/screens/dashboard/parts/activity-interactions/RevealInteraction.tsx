@@ -11,10 +11,11 @@ export function RevealInteraction({
 }: ActivityStepInteractionProps) {
   const selectedId = progress.selectedOptions?.[step.id];
   const selectedItem = step.items?.find((item) => item.id === selectedId);
+  const completed = Boolean(selectedId);
   const [pressedId, setPressedId] = useState<string | null>(null);
 
   function reveal(itemId: string) {
-    if (selectedId) return;
+    if (completed) return;
     setPressedId(itemId);
     setTimeout(() => {
       markSelectedOption(onChange, step.id, itemId);
@@ -27,18 +28,27 @@ export function RevealInteraction({
       {step.items?.map((item) => {
         const revealed = selectedId === item.id;
         const pressing = pressedId === item.id;
+        const missed = completed && !revealed;
         return (
           <Pressable
             key={item.id}
             accessibilityRole="button"
             accessibilityState={{ selected: revealed }}
-            disabled={Boolean(selectedId)}
+            accessibilityLabel={
+              revealed
+                ? `已翻开：${item.label}`
+                : missed
+                  ? "未翻开"
+                  : "点击翻开"
+            }
+            disabled={completed}
             onPress={() => reveal(item.id)}
             style={{
               alignItems: "center",
-              backgroundColor: revealed || pressing ? "#fff4c9" : "#f4f0e8",
-              borderColor: revealed || pressing ? "#d4a838" : "#d8d0c4",
+              backgroundColor: revealed || pressing ? "#fff4c9" : missed ? "#e8e4dc" : "#f4f0e8",
+              borderColor: revealed || pressing ? "#d4a838" : missed ? "#d8d0c4" : "#d8d0c4",
               borderRadius: 8,
+              borderStyle: missed ? "dashed" as const : "solid" as const,
               borderWidth: 1,
               justifyContent: "center",
               minHeight: 72,
@@ -47,12 +57,12 @@ export function RevealInteraction({
           >
             <Text
               style={{
-                color: revealed || pressing ? "#8b6b16" : "#625b52",
+                color: revealed || pressing ? "#8b6b16" : missed ? "#a39a8e" : "#625b52",
                 fontSize: 16,
                 fontWeight: "900" as const
               }}
             >
-              {revealed || pressing ? item.label : "翻开看看"}
+              {revealed || pressing ? item.label : missed ? "—" : "翻开看看"}
             </Text>
           </Pressable>
         );

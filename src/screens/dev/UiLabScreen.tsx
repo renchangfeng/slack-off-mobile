@@ -15,6 +15,7 @@ import {
   SortInteraction,
   TapPatternInteraction
 } from "../dashboard/parts/activity-interactions";
+import { ActivityInteractionRunner } from "../dashboard/parts/ActivityInteractionRunner";
 
 type MiniStep = ActivityAssignment["interaction"]["steps"][number];
 
@@ -450,6 +451,261 @@ function MiniInteractionCard({
   );
 }
 
+const FLOW_SPECIMENS: ActivityAssignment[] = [
+  makeFlowAssignment("rest", "rest_flow", "Rest flow", "呼吸 + 标签", [
+    {
+      id: "rest_choice",
+      type: "choice",
+      title: "选择呼吸借口",
+      description: "给这次离线配一个听起来合理的名义。",
+      required: true,
+      options: [
+        { id: "latency", label: "降低脑延迟", resultText: "脑延迟优化开始。" },
+        { id: "cache", label: "清理情绪缓存", resultText: "缓存清理中。" },
+        { id: "reboot", label: "温柔重启", resultText: "重启不用关机。" }
+      ]
+    },
+    {
+      id: "rest_breath",
+      type: "breath",
+      title: "跟着节奏呼吸 2 轮",
+      description: "吸气、呼气，不用着急。",
+      required: true,
+      requiredRounds: 2,
+      inhaleSeconds: 3,
+      holdSeconds: 1,
+      exhaleSeconds: 3
+    },
+    {
+      id: "rest_tags",
+      type: "micro-journal",
+      title: "标记一下此刻状态",
+      description: "选一个最轻的标签，不用写小作文。",
+      required: false,
+      journalMode: "tags",
+      tags: [
+        { id: "calm", label: "平静", resultText: "平静已记录。" },
+        { id: "tired", label: "累", resultText: "累已记录。" },
+        { id: "wired", label: "紧绷", resultText: "紧绷已记录。" }
+      ],
+      minTagCount: 1,
+      maxTagCount: 1
+    }
+  ]),
+  makeFlowAssignment("office_theater", "office_flow", "Office theater flow", "选择 + 反应", [
+    {
+      id: "office_choice",
+      type: "choice",
+      title: "选择加载中表情",
+      description: "要低调，但要让人相信你正在处理一件复杂的事。",
+      required: true,
+      options: [
+        { id: "latency", label: "接口延迟脸", resultText: "像是在等某个响应。" },
+        { id: "deep_bug", label: "深层问题脸", resultText: "像是看见了历史包袱。" },
+        { id: "budget", label: "预算不足脸", resultText: "像是方案被砍过三轮。" }
+      ]
+    },
+    {
+      id: "office_reaction",
+      type: "reaction",
+      title: "看到雷达消失再点",
+      description: "圆环消失时快速点击，允许一次走神。",
+      required: true,
+      requiredSuccessCount: 2,
+      reactionRounds: 3
+    }
+  ]),
+  makeFlowAssignment("imagination", "imagination_flow", "Imagination flow", "记录 + 翻开", [
+    {
+      id: "imagination_journal",
+      type: "micro-journal",
+      title: "写一句给下班后的自己",
+      description: "短一点，像一张便签。",
+      required: true,
+      journalMode: "text",
+      textMinLength: 3,
+      textMaxLength: 40
+    },
+    {
+      id: "imagination_reveal",
+      type: "reveal",
+      title: "翻开今日摸鱼签",
+      description: "点一下翻开，作为这次留言的邮戳。",
+      required: true,
+      items: [
+        { id: "early", label: "准点下班" },
+        { id: "water", label: "多喝一口" },
+        { id: "window", label: "看云五秒" }
+      ]
+    }
+  ]),
+  makeFlowAssignment("physical", "physical_flow", "Physical flow", "点击 + 呼吸", [
+    {
+      id: "physical_tap",
+      type: "tap-pattern",
+      title: "给肩膀 6 次上线信号",
+      description: "每点一下，轻轻转一次肩膀，不疼为准。",
+      required: true,
+      requiredTaps: 6,
+      tapLabel: "次转动"
+    },
+    {
+      id: "physical_breath",
+      type: "breath",
+      title: "配合呼吸 2 轮",
+      description: "肩膀放松的同时，慢慢吸气呼气。",
+      required: true,
+      requiredRounds: 2,
+      inhaleSeconds: 3,
+      holdSeconds: 1,
+      exhaleSeconds: 3
+    }
+  ])
+];
+
+const FLOW_PRESETS: Record<string, ActivityInteractionProgress> = {
+  pending: {},
+  partial: {
+    choiceAnswers: { rest_choice: "latency", office_choice: "deep_bug" },
+    tapCounts: { physical_tap: 3 }
+  },
+  completed: {
+    choiceAnswers: { rest_choice: "latency", office_choice: "deep_bug" },
+    breathRounds: { rest_breath: 2, physical_breath: 2 },
+    journalEntries: {
+      rest_tags: { tagIds: ["calm"] },
+      imagination_journal: { text: "下班后就离线" }
+    },
+    selectedOptions: { imagination_reveal: "water" },
+    reactionResults: { office_reaction: { successCount: 2, attempts: 3 } },
+    tapCounts: { physical_tap: 6 }
+  }
+};
+
+function makeFlowAssignment(
+  category: ActivityAssignment["category"],
+  code: string,
+  title: string,
+  flavorLabel: string,
+  steps: MiniStep[]
+): ActivityAssignment {
+  const estimatedSeconds = steps.reduce((total, step) => total + (step.durationSeconds ?? 0), 30);
+  const interaction = {
+    mode: "guided" as const,
+    estimatedSeconds,
+    proofPolicy: "none" as const,
+    flavorLabel,
+    steps,
+    completionFeedback: ["流程完成"],
+    resultSummary: { title: "流程完成", copy: "这是一次 UI Lab 预览流程。" }
+  };
+  const summary = {
+    stepCount: steps.length,
+    estimatedSeconds,
+    hasTimer: steps.some((s) => s.type === "timer"),
+    hasChoice: steps.some((s) => s.type === "choice"),
+    hasMiniGame: steps.some((s) => s.type === "mini_game"),
+    hasTapPattern: steps.some((s) => s.type === "tap-pattern"),
+    hasShufflePick: steps.some((s) => s.type === "shuffle-pick"),
+    hasSort: steps.some((s) => s.type === "sort"),
+    hasBreath: steps.some((s) => s.type === "breath"),
+    hasReaction: steps.some((s) => s.type === "reaction"),
+    hasMicroJournal: steps.some((s) => s.type === "micro-journal"),
+    hasReveal: steps.some((s) => s.type === "reveal"),
+    proofPolicy: "none" as const,
+    flavorLabel
+  };
+  return {
+    assignmentId: `ui-lab-${code}`,
+    code,
+    title,
+    description: "UI Lab 多步互动预览",
+    category,
+    difficulty: "easy",
+    status: "active",
+    rewardPreview: { score: 5, drawProgress: 1 },
+    presentation: {
+      badge: "UI Lab",
+      tone: "calm",
+      accentColor: "#2f6f8f",
+      headline: title,
+      scene: "多步互动流程预览",
+      prompt: "在 UI Lab 中预览完整的多步互动流程。",
+      statLabel: "预览",
+      statValue: "100%"
+    },
+    interaction,
+    interactionSummary: summary,
+    assignedAt: new Date().toISOString(),
+    completedAt: null,
+    expiresAt: null,
+    rewarded: false
+  };
+}
+
+function MultiStepFlowSpecimens() {
+  const [preset, setPreset] = useState<"pending" | "partial" | "completed">("pending");
+  const systemReducedMotion = useReducedMotion();
+  const [forceReducedMotion, setForceReducedMotion] = useState(false);
+  const reducedMotion = systemReducedMotion || forceReducedMotion;
+  const progress = FLOW_PRESETS[preset];
+
+  return (
+    <View style={styles.stack}>
+      <Text style={[styles.copy, { color: colors.inkMuted }]}>
+        {reducedMotion
+          ? "Reduced motion preview: breath uses text cues instead of large scale animation."
+          : "Multi-step activity previews showing pending, partial, and completed states."}
+      </Text>
+      <View style={styles.flowControlRow}>
+        {([
+          { key: "pending", label: "待完成" },
+          { key: "partial", label: "完成一半" },
+          { key: "completed", label: "已完成" }
+        ] as const).map((option) => (
+          <Pressable
+            key={option.key}
+            accessibilityRole="button"
+            onPress={() => setPreset(option.key)}
+            style={[styles.flowButton, preset === option.key && styles.flowButtonActive]}
+          >
+            <Text
+              style={[
+                styles.flowButtonText,
+                preset === option.key && styles.flowButtonTextActive
+              ]}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        ))}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setForceReducedMotion((v) => !v)}
+          style={styles.flowButton}
+        >
+          <Text style={styles.flowButtonText}>
+            {forceReducedMotion ? "恢复默认动态" : "强制减弱动态"}
+          </Text>
+        </Pressable>
+      </View>
+      <View style={styles.flowSpecimenGrid}>
+        {FLOW_SPECIMENS.map((assignment) => (
+          <FramedCard key={assignment.code} style={styles.flowSpecimenCard}>
+            <Text style={styles.miniSpecimenType}>{assignment.category}</Text>
+            <Text style={styles.miniSpecimenTitle}>{assignment.title}</Text>
+            <ActivityInteractionRunner
+              assignment={assignment}
+              progress={progress}
+              onChange={() => undefined}
+            />
+          </FramedCard>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export function UiLabScreen({ onClose }: UiLabScreenProps) {
   const theme = useTheme();
   const reducedMotion = useReducedMotion();
@@ -775,6 +1031,11 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         <Surface>
           <SectionHeader title="Activity mini-interactions" kicker="STEP COMPONENTS" />
           <MiniInteractionSpecimens />
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Activity multi-step flows" kicker="REALISTIC FLOWS" />
+          <MultiStepFlowSpecimens />
         </Surface>
 
         <Surface>
@@ -1131,5 +1392,41 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     fontSize: 12,
     fontWeight: "900"
+  },
+  flowControlRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.sm
+  },
+  flowButton: {
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  flowButtonActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink
+  },
+  flowButtonText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  flowButtonTextActive: {
+    color: colors.white
+  },
+  flowSpecimenGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    marginTop: spacing.md
+  },
+  flowSpecimenCard: {
+    flex: 1,
+    minWidth: 280,
+    padding: spacing.md
   }
 });

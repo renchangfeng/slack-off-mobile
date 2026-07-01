@@ -4,6 +4,7 @@ import { EmptyState, RewardRow, SectionHeader, StatusBadge } from "../../ui/comp
 import { MotionFeedback } from "../../ui/motion/MotionFeedback";
 import { DashboardCard } from "./parts/DashboardCard";
 import { ActivityInteractionRunner } from "./parts/ActivityInteractionRunner";
+import { StepReceipt } from "./parts/activity-interactions/StepReceipt";
 import { ActionButton, CategoryChip } from "./parts/SharedControls";
 import { GoalBanner } from "./parts/GoalPanels";
 import {
@@ -232,14 +233,7 @@ export function ActivitiesTab({
                 {result.reward.drawChancesGranted}
               </Text>
               {result.stepSummaries?.length ? (
-                <View style={{ marginTop: 8 }}>
-                  <Text style={styles.kicker}>本次互动记录</Text>
-                  {result.stepSummaries.slice(0, 3).map((summary) => (
-                    <Text key={summary} style={styles.helperText}>
-                      {summary}
-                    </Text>
-                  ))}
-                </View>
+                <StepReceipt summaries={result.stepSummaries} />
               ) : null}
               <Text style={styles.helperText}>{result.feedback}</Text>
               <Text style={styles.helperText}>下一步：{nextStep.title}</Text>

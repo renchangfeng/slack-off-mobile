@@ -23,6 +23,11 @@ export function ReactionInteraction({
   const [state, setState] = useState<ReactionState>("idle");
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const windowRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resultRef = useRef(currentResult);
+
+  useEffect(() => {
+    resultRef.current = currentResult;
+  }, [currentResult]);
 
   useEffect(() => {
     return () => {
@@ -32,14 +37,14 @@ export function ReactionInteraction({
   }, []);
 
   function startRound() {
-    if (currentResult.attempts >= totalRounds || completed) return;
+    if (resultRef.current.attempts >= totalRounds || completed) return;
     setState("waiting");
     const delay = 1000 + Math.random() * 1500;
     timeoutRef.current = setTimeout(() => {
       setState("ready");
       windowRef.current = setTimeout(() => {
         finishRound(false);
-      }, 900);
+      }, reducedMotion ? 1400 : 1100);
     }, delay);
   }
 
@@ -52,20 +57,29 @@ export function ReactionInteraction({
 
   function finishRound(success: boolean) {
     const next = {
-      successCount: currentResult.successCount + (success ? 1 : 0),
-      attempts: currentResult.attempts + 1
+      successCount: resultRef.current.successCount + (success ? 1 : 0),
+      attempts: resultRef.current.attempts + 1
     };
     markReactionResult(onChange, step.id, next);
     setState(success ? "hit" : "missed");
   }
 
   const canStart = state === "idle" || state === "hit" || state === "missed";
+  const remainingAttempts = Math.max(0, totalRounds - currentResult.attempts);
+
+  const stateLabel: Record<ReactionState, string> = {
+    idle: "准备开始",
+    waiting: "等待信号…",
+    ready: "点！",
+    missed: "没点到，再试一轮",
+    hit: "命中"
+  };
 
   return (
     <View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="反应区域"
+        accessibilityLabel={`反应区域，${stateLabel[state]}`}
         onPress={tap}
         disabled={state !== "ready"}
         style={{
@@ -89,19 +103,29 @@ export function ReactionInteraction({
             fontWeight: "900" as const
           }}
         >
-          {state === "idle" && "准备开始"}
-          {state === "waiting" && "等待信号…"}
-          {state === "ready" && "点！"}
-          {state === "missed" && " missed"}
-          {state === "hit" && "命中"}
+          {stateLabel[state]}
         </Text>
       </Pressable>
       <Text style={{ color: "#232323", fontSize: 15, fontWeight: "900" as const, marginTop: 12 }}>
-        命中 {currentResult.successCount}/{required} · 第 {Math.min(totalRounds, currentResult.attempts + 1)}/{totalRounds} 轮
+        命中 {currentResult.successCount}/{required} · 剩余 {remainingAttempts} 轮
       </Text>
       {reducedMotion ? (
-        <Text style={styles.helperText}>已开启减弱动态效果，颜色变化仍可完成挑战。</Text>
-      ) : null}
+        <Text style={styles.helperText}>
+          已开启减弱动态效果：当区域变成深绿色并显示“点！”时点击即可。
+        </Text>
+      ) : (
+        <Text style={styles.helperText}>
+          {state === "idle"
+            ? "点击开始，圆环变绿时快速点击。"
+            : state === "waiting"
+              ? "保持注意，颜色会变。"
+              : state === "ready"
+                ? "就是现在。"
+                : completed
+                  ? "已完成反应挑战。"
+                  : "点击开始下一轮。"}
+        </Text>
+      )}
       <ActionButton
         label={completed ? "反应挑战完成" : canStart ? "开始" : "进行中"}
         onPress={startRound}

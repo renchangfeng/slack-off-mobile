@@ -49,6 +49,7 @@ export function MicroJournalInteraction({
   }
 
   function toggleTag(tagId: string) {
+    if (completed) return;
     setSelectedTagIds((current) =>
       current.includes(tagId) ? current.filter((id) => id !== tagId) : [...current, tagId]
     );
@@ -56,6 +57,13 @@ export function MicroJournalInteraction({
 
   const canSubmit =
     (mode === "text" ? textValid : mode === "tags" ? tagsValid : textValid && tagsValid) && !completed;
+
+  const hintText =
+    mode === "text"
+      ? `${textMin}-${textMax} 字`
+      : mode === "tags"
+        ? `选 ${tagMin}-${tagMax} 个标签`
+        : `文字 ${textMin}-${textMax} 字，并选 ${tagMin}-${tagMax} 个标签`;
 
   return (
     <View>
@@ -83,7 +91,7 @@ export function MicroJournalInteraction({
             placeholder="写一句…"
           />
           <Text style={{ color: "#746b60", fontSize: 12, marginTop: 6 }}>
-            {text.trim().length}/{textMax}
+            {text.trim().length}/{textMax} 字
           </Text>
         </>
       )}
@@ -127,11 +135,7 @@ export function MicroJournalInteraction({
         disabled={!canSubmit}
       />
       {completed ? null : (
-        <Text style={styles.helperText}>
-          {mode === "text" && `${textMin}-${textMax} 字`}
-          {mode === "tags" && `选 ${tagMin}-${tagMax} 个标签`}
-          {mode === "both" && `文字 ${textMin}-${textMax} 字，并选 ${tagMin}-${tagMax} 个标签`}
-        </Text>
+        <Text style={styles.helperText}>{hintText}</Text>
       )}
     </View>
   );

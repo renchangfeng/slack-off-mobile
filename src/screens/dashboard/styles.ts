@@ -203,6 +203,25 @@ const styles = StyleSheet.create({
     marginTop: 14,
     padding: 14
   },
+  activityResultReceipt: {
+    backgroundColor: "#ffffff",
+    borderColor: "#b7d9c8",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+    padding: 12
+  },
+  activityResultReceiptLine: {
+    color: "#2f2a25",
+    fontSize: 13,
+    lineHeight: 19
+  },
+  activityResultReceiptOverflow: {
+    color: "#746b60",
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: 4
+  },
   activityResultTitle: {
     color: "#232323",
     fontSize: 18,
@@ -236,7 +255,42 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 10
   },
+  tapAreaCompleted: {
+    backgroundColor: "#e7f4ed",
+    borderColor: "#82b99f"
+  },
+  tapAreaCompletedText: {
+    color: "#1f8f62"
+  },
+  sortRow: {
+    alignItems: "center",
+    backgroundColor: "#f4f0e8",
+    borderColor: "#d8d0c4",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 48,
+    paddingHorizontal: 10
+  },
+  sortLabel: {
+    color: "#232323",
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: "900" as const,
+    lineHeight: 20,
+    marginRight: 8
+  },
+  reactionCue: {
+    color: "#746b60",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 8
+  },
   choiceGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     marginTop: 12
   },
@@ -244,15 +298,18 @@ const styles = StyleSheet.create({
     borderColor: "#cfc7bb",
     borderRadius: 8,
     borderWidth: 1,
-    minHeight: 42,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: "30%",
     justifyContent: "center",
+    minHeight: 42,
     paddingHorizontal: 12
   },
   choiceButtonSelected: {
     backgroundColor: "#232323",
     borderColor: "#232323"
   },
-  choiceButtonText: { color: "#625b52", fontSize: 13, fontWeight: "900" },
+  choiceButtonText: { color: "#625b52", fontSize: 13, fontWeight: "900", textAlign: "center" },
   choiceButtonTextSelected: { color: "#ffffff" },
   categoryRow: { gap: 8, paddingTop: 14 },
   categoryChip: {

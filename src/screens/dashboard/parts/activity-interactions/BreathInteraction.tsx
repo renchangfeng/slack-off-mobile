@@ -19,10 +19,11 @@ export function BreathInteraction({
   const [phase, setPhase] = useState<Phase>("idle");
   const [secondsLeft, setSecondsLeft] = useState(0);
   const scale = useRef(new Animated.Value(1)).current;
+  const completedRoundsRef = useRef(completedRounds);
 
-  const inhale = step.inhaleSeconds ?? 4;
-  const hold = step.holdSeconds ?? 0;
-  const exhale = step.exhaleSeconds ?? 4;
+  useEffect(() => {
+    completedRoundsRef.current = completedRounds;
+  }, [completedRounds]);
 
   useEffect(() => {
     if (phase === "idle" || secondsLeft <= 0) return;
@@ -57,6 +58,10 @@ export function BreathInteraction({
     }
   }, [phase, reducedMotion]);
 
+  const inhale = step.inhaleSeconds ?? 4;
+  const hold = step.holdSeconds ?? 0;
+  const exhale = step.exhaleSeconds ?? 4;
+
   function advancePhase() {
     if (phase === "inhale") {
       if (hold > 0) {
@@ -70,7 +75,7 @@ export function BreathInteraction({
       setPhase("exhale");
       setSecondsLeft(exhale);
     } else if (phase === "exhale") {
-      const nextRound = completedRounds + 1;
+      const nextRound = completedRoundsRef.current + 1;
       markBreathRounds(onChange, step.id, nextRound);
       if (nextRound >= required) {
         setPhase("idle");
@@ -101,23 +106,28 @@ export function BreathInteraction({
             alignItems: "center",
             backgroundColor: "#e7f4ed",
             borderColor: "#82b99f",
-            borderRadius: 64,
+            borderRadius: reducedMotion ? 8 : 64,
             borderWidth: 2,
-            height: 128,
+            height: reducedMotion ? 72 : 128,
             justifyContent: "center",
-            transform: [{ scale }],
-            width: 128
+            transform: reducedMotion ? undefined : [{ scale }],
+            width: reducedMotion ? "100%" : 128
           }}
         >
-          <Text style={{ color: "#1f8f62", fontSize: 22, fontWeight: "900" as const }}>
+          <Text style={{ color: "#1f8f62", fontSize: reducedMotion ? 18 : 22, fontWeight: "900" as const }}>
             {phase === "idle" ? required : secondsLeft}
           </Text>
+          {reducedMotion && phase !== "idle" ? (
+            <Text style={{ color: "#1f8f62", fontSize: 13, fontWeight: "900" as const, marginTop: 2 }}>
+              {phaseLabel}
+            </Text>
+          ) : null}
         </Animated.View>
         <Text style={{ color: "#232323", fontSize: 15, fontWeight: "900" as const, marginTop: 12 }}>
           {phaseLabel} · {completedRounds}/{required} 轮
         </Text>
         {reducedMotion ? (
-          <Text style={styles.helperText}>已开启减弱动态效果，数字倒计时仍可完成。</Text>
+          <Text style={styles.helperText}>已开启减弱动态效果，按文字提示吸气、呼气即可完成。</Text>
         ) : null}
       </View>
       <ActionButton
