@@ -16,6 +16,33 @@ import type { LeaderboardResponse, LeaderboardScope, LeaderboardWindow } from ".
 import type { ProgressionSummary } from "../../api/progression";
 import type { DashboardTab } from "../../gameplay/dashboardTabs";
 import type { Dispatch, SetStateAction } from "react";
+import {
+  isStepComplete as isActivityStepComplete,
+  markAck as markAckStep,
+  markBreathRounds as markBreathStep,
+  markChoice as markChoiceStep,
+  markJournalEntry as markJournalStep,
+  markMiniGame as markMiniGameStep,
+  markReactionResult as markReactionStep,
+  markSelectedOption as markSelectedOptionStep,
+  markSortedItems as markSortStep,
+  markTapPattern as markTapPatternStep,
+  markTimer as markTimerStep
+} from "./parts/activity-interactions/interactionProgress";
+
+export {
+  isActivityStepComplete,
+  markAckStep,
+  markBreathStep,
+  markChoiceStep,
+  markJournalStep,
+  markMiniGameStep,
+  markReactionStep,
+  markSelectedOptionStep,
+  markSortStep,
+  markTapPatternStep,
+  markTimerStep
+};
 
 export function formatDuration(startedAt: string, now: number): string {
   const seconds = Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000));
@@ -171,82 +198,17 @@ export function isActivityInteractionComplete(
     .every((step) => isActivityStepComplete(step, progress));
 }
 
-export function isActivityStepComplete(
-  step: ActivityAssignment["interaction"]["steps"][number],
-  progress: ActivityInteractionProgress
-): boolean {
-  if (step.type === "ack") {
-    return Boolean(progress.completedStepIds?.includes(step.id));
-  }
-  if (step.type === "timer") {
-    return (progress.timerSeconds?.[step.id] ?? 0) >= (step.durationSeconds ?? 0);
-  }
-  if (step.type === "choice") {
-    const answer = progress.choiceAnswers?.[step.id];
-    return Boolean(answer && (!step.correctOptionId || answer === step.correctOptionId));
-  }
-  if (step.type === "mini_game") {
-    return progress.miniGameResults?.[step.id]?.passed === true;
-  }
-  return false;
-}
-
-export function markAckStep(
-  onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>,
-  stepId: string
-) {
-  onChange((current) => ({
-    ...current,
-    completedStepIds: Array.from(new Set([...(current.completedStepIds ?? []), stepId]))
-  }));
-}
-
-export function markTimerStep(
-  onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>,
-  stepId: string,
-  seconds: number
-) {
-  onChange((current) => ({
-    ...current,
-    timerSeconds: {
-      ...(current.timerSeconds ?? {}),
-      [stepId]: seconds
-    }
-  }));
-}
-
-export function markChoiceStep(
-  onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>,
-  stepId: string,
-  optionId: string
-) {
-  onChange((current) => ({
-    ...current,
-    choiceAnswers: {
-      ...(current.choiceAnswers ?? {}),
-      [stepId]: optionId
-    }
-  }));
-}
-
-export function markMiniGameStep(
-  onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>,
-  stepId: string,
-  score: number
-) {
-  onChange((current) => ({
-    ...current,
-    miniGameResults: {
-      ...(current.miniGameResults ?? {}),
-      [stepId]: { passed: true, score }
-    }
-  }));
-}
-
 export function activityStepTypeLabel(type: string): string {
   if (type === "timer") return "倒计时";
   if (type === "choice") return "选择";
   if (type === "mini_game") return "小游戏";
+  if (type === "tap-pattern") return "点击";
+  if (type === "shuffle-pick") return "抽取";
+  if (type === "sort") return "排序";
+  if (type === "breath") return "呼吸";
+  if (type === "reaction") return "反应";
+  if (type === "micro-journal") return "记录";
+  if (type === "reveal") return "翻开";
   return "确认";
 }
 
@@ -256,7 +218,14 @@ export function activityInteractionSummaryLabel(
   const traits = [
     summary.hasTimer ? "倒计时" : null,
     summary.hasChoice ? "选择题" : null,
-    summary.hasMiniGame ? "小游戏" : null
+    summary.hasMiniGame ? "小游戏" : null,
+    summary.hasTapPattern ? "点击" : null,
+    summary.hasShufflePick ? "抽取" : null,
+    summary.hasSort ? "排序" : null,
+    summary.hasBreath ? "呼吸" : null,
+    summary.hasReaction ? "反应" : null,
+    summary.hasMicroJournal ? "记录" : null,
+    summary.hasReveal ? "翻开" : null
   ].filter(Boolean);
   const summaryText = `${summary.stepCount} 步 · 约 ${summary.estimatedSeconds} 秒${
     traits.length ? ` · ${traits.join("/")}` : ""

@@ -1,18 +1,43 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import type { ActivityAssignment, ActivityInteractionProgress } from "../../../api/activities";
 import { ArtSlot } from "../../../ui/art/ArtSlot";
 import { MotionFeedback } from "../../../ui/motion/MotionFeedback";
-import { ActionButton } from "./SharedControls";
+import { useReducedMotion } from "../../../ui/motion/useReducedMotion";
 import {
   activityStepTypeLabel,
-  isActivityStepComplete,
-  markAckStep,
-  markChoiceStep,
-  markMiniGameStep,
-  markTimerStep
+  isActivityStepComplete
 } from "../helpers";
 import styles from "../styles";
+import { AckInteraction } from "./activity-interactions/AckInteraction";
+import { BreathInteraction } from "./activity-interactions/BreathInteraction";
+import { ChoiceInteraction } from "./activity-interactions/ChoiceInteraction";
+import { MicroJournalInteraction } from "./activity-interactions/MicroJournalInteraction";
+import { MiniGameInteraction } from "./activity-interactions/MiniGameInteraction";
+import { ReactionInteraction } from "./activity-interactions/ReactionInteraction";
+import { RevealInteraction } from "./activity-interactions/RevealInteraction";
+import { ShufflePickInteraction } from "./activity-interactions/ShufflePickInteraction";
+import { SortInteraction } from "./activity-interactions/SortInteraction";
+import { TapPatternInteraction } from "./activity-interactions/TapPatternInteraction";
+import { TimerInteraction } from "./activity-interactions/TimerInteraction";
+import type { ActivityStepInteractionProps } from "./activity-interactions/types";
+import type { ComponentType, Dispatch, SetStateAction } from "react";
+
+const STEP_COMPONENTS: Record<
+  ActivityAssignment["interaction"]["steps"][number]["type"],
+  ComponentType<ActivityStepInteractionProps>
+> = {
+  ack: AckInteraction,
+  timer: TimerInteraction,
+  choice: ChoiceInteraction,
+  mini_game: MiniGameInteraction,
+  "tap-pattern": TapPatternInteraction,
+  "shuffle-pick": ShufflePickInteraction,
+  sort: SortInteraction,
+  breath: BreathInteraction,
+  reaction: ReactionInteraction,
+  "micro-journal": MicroJournalInteraction,
+  reveal: RevealInteraction
+};
 
 export function ActivityInteractionRunner({
   assignment,
@@ -62,40 +87,9 @@ function ActivityStepCard({
   progress: ActivityInteractionProgress;
   onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>;
 }) {
+  const reducedMotion = useReducedMotion();
   const completed = isActivityStepComplete(step, progress);
-  const selectedChoice = step.options?.find(
-    (option) => option.id === progress.choiceAnswers?.[step.id]
-  );
-  const [remaining, setRemaining] = useState<number | null>(null);
-  const [miniTapCount, setMiniTapCount] = useState(0);
-
-  useEffect(() => {
-    if (remaining === null || remaining <= 0 || completed) {
-      return;
-    }
-    const timer = setTimeout(() => {
-      setRemaining((current) => {
-        const next = Math.max(0, (current ?? 0) - 1);
-        if (next === 0) {
-          markTimerStep(onChange, step.id, step.durationSeconds ?? 0);
-        }
-        return next;
-      });
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [completed, onChange, remaining, step.durationSeconds, step.id]);
-
-  function startTimer() {
-    setRemaining(step.durationSeconds ?? 0);
-  }
-
-  function tapMiniGame() {
-    const next = miniTapCount + 1;
-    setMiniTapCount(next);
-    if (next >= 5) {
-      markMiniGameStep(onChange, step.id, next);
-    }
-  }
+  const Body = STEP_COMPONENTS[step.type];
 
   return (
     <MotionFeedback variant="activity-step" trigger={completed ? `${step.id}:done` : undefined}>
@@ -109,74 +103,14 @@ function ActivityStepCard({
             </Text>
           </View>
         </View>
-      <Text style={styles.rowTitle}>{step.title}</Text>
-      <Text style={styles.rowMeta}>{step.description}</Text>
-      {step.type === "ack" ? (
-        <ActionButton
-          label={completed ? "已确认" : "我照做了"}
-          disabled={completed}
-          onPress={() => markAckStep(onChange, step.id)}
-        />
-      ) : null}
-      {step.type === "timer" ? (
-        <>
-          <Text style={styles.timerMini}>
-            {completed
-              ? "00"
-              : remaining === null
-                ? `${step.durationSeconds ?? 0}`
-                : `${remaining.toString().padStart(2, "0")}`}
-            s
-          </Text>
-          <ActionButton
-            label={completed ? "倒计时完成" : remaining === null ? "开始倒计时" : "倒计时中"}
-            disabled={completed || remaining !== null}
-            onPress={startTimer}
-          />
-        </>
-      ) : null}
-      {step.type === "choice" ? (
-        <>
-          <View style={styles.choiceGrid}>
-            {step.options?.map((option) => {
-              const selected = selectedChoice?.id === option.id;
-              return (
-                <Pressable
-                  key={option.id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => markChoiceStep(onChange, step.id, option.id)}
-                  style={[styles.choiceButton, selected && styles.choiceButtonSelected]}
-                >
-                  <Text
-                    style={[
-                      styles.choiceButtonText,
-                      selected && styles.choiceButtonTextSelected
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {selectedChoice ? <Text style={styles.helperText}>{selectedChoice.resultText}</Text> : null}
-        </>
-      ) : null}
-      {step.type === "mini_game" ? (
-        <>
-          <Text style={styles.helperText}>
-            {step.gameCode ?? "mini_game"} · {step.requiredResult ?? "完成即可"}
-          </Text>
-          <Text style={styles.timerMini}>{Math.min(5, miniTapCount)}/5</Text>
-          <ActionButton
-            label={completed ? "小游戏通过" : "快速点击"}
-            disabled={completed}
-            onPress={tapMiniGame}
-          />
-        </>
-      ) : null}
-    </View>
+        <Text style={styles.rowTitle}>{step.title}</Text>
+        <Text style={styles.rowMeta}>{step.description}</Text>
+        {Body ? (
+          <Body step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />
+        ) : (
+          <Text style={styles.helperText}>暂不支持此互动类型</Text>
+        )}
+      </View>
     </MotionFeedback>
   );
 }

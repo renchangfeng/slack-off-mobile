@@ -126,9 +126,21 @@ describe("isActivityStepComplete", () => {
   });
 
   it("completes choice step with correct answer", () => {
+    const step = {
+      id: "s1",
+      type: "choice",
+      title: "",
+      description: "",
+      options: [{ id: "a", label: "A", resultText: "" }],
+      correctOptionId: "a",
+      required: true
+    } as ActivityAssignment["interaction"]["steps"][number];
+    expect(
+      isActivityStepComplete(step, { choiceAnswers: { s1: "unknown" } })
+    ).toBe(false);
     expect(
       isActivityStepComplete(
-        { id: "s1", type: "choice", title: "", description: "", options: [], correctOptionId: "a", required: true } as ActivityAssignment["interaction"]["steps"][number],
+        step,
         { choiceAnswers: { s1: "a" } }
       )
     ).toBe(true);

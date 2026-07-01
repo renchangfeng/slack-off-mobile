@@ -4,6 +4,20 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ArtSlot } from "../../ui/art/ArtSlot";
 import { artAssets, listArtSlotDefinitions, resolveArtAsset } from "../../ui/art/registry";
 import type { ArtAssetKind, ArtSlotId } from "../../ui/art/types";
+import type { ActivityAssignment, ActivityInteractionProgress } from "../../api/activities";
+import {
+  BreathInteraction,
+  ChoiceInteraction,
+  MicroJournalInteraction,
+  ReactionInteraction,
+  RevealInteraction,
+  ShufflePickInteraction,
+  SortInteraction,
+  TapPatternInteraction
+} from "../dashboard/parts/activity-interactions";
+
+type MiniStep = ActivityAssignment["interaction"]["steps"][number];
+
 import {
   ActivityPreviewCard,
   BrandManifestoCard,
@@ -251,6 +265,190 @@ type UiLabScreenProps = {
 type MotionTriggers = {
   [key: string]: number;
 };
+
+const MINI_INTERACTION_SPECIMENS: MiniStep[] = [
+  {
+    id: "tap",
+    type: "tap-pattern",
+    title: "点掉 5 个焦虑泡泡",
+    description: "每点一下，想象一个念头暂时浮走。",
+    required: true,
+    requiredTaps: 5,
+    tapLabel: "泡泡"
+  },
+  {
+    id: "choice",
+    type: "choice",
+    title: "选择呼吸借口",
+    description: "给这次离线配一个听起来合理的名义。",
+    required: true,
+    options: [
+      { id: "latency", label: "降低脑延迟", resultText: "脑延迟优化开始。" },
+      { id: "cache", label: "清理情绪缓存", resultText: "缓存清理中。" },
+      { id: "reboot", label: "温柔重启", resultText: "重启不用关机。" }
+    ]
+  },
+  {
+    id: "shuffle",
+    type: "shuffle-pick",
+    title: "抽一个云的名字",
+    description: "云没有意见，名字由你临时颁布。",
+    required: true,
+    items: [
+      { id: "cotton", label: "棉花糖观测员" },
+      { id: "wander", label: "流浪水汽" },
+      { id: "afternoon", label: "午后缓存云" }
+    ]
+  },
+  {
+    id: "sort",
+    type: "sort",
+    title: "把内容按重要程度排序",
+    description: "拖动条目，排成你觉得合理的优先级。",
+    required: true,
+    items: [
+      { id: "deadline", label: "deadline 迫近" },
+      { id: "noise", label: "无关通知" },
+      { id: "decision", label: "待决策项" },
+      { id: "reference", label: "参考资料" }
+    ]
+  },
+  {
+    id: "breath",
+    type: "breath",
+    title: "跟着节奏呼吸 2 轮",
+    description: "吸气、呼气，不用着急。",
+    required: true,
+    requiredRounds: 2,
+    inhaleSeconds: 3,
+    holdSeconds: 1,
+    exhaleSeconds: 3
+  },
+  {
+    id: "reaction",
+    type: "reaction",
+    title: "看到雷达消失再点",
+    description: "圆环消失时快速点击，允许一次走神。",
+    required: true,
+    requiredSuccessCount: 2,
+    reactionRounds: 3
+  },
+  {
+    id: "journal",
+    type: "micro-journal",
+    title: "写一句给下班后的自己",
+    description: "短一点，像一张便签。",
+    required: true,
+    journalMode: "text",
+    textMinLength: 3,
+    textMaxLength: 40
+  },
+  {
+    id: "reveal",
+    type: "reveal",
+    title: "翻开今日摸鱼签",
+    description: "点一下翻开，作为这次留言的邮戳。",
+    required: true,
+    items: [
+      { id: "early", label: "准点下班" },
+      { id: "water", label: "多喝一口" },
+      { id: "window", label: "看云五秒" }
+    ]
+  }
+];
+
+function StepComponent({
+  step,
+  progress,
+  onChange,
+  reducedMotion
+}: {
+  step: MiniStep;
+  progress: ActivityInteractionProgress;
+  onChange: React.Dispatch<React.SetStateAction<ActivityInteractionProgress>>;
+  reducedMotion: boolean;
+}) {
+  if (step.type === "tap-pattern") {
+    return <TapPatternInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+  }
+  if (step.type === "choice") {
+    return <ChoiceInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+  }
+  if (step.type === "shuffle-pick") {
+    return <ShufflePickInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+  }
+  if (step.type === "sort") {
+    return <SortInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+  }
+  if (step.type === "breath") {
+    return <BreathInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+  }
+  if (step.type === "reaction") {
+    return <ReactionInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+  }
+  if (step.type === "micro-journal") {
+    return <MicroJournalInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+  }
+  if (step.type === "reveal") {
+    return <RevealInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+  }
+  return <Text style={styles.copy}>Unsupported step type</Text>;
+}
+
+function MiniInteractionSpecimens() {
+  const systemReducedMotion = useReducedMotion();
+  const [forceReducedMotion, setForceReducedMotion] = useState(false);
+  const reducedMotion = systemReducedMotion || forceReducedMotion;
+
+  return (
+    <View style={styles.stack}>
+      <Text style={[styles.copy, { color: colors.inkMuted }]}>
+        {reducedMotion
+          ? "Reduced motion preview: breath and reaction avoid large movement."
+          : "Tap each specimen to see pending → active → completed transitions."}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setForceReducedMotion((v) => !v)}
+        style={styles.motionButton}
+      >
+        <Text style={styles.motionButtonText}>
+          {forceReducedMotion ? "恢复默认动态" : "强制减弱动态"}
+        </Text>
+      </Pressable>
+      <View style={styles.miniSpecimenGrid}>
+        {MINI_INTERACTION_SPECIMENS.map((step) => (
+          <MiniInteractionCard key={step.id} step={step} reducedMotion={reducedMotion} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function MiniInteractionCard({
+  step,
+  reducedMotion
+}: {
+  step: MiniStep;
+  reducedMotion: boolean;
+}) {
+  const [progress, setProgress] = useState<ActivityInteractionProgress>({});
+
+  return (
+    <FramedCard style={styles.miniSpecimenCard}>
+      <Text style={styles.miniSpecimenType}>{step.type}</Text>
+      <Text style={styles.miniSpecimenTitle}>{step.title}</Text>
+      <StepComponent step={step} progress={progress} onChange={setProgress} reducedMotion={reducedMotion} />
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setProgress({})}
+        style={styles.miniSpecimenReset}
+      >
+        <Text style={styles.miniSpecimenResetText}>重置</Text>
+      </Pressable>
+    </FramedCard>
+  );
+}
 
 export function UiLabScreen({ onClose }: UiLabScreenProps) {
   const theme = useTheme();
@@ -575,6 +773,11 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         </Surface>
 
         <Surface>
+          <SectionHeader title="Activity mini-interactions" kicker="STEP COMPONENTS" />
+          <MiniInteractionSpecimens />
+        </Surface>
+
+        <Surface>
           <SectionHeader title="Activity tones" />
           <View style={styles.stack}>
             {TONE_PREVIEWS.map((item) => (
@@ -896,6 +1099,37 @@ const styles = StyleSheet.create({
   inlineActionText: {
     color: colors.white,
     fontSize: 13,
+    fontWeight: "900"
+  },
+  miniSpecimenGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md
+  },
+  miniSpecimenCard: {
+    flex: 1,
+    minWidth: 280,
+    padding: spacing.md
+  },
+  miniSpecimenType: {
+    color: colors.inkSoft,
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  miniSpecimenTitle: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: spacing.xs
+  },
+  miniSpecimenReset: {
+    alignSelf: "flex-start",
+    marginTop: spacing.sm
+  },
+  miniSpecimenResetText: {
+    color: colors.inkMuted,
+    fontSize: 12,
     fontWeight: "900"
   }
 });

@@ -231,6 +231,16 @@ export function ActivitiesTab({
                 {result.reward.drawProgress} · 抽豆机会 +
                 {result.reward.drawChancesGranted}
               </Text>
+              {result.stepSummaries?.length ? (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.kicker}>本次互动记录</Text>
+                  {result.stepSummaries.slice(0, 3).map((summary) => (
+                    <Text key={summary} style={styles.helperText}>
+                      {summary}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
               <Text style={styles.helperText}>{result.feedback}</Text>
               <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
             </View>
