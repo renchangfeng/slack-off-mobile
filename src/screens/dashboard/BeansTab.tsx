@@ -1,5 +1,7 @@
 import { Pressable, Text, View } from "react-native";
-import { EmptyState, PixelArtPlaceholder, SectionHeader } from "../../ui/components";
+import { ArtSlot } from "../../ui/art/ArtSlot";
+import { EmptyState, SectionHeader } from "../../ui/components";
+import { MotionFeedback } from "../../ui/motion/MotionFeedback";
 import { DashboardCard } from "./parts/DashboardCard";
 import { ActionButton, ProgressBar } from "./parts/SharedControls";
 import { GoalBanner } from "./parts/GoalPanels";
@@ -130,7 +132,15 @@ export function BeansTab({
           onPress={actions.exchangeFragments}
         />
         {drawResult ? (
+          <MotionFeedback
+            variant="bean-reveal"
+            trigger={drawResult.bean.id}
+            animateOnMount
+          >
           <View style={styles.resultBox}>
+            <View style={{ alignItems: "center", marginBottom: 8 }}>
+              <ArtSlot slotId="bean-draw-result" size={80} />
+            </View>
             <Text style={styles.kicker}>抽豆结果</Text>
             <Text style={styles.sectionTitle}>
               {drawResult.resultTitle ?? drawResult.bean.name}
@@ -152,6 +162,7 @@ export function BeansTab({
               下一步：{drawResult.nextHint ?? nextStep.title}
             </Text>
           </View>
+          </MotionFeedback>
         ) : null}
       </DashboardCard>
       <DashboardCard>
@@ -172,7 +183,7 @@ export function BeansTab({
                   showcasePosition === position && styles.showcaseSlotActive
                 ]}
               >
-                <PixelArtPlaceholder kind="bean" size={48} style={styles.showcasePlaceholder} />
+                <ArtSlot slotId="bean-showcase-slot" size={48} style={styles.showcasePlaceholder} />
                 <Text style={styles.kicker}>第 {position} 格</Text>
                 <Text style={styles.showcaseBeanName}>
                   {item?.bean.name ?? "空位"}
@@ -214,7 +225,7 @@ export function BeansTab({
                   onPress={() => actions.setShowcase(bean.id)}
                   style={[styles.beanTile, bean.owned && styles.beanTileOwned]}
                 >
-                  <PixelArtPlaceholder kind="bean" size={56} style={styles.beanTileArt} />
+                  <ArtSlot slotId="bean-gallery-item" size={56} style={styles.beanTileArt} />
                   <Text style={styles.rowTitle}>{bean.name}</Text>
                   <Text style={styles.rowMeta}>
                     {rarityLabel(bean.rarity)} · x{bean.quantity}

@@ -1,5 +1,7 @@
 import { Text, View } from "react-native";
+import { ArtSlot } from "../../ui/art/ArtSlot";
 import { SectionHeader } from "../../ui/components";
+import { MotionFeedback } from "../../ui/motion/MotionFeedback";
 import { DashboardCard } from "./parts/DashboardCard";
 import {
   DailyGoals,
@@ -42,6 +44,13 @@ export function HomeTab({
       />
       <DashboardCard>
         <SectionHeader kicker="当前打卡" title={elapsedLabel} />
+        <MotionFeedback
+          variant="check-in"
+          trigger={activeSession ? "active" : "idle"}
+          style={{ alignItems: "center", marginVertical: 12 }}
+        >
+          <ArtSlot slotId="home-check-in-character" size={64} />
+        </MotionFeedback>
         <Text style={styles.copy}>
           {activeSession
             ? activeSessionOverLimit

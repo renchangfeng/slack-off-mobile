@@ -1,4 +1,5 @@
 import { ScrollView, Text, View } from "react-native";
+import { ArtSlot } from "../../ui/art/ArtSlot";
 import { EmptyState, SectionHeader } from "../../ui/components";
 import { DashboardCard } from "./parts/DashboardCard";
 import { ActivityInteractionRunner } from "./parts/ActivityInteractionRunner";
@@ -73,6 +74,9 @@ export function ActivitiesTab({
                 { borderColor: activityAccentColor }
               ]}
             >
+              <View style={{ alignItems: "center", marginBottom: 8 }}>
+                <ArtSlot slotId="activities-card-illustration" size={80} />
+              </View>
               <View style={styles.activityCardTopRow}>
                 <Text
                   style={[

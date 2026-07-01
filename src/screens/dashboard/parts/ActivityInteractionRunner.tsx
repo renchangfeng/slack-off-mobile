@@ -1,6 +1,7 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { ActivityAssignment, ActivityInteractionProgress } from "../../../api/activities";
+import { MotionFeedback } from "../../../ui/motion/MotionFeedback";
 import { ActionButton, ProgressBar } from "./SharedControls";
 import {
   activityStepTypeLabel,
@@ -96,9 +97,10 @@ function ActivityStepCard({
   }
 
   return (
-    <View style={[styles.interactionStep, completed && styles.interactionStepDone]}>
-      <View style={styles.rowBetween}>
-        <Text style={styles.kicker}>第 {index + 1} 步 · {activityStepTypeLabel(step.type)}</Text>
+    <MotionFeedback variant="activity-step" trigger={completed ? `${step.id}:done` : undefined}>
+      <View style={[styles.interactionStep, completed && styles.interactionStepDone]}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.kicker}>第 {index + 1} 步 · {activityStepTypeLabel(step.type)}</Text>
         <Text style={completed ? styles.completedMark : styles.pendingMark}>
           {completed ? "完成" : "待完成"}
         </Text>
@@ -171,5 +173,6 @@ function ActivityStepCard({
         </>
       ) : null}
     </View>
+    </MotionFeedback>
   );
 }

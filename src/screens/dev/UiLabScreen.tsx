@@ -1,12 +1,14 @@
 import { StatusBar } from "expo-status-bar";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ArtSlot } from "../../ui/art/ArtSlot";
+import { listArtSlotDefinitions, resolveArtAsset } from "../../ui/art/registry";
 import {
   ActivityPreviewCard,
   BrandManifestoCard,
   EmptyState,
   FramedCard,
   IconTile,
-  PixelArtPlaceholder,
   Pill,
   PrimaryButton,
   ProgressMeter,
@@ -16,6 +18,9 @@ import {
   StatusBadge,
   Surface
 } from "../../ui/components";
+import { MotionFeedback } from "../../ui/motion/MotionFeedback";
+import { useReducedMotion } from "../../ui/motion/useReducedMotion";
+import type { MotionFeedbackVariant } from "../../ui/motion/types";
 import { useTheme, useThemeSwitcher } from "../../ui/theme/useTheme";
 import { colors, radius, spacing, typography } from "../../ui/tokens";
 
@@ -230,8 +235,25 @@ type UiLabScreenProps = {
   onClose: () => void;
 };
 
+type MotionTriggers = {
+  [key: string]: number;
+};
+
 export function UiLabScreen({ onClose }: UiLabScreenProps) {
   const theme = useTheme();
+  const reducedMotion = useReducedMotion();
+  const { setThemeId, availableThemes, themeId } = useThemeSwitcher();
+  const [triggers, setTriggers] = useState<MotionTriggers>({});
+
+  function bump(variant: string) {
+    setTriggers((current) => ({ ...current, [variant]: (current[variant] ?? 0) + 1 }));
+  }
+
+  function fireThemeSwitch() {
+    const next = availableThemes.find((t) => t.id !== themeId) ?? availableThemes[0];
+    if (next) setThemeId(next.id);
+    bump("theme-switch");
+  }
 
   return (
     <View style={[styles.app, { backgroundColor: theme.colors.background }]}>
@@ -378,31 +400,94 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         </Surface>
 
         <Surface>
-          <SectionHeader title="Pixel art placeholders" />
+          <SectionHeader title="Art registry" />
+          <Text style={[styles.copy, { color: theme.colors.textMuted }]}>
+            Registered slots resolve active-theme assets and fall back to a
+            placeholder with the same layout footprint.
+          </Text>
+          <View style={styles.artSlotGrid}>
+            {listArtSlotDefinitions().map((slot) => {
+              const asset = resolveArtAsset(theme.id, slot.id);
+              return (
+                <FramedCard key={slot.id} style={styles.artSlotCard}>
+                  <ArtSlot slotId={slot.id} size={48} />
+                  <Text style={styles.artSlotName}>{slot.id}</Text>
+                  <Text style={styles.artSlotMeta}>
+                    {slot.kind} · {asset.fallbackGlyph}
+                  </Text>
+                </FramedCard>
+              );
+            })}
+          </View>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Missing-asset fallback" />
+          <Text style={[styles.copy, { color: theme.colors.textMuted }]}>
+            Final PNG/SVG assets are not bundled yet; every slot below renders a
+            stable placeholder instead of crashing.
+          </Text>
           <View style={styles.tileRow}>
             <View style={styles.pixelArtStack}>
-              <PixelArtPlaceholder kind="bean" size={48} />
-              <Text style={styles.pixelArtLabel}>bean</Text>
+              <ArtSlot slotId="bean-gallery-item" size={24} />
+              <Text style={styles.pixelArtLabel}>24px bean</Text>
             </View>
             <View style={styles.pixelArtStack}>
-              <PixelArtPlaceholder kind="badge" size={48} />
-              <Text style={styles.pixelArtLabel}>badge</Text>
+              <ArtSlot slotId="achievement-badge" size={40} />
+              <Text style={styles.pixelArtLabel}>40px badge</Text>
             </View>
             <View style={styles.pixelArtStack}>
-              <PixelArtPlaceholder kind="activity" size={80} />
-              <Text style={styles.pixelArtLabel}>activity</Text>
+              <ArtSlot slotId="activities-card-illustration" size={80} />
+              <Text style={styles.pixelArtLabel}>80px activity</Text>
             </View>
             <View style={styles.pixelArtStack}>
-              <PixelArtPlaceholder kind="character" size={64} />
-              <Text style={styles.pixelArtLabel}>character</Text>
+              <ArtSlot slotId="home-check-in-character" size={64} />
+              <Text style={styles.pixelArtLabel}>64px character</Text>
             </View>
           </View>
-          <View style={styles.tileRow}>
-            <PixelArtPlaceholder kind="bean" size={24} />
-            <PixelArtPlaceholder kind="badge" size={24} />
-            <PixelArtPlaceholder kind="activity" size={40} />
-            <PixelArtPlaceholder kind="character" size={40} />
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Motion specimens" />
+          <Text style={[styles.copy, { color: theme.colors.textMuted }]}>
+            {reducedMotion
+              ? "Reduced motion is enabled: feedback uses instant or opacity-only transitions."
+              : "Reduced motion is not enabled: feedback uses brief movement."}
+          </Text>
+          <View style={styles.motionSpecimenRow}>
+            {[
+              { key: "check-in", label: "Check-in" },
+              { key: "activity-step", label: "Activity step" },
+              { key: "bean-reveal", label: "Bean reveal" },
+              { key: "achievement-unlock", label: "Achievement" },
+              { key: "theme-switch", label: "Theme switch" }
+            ].map((item) => (
+              <View key={item.key} style={styles.motionSpecimen}>
+                <MotionFeedback
+                  variant={item.key as MotionFeedbackVariant}
+                  trigger={triggers[item.key]}
+                  animateOnMount={false}
+                  style={styles.motionBox}
+                >
+                  <ArtSlot slotId="bean-gallery-item" size={32} />
+                </MotionFeedback>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => bump(item.key)}
+                  style={styles.motionButton}
+                >
+                  <Text style={styles.motionButtonText}>{item.label}</Text>
+                </Pressable>
+              </View>
+            ))}
           </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={fireThemeSwitch}
+            style={styles.inlineActionButton}
+          >
+            <Text style={styles.inlineActionText}>Fire theme switch motion</Text>
+          </Pressable>
         </Surface>
 
         <Surface>
@@ -613,5 +698,75 @@ const styles = StyleSheet.create({
   pixelArtLabel: {
     color: colors.inkMuted,
     fontSize: 11
+  },
+  artSlotGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.md
+  },
+  artSlotCard: {
+    alignItems: "center",
+    padding: spacing.md,
+    width: 104
+  },
+  artSlotName: {
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: "900",
+    marginTop: spacing.sm,
+    textAlign: "center"
+  },
+  artSlotMeta: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    marginTop: spacing.xs,
+    textAlign: "center"
+  },
+  motionSpecimenRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    marginTop: spacing.md
+  },
+  motionSpecimen: {
+    alignItems: "center",
+    gap: spacing.sm
+  },
+  motionBox: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    height: 64,
+    justifyContent: "center",
+    width: 64
+  },
+  motionButton: {
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs
+  },
+  motionButtonText: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  inlineActionButton: {
+    alignItems: "center",
+    backgroundColor: colors.inkBlue,
+    borderRadius: radius.md,
+    justifyContent: "center",
+    marginTop: spacing.md,
+    minHeight: 40,
+    paddingHorizontal: spacing.md
+  },
+  inlineActionText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "900"
   }
 });
