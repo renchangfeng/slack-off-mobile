@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { ArtSlot } from "../../ui/art/ArtSlot";
-import { EmptyState, SectionHeader } from "../../ui/components";
+import { EmptyState, RewardRow, SectionHeader, StatusBadge } from "../../ui/components";
 import { MotionFeedback } from "../../ui/motion/MotionFeedback";
 import { DashboardCard } from "./parts/DashboardCard";
 import { ActionButton, ProgressBar } from "./parts/SharedControls";
@@ -116,6 +116,9 @@ export function BeansTab({
             </Text>
           </View>
         </View>
+        <View style={{ alignItems: "center", marginVertical: 10 }}>
+          <ArtSlot slotId="bean-draw-machine" size={72} />
+        </View>
         <ActionButton
           label={`从${beanThemeLabel(selectedTheme)}抽一颗`}
           disabled={loading || (collection?.drawChances ?? 0) <= 0}
@@ -141,6 +144,15 @@ export function BeansTab({
             <View style={{ alignItems: "center", marginBottom: 8 }}>
               <ArtSlot slotId="bean-draw-result" size={80} />
             </View>
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 6 }}>
+              <StatusBadge
+                tone={drawResult.duplicate ? "warning" : "completed"}
+                label={drawResult.duplicate ? "重复" : "新豆"}
+              />
+              {drawResult.pityTriggered ? (
+                <StatusBadge tone="active" label="保底" />
+              ) : null}
+            </View>
             <Text style={styles.kicker}>抽豆结果</Text>
             <Text style={styles.sectionTitle}>
               {drawResult.resultTitle ?? drawResult.bean.name}
@@ -149,15 +161,25 @@ export function BeansTab({
               {drawResult.bean.name} ·{" "}
               {beanThemeLabel(drawResult.bean.theme)} ·{" "}
               {rarityLabel(drawResult.bean.rarity)}
-              {drawResult.pityTriggered ? " · 保底生效" : ""}
             </Text>
             <Text style={styles.copy}>{drawResult.bean.description}</Text>
-            <Text style={styles.helperText}>
-              {drawResult.resultCopy ??
-                (drawResult.duplicate
-                  ? `重复收藏，数量增加并获得 ${drawResult.fragmentsGranted} 个碎片。`
-                  : "新豆入袋，图鉴完成度已更新。")}
-            </Text>
+            <View style={{ marginTop: 8 }}>
+              <RewardRow
+                icon={drawResult.duplicate ? "🧩" : "🫘"}
+                label={drawResult.duplicate ? "重复奖励" : "图鉴更新"}
+                value={
+                  drawResult.duplicate
+                    ? `+${drawResult.fragmentsGranted} 碎片`
+                    : "新豆入袋"
+                }
+                positive={!drawResult.duplicate}
+              />
+              <RewardRow
+                icon="⭐"
+                label="剩余机会"
+                value={`${drawResult.remainingDrawChances} 次`}
+              />
+            </View>
             <Text style={styles.helperText}>
               下一步：{drawResult.nextHint ?? nextStep.title}
             </Text>
@@ -240,11 +262,18 @@ export function BeansTab({
               ))}
           </View>
         ) : (
-          <EmptyState
-            title="这个卡池空空如也"
-            body="完成任意一次活动来攒抽豆机会"
-            icon="🫘"
-          />
+          <View style={{ alignItems: "center" }}>
+            <ArtSlot
+              slotId="empty-state-beans"
+              size={72}
+              style={{ marginBottom: 12 }}
+            />
+            <EmptyState
+              title="这个卡池空空如也"
+              body="完成任意一次活动来攒抽豆机会"
+              icon="🫘"
+            />
+          </View>
         )}
       </DashboardCard>
       <DashboardCard>
@@ -267,11 +296,18 @@ export function BeansTab({
             </View>
           ))
         ) : (
-          <EmptyState
-            title="组合表还在路上"
-            body="先把豆子收齐，组合就会自动出现"
-            icon="🧩"
-          />
+          <View style={{ alignItems: "center" }}>
+            <ArtSlot
+              slotId="empty-state-generic"
+              size={64}
+              style={{ marginBottom: 12 }}
+            />
+            <EmptyState
+              title="组合表还在路上"
+              body="先把豆子收齐，组合就会自动出现"
+              icon="🧩"
+            />
+          </View>
         )}
       </DashboardCard>
     </>

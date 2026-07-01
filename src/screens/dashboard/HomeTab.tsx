@@ -47,9 +47,9 @@ export function HomeTab({
         <MotionFeedback
           variant="check-in"
           trigger={activeSession ? "active" : "idle"}
-          style={{ alignItems: "center", marginVertical: 12 }}
+          style={{ alignItems: "center", marginVertical: 8 }}
         >
-          <ArtSlot slotId="home-check-in-character" size={64} />
+          <ArtSlot slotId="home-check-in-character" size={48} />
         </MotionFeedback>
         <Text style={styles.copy}>
           {activeSession

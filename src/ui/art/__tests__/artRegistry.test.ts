@@ -1,4 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("react-native", () => ({
+  View: "View",
+  Image: "Image",
+  Text: "Text",
+  Pressable: "Pressable",
+  ScrollView: "ScrollView",
+  StyleSheet: {
+    create: (styles: unknown) => styles as Record<string, unknown>
+  }
+}));
+
 import {
   calmOfficeTheme,
   pixelRestTheme
@@ -107,7 +119,7 @@ describe("art registry", () => {
     }
   });
 
-  it("keeps placeholder metadata for all priority slots instead of real assets", () => {
+  it("registers component-backed assets for pixel-rest priority slots", () => {
     const prioritySlots: ArtSlotId[] = [
       "home-check-in-character",
       "activities-card-illustration",
@@ -116,12 +128,19 @@ describe("art registry", () => {
       "achievement-badge"
     ];
     for (const slotId of prioritySlots) {
-      const matching = artAssets.filter((asset) => asset.slotId === slotId);
-      expect(matching.length).toBeGreaterThan(0);
-      for (const asset of matching) {
-        expect(asset.source).toBeUndefined();
-      }
+      const pixelRestAsset = artAssets.find(
+        (asset) => asset.slotId === slotId && asset.themeId === pixelRestTheme.id
+      );
+      expect(pixelRestAsset).toBeDefined();
+      expect(pixelRestAsset!.component).toBeDefined();
+      expect(pixelRestAsset!.source).toBeUndefined();
     }
+  });
+
+  it("resolves the pixel-rest component asset for active theme", () => {
+    const asset = resolveArtAsset(pixelRestTheme.id, "home-check-in-character");
+    expect(asset.themeId).toBe(pixelRestTheme.id);
+    expect(asset.component).toBeDefined();
   });
 
   it("exposes slot definitions by id", () => {

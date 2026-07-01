@@ -1,7 +1,19 @@
 import {
-  pixelRestTheme,
+  PixelRestAchievementBadge,
+  PixelRestActivityIllustration,
+  PixelRestActivityStepStar,
+  PixelRestBean,
+  PixelRestBeanMachine,
+  PixelRestBeanShowcase,
+  PixelRestEmptyStateActivities,
+  PixelRestEmptyStateBeans,
+  PixelRestEmptyStateGeneric,
+  PixelRestEmptyStateProfile,
+  PixelRestHomeCharacter
+} from "./assets/pixel-rest";
+import {
   calmOfficeTheme,
-  defaultThemeId
+  pixelRestTheme
 } from "../theme/themes";
 import type {
   ArtAsset,
@@ -33,6 +45,14 @@ const artSlotDefinitions: Record<ArtSlotId, ArtSlotDefinition> = {
     defaultSize: 40,
     fallbackGlyph: "✓",
     alt: "活动步骤完成反馈",
+    aspectRatio: 1
+  },
+  "bean-draw-machine": {
+    id: "bean-draw-machine",
+    kind: "scene-prop",
+    defaultSize: 80,
+    fallbackGlyph: "🎰",
+    alt: "抽豆机",
     aspectRatio: 1
   },
   "bean-draw-result": {
@@ -107,6 +127,7 @@ const artAssets: ArtAsset[] = [
     slotId: "home-check-in-character",
     kind: "character",
     themeId: pixelRestTheme.id,
+    component: PixelRestHomeCharacter,
     fallbackGlyph: "🐟",
     alt: "像素休息风打卡角色",
     aspectRatio: 1,
@@ -127,20 +148,66 @@ const artAssets: ArtAsset[] = [
     slotId: "activities-card-illustration",
     kind: "activity",
     themeId: pixelRestTheme.id,
+    component: PixelRestActivityIllustration,
     fallbackGlyph: "🎯",
     alt: "像素休息风活动插画",
     aspectRatio: 1.25,
     dominantColor: pixelRestTheme.colors.warning
   },
   {
+    id: "pixel-rest.activity-step-feedback",
+    slotId: "activity-step-feedback",
+    kind: "scene-prop",
+    themeId: pixelRestTheme.id,
+    component: PixelRestActivityStepStar,
+    fallbackGlyph: "✓",
+    alt: "像素休息风步骤完成星标",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.accent
+  },
+  {
     id: "pixel-rest.bean-draw-result",
     slotId: "bean-draw-result",
     kind: "bean",
     themeId: pixelRestTheme.id,
+    component: PixelRestBean,
     fallbackGlyph: "🫘",
     alt: "像素休息风抽豆结果",
     aspectRatio: 1,
     dominantColor: pixelRestTheme.colors.primary
+  },
+  {
+    id: "pixel-rest.bean-draw-machine",
+    slotId: "bean-draw-machine",
+    kind: "scene-prop",
+    themeId: pixelRestTheme.id,
+    component: PixelRestBeanMachine,
+    fallbackGlyph: "🎰",
+    alt: "像素休息风抽豆机",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.text
+  },
+  {
+    id: "pixel-rest.bean-gallery-item",
+    slotId: "bean-gallery-item",
+    kind: "bean",
+    themeId: pixelRestTheme.id,
+    component: PixelRestBean,
+    fallbackGlyph: "🫘",
+    alt: "像素休息风豆子图鉴",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.primary
+  },
+  {
+    id: "pixel-rest.bean-showcase-slot",
+    slotId: "bean-showcase-slot",
+    kind: "bean",
+    themeId: pixelRestTheme.id,
+    component: PixelRestBeanShowcase,
+    fallbackGlyph: "🫘",
+    alt: "像素休息风展示柜豆",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.warning
   },
   {
     id: "calm-office.bean-gallery-item",
@@ -162,11 +229,32 @@ const artAssets: ArtAsset[] = [
     dominantColor: pixelRestTheme.colors.accent
   },
   {
+    id: "pixel-rest.achievement-badge",
+    slotId: "achievement-badge",
+    kind: "badge",
+    themeId: pixelRestTheme.id,
+    component: PixelRestAchievementBadge,
+    fallbackGlyph: "🏅",
+    alt: "像素休息风成就徽章",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.warning
+  },
+  {
     id: "default.empty-state-activities",
     slotId: "empty-state-activities",
     kind: "empty-state",
     fallbackGlyph: "🪣",
     alt: "活动空状态",
+    aspectRatio: 1
+  },
+  {
+    id: "pixel-rest.empty-state-activities",
+    slotId: "empty-state-activities",
+    kind: "empty-state",
+    themeId: pixelRestTheme.id,
+    component: PixelRestEmptyStateActivities,
+    fallbackGlyph: "🪣",
+    alt: "像素休息风活动空状态",
     aspectRatio: 1
   },
   {
@@ -178,11 +266,49 @@ const artAssets: ArtAsset[] = [
     aspectRatio: 1
   },
   {
+    id: "pixel-rest.empty-state-beans",
+    slotId: "empty-state-beans",
+    kind: "empty-state",
+    themeId: pixelRestTheme.id,
+    component: PixelRestEmptyStateBeans,
+    fallbackGlyph: "🫘",
+    alt: "像素休息风豆子空状态",
+    aspectRatio: 1
+  },
+  {
     id: "default.empty-state-profile",
     slotId: "empty-state-profile",
     kind: "empty-state",
     fallbackGlyph: "✨",
     alt: "个人页空状态",
+    aspectRatio: 1
+  },
+  {
+    id: "pixel-rest.empty-state-profile",
+    slotId: "empty-state-profile",
+    kind: "empty-state",
+    themeId: pixelRestTheme.id,
+    component: PixelRestEmptyStateProfile,
+    fallbackGlyph: "✨",
+    alt: "像素休息风个人页空状态",
+    aspectRatio: 1
+  },
+  {
+    id: "default.empty-state-generic",
+    slotId: "empty-state-generic",
+    kind: "empty-state",
+    fallbackGlyph: "🌫️",
+    alt: "通用空状态",
+    aspectRatio: 1
+  },
+  {
+    id: "pixel-rest.empty-state-generic",
+    slotId: "empty-state-generic",
+    kind: "empty-state",
+    themeId: pixelRestTheme.id,
+    component: PixelRestEmptyStateGeneric,
+    fallbackGlyph: "🌫️",
+    alt: "像素休息风通用空状态",
     aspectRatio: 1
   },
   {
@@ -207,6 +333,14 @@ const artAssets: ArtAsset[] = [
     kind: "bean",
     fallbackGlyph: "🫘",
     alt: "展示柜槽位",
+    aspectRatio: 1
+  },
+  {
+    id: "default.bean-draw-result",
+    slotId: "bean-draw-result",
+    kind: "bean",
+    fallbackGlyph: "🫘",
+    alt: "抽豆结果",
     aspectRatio: 1
   }
 ];
@@ -278,4 +412,4 @@ export function listArtAssetsForTheme(themeId: string): ArtAsset[] {
   return listArtSlotIds().map((slotId) => resolveArtAsset(themeId, slotId));
 }
 
-export { artAssets, artSlotDefinitions, defaultThemeId };
+export { artAssets, artSlotDefinitions };

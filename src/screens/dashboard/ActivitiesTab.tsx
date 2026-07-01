@@ -1,6 +1,7 @@
 import { ScrollView, Text, View } from "react-native";
 import { ArtSlot } from "../../ui/art/ArtSlot";
-import { EmptyState, SectionHeader } from "../../ui/components";
+import { EmptyState, RewardRow, SectionHeader, StatusBadge } from "../../ui/components";
+import { MotionFeedback } from "../../ui/motion/MotionFeedback";
 import { DashboardCard } from "./parts/DashboardCard";
 import { ActivityInteractionRunner } from "./parts/ActivityInteractionRunner";
 import { ActionButton, CategoryChip } from "./parts/SharedControls";
@@ -91,10 +92,13 @@ export function ActivitiesTab({
                   {activityPresentation?.statValue ?? "--"}
                 </Text>
               </View>
-              <Text style={styles.kicker}>
-                {activityCategoryLabel(assignment.category)} ·{" "}
-                {difficultyLabel(assignment.difficulty)}
-              </Text>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+                <StatusBadge
+                  tone="active"
+                  label={activityCategoryLabel(assignment.category)}
+                />
+                <StatusBadge tone="default" label={difficultyLabel(assignment.difficulty)} />
+              </View>
               <Text style={styles.activityHeadline}>
                 {activityPresentation?.headline ?? assignment.title}
               </Text>
@@ -106,11 +110,19 @@ export function ActivitiesTab({
                   {activityPresentation?.prompt ?? assignment.description}
                 </Text>
               </View>
-              <Text style={styles.accentMeta}>
-                +{assignment.rewardPreview.score} 分 · 进度 +
-                {assignment.rewardPreview.drawProgress} ·{" "}
-                {assignment.interactionSummary.flavorLabel}
-              </Text>
+              <View style={{ marginTop: 8 }}>
+                <RewardRow
+                  icon="⭐"
+                  label="预计奖励"
+                  value={`+${assignment.rewardPreview.score} 分 · 进度 +${assignment.rewardPreview.drawProgress}`}
+                  positive
+                />
+                <RewardRow
+                  icon="🫘"
+                  label="交互方式"
+                  value={assignment.interactionSummary.flavorLabel}
+                />
+              </View>
             </View>
             {assignment.recommendationExplanation ? (
               <Text style={styles.helperText}>
@@ -172,41 +184,57 @@ export function ActivitiesTab({
             ) : null}
           </>
         ) : (
-          <EmptyState
-            title="还没有任务"
-            body="给自己找个合理的离线理由，点下面的按钮抽一个"
-            icon="🪣"
-          />
+          <View style={{ alignItems: "center" }}>
+            <ArtSlot
+              slotId="empty-state-activities"
+              size={80}
+              style={{ marginBottom: 12 }}
+            />
+            <EmptyState
+              title="还没有任务"
+              body="给自己找个合理的离线理由，点下面的按钮抽一个"
+              icon="🪣"
+            />
+          </View>
         )}
         {result ? (
-          <View
-            style={[
-              styles.activityResultCertificate,
-              { borderColor: activityResultPresentation?.accentColor ?? "#17a36b" }
-            ]}
+          <MotionFeedback
+            variant="activity-complete"
+            trigger={result.assignment.assignmentId}
+            animateOnMount
           >
-            <Text
+            <View
               style={[
-                styles.activityBadge,
-                { backgroundColor: activityResultPresentation?.accentColor ?? "#17a36b" }
+                styles.activityResultCertificate,
+                { borderColor: activityResultPresentation?.accentColor ?? "#17a36b" }
               ]}
             >
-              {activityResultPresentation?.badge ?? "活动完成"}
-            </Text>
-            <Text style={styles.activityResultTitle}>
-              {result.resultTitle ?? "活动奖励已结算"}
-            </Text>
-            {result.resultCopy ? (
-              <Text style={styles.helperText}>{result.resultCopy}</Text>
-            ) : null}
-            <Text style={styles.rowMeta}>
-              +{result.reward.score} 分 · 进度 +
-              {result.reward.drawProgress} · 抽豆机会 +
-              {result.reward.drawChancesGranted}
-            </Text>
-            <Text style={styles.helperText}>{result.feedback}</Text>
-            <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
-          </View>
+              <View style={{ alignItems: "center", marginBottom: 8 }}>
+                <ArtSlot slotId="activities-card-illustration" size={72} />
+              </View>
+              <Text
+                style={[
+                  styles.activityBadge,
+                  { backgroundColor: activityResultPresentation?.accentColor ?? "#17a36b" }
+                ]}
+              >
+                {activityResultPresentation?.badge ?? "活动完成"}
+              </Text>
+              <Text style={styles.activityResultTitle}>
+                {result.resultTitle ?? "活动奖励已结算"}
+              </Text>
+              {result.resultCopy ? (
+                <Text style={styles.helperText}>{result.resultCopy}</Text>
+              ) : null}
+              <Text style={styles.rowMeta}>
+                +{result.reward.score} 分 · 进度 +
+                {result.reward.drawProgress} · 抽豆机会 +
+                {result.reward.drawChancesGranted}
+              </Text>
+              <Text style={styles.helperText}>{result.feedback}</Text>
+              <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
+            </View>
+          </MotionFeedback>
         ) : null}
         {message ? <Text style={styles.message}>{message}</Text> : null}
         {assignment?.status !== "active" ? (
@@ -259,11 +287,18 @@ export function ActivitiesTab({
             );
           })
         ) : (
-          <EmptyState
-            title="这个分类暂时没有活动"
-            body="换个分类，或者抽一个随机的"
-            icon="🌫️"
-          />
+          <View style={{ alignItems: "center" }}>
+            <ArtSlot
+              slotId="empty-state-generic"
+              size={64}
+              style={{ marginBottom: 12 }}
+            />
+            <EmptyState
+              title="这个分类暂时没有活动"
+              body="换个分类，或者抽一个随机的"
+              icon="🌫️"
+            />
+          </View>
         )}
       </DashboardCard>
       <DashboardCard>
@@ -284,11 +319,18 @@ export function ActivitiesTab({
             </View>
           ))
         ) : (
-          <EmptyState
-            title="还没有完成记录"
-            body="挑一个顺眼的活动开始今天的摸鱼"
-            icon="🐟"
-          />
+          <View style={{ alignItems: "center" }}>
+            <ArtSlot
+              slotId="empty-state-activities"
+              size={64}
+              style={{ marginBottom: 12 }}
+            />
+            <EmptyState
+              title="还没有完成记录"
+              body="挑一个顺眼的活动开始今天的摸鱼"
+              icon="🐟"
+            />
+          </View>
         )}
       </DashboardCard>
     </>

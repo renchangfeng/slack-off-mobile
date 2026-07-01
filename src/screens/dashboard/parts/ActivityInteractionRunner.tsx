@@ -1,8 +1,9 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { ActivityAssignment, ActivityInteractionProgress } from "../../../api/activities";
+import { ArtSlot } from "../../../ui/art/ArtSlot";
 import { MotionFeedback } from "../../../ui/motion/MotionFeedback";
-import { ActionButton, ProgressBar } from "./SharedControls";
+import { ActionButton } from "./SharedControls";
 import {
   activityStepTypeLabel,
   isActivityStepComplete,
@@ -101,10 +102,13 @@ function ActivityStepCard({
       <View style={[styles.interactionStep, completed && styles.interactionStepDone]}>
         <View style={styles.rowBetween}>
           <Text style={styles.kicker}>第 {index + 1} 步 · {activityStepTypeLabel(step.type)}</Text>
-        <Text style={completed ? styles.completedMark : styles.pendingMark}>
-          {completed ? "完成" : "待完成"}
-        </Text>
-      </View>
+          <View style={{ alignItems: "center", flexDirection: "row", gap: 6 }}>
+            {completed ? <ArtSlot slotId="activity-step-feedback" size={24} /> : null}
+            <Text style={completed ? styles.completedMark : styles.pendingMark}>
+              {completed ? "完成" : "待完成"}
+            </Text>
+          </View>
+        </View>
       <Text style={styles.rowTitle}>{step.title}</Text>
       <Text style={styles.rowMeta}>{step.description}</Text>
       {step.type === "ack" ? (

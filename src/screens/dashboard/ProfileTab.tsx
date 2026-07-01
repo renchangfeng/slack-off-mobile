@@ -1,4 +1,5 @@
 import { ScrollView, Text, View } from "react-native";
+import { ArtSlot } from "../../ui/art/ArtSlot";
 import {
   EmptyState,
   IconTile,
@@ -109,11 +110,18 @@ export function ProfileTab({
           onPress={actions.jumpToAchievementTarget}
         />
         {!achievementFocus && !secondaryAchievementRecommendations.length ? (
-          <EmptyState
-            title="今天没有催你的目标"
-            body="成就板很安静，你已经把休息做得挺像回事了。"
-            icon="🌿"
-          />
+          <View style={{ alignItems: "center" }}>
+            <ArtSlot
+              slotId="empty-state-generic"
+              size={72}
+              style={{ marginBottom: 12 }}
+            />
+            <EmptyState
+              title="今天没有催你的目标"
+              body="成就板很安静，你已经把休息做得挺像回事了。"
+              icon="🌿"
+            />
+          </View>
         ) : null}
       </DashboardCard>
       <DashboardCard>
@@ -148,11 +156,18 @@ export function ProfileTab({
             />
           ))
         ) : (
-          <EmptyState
-            title="这个分类还没有成就"
-            body="完成任意一个活动来解锁第一枚徽章"
-            icon="🎖️"
-          />
+          <View style={{ alignItems: "center" }}>
+            <ArtSlot
+              slotId="achievement-badge"
+              size={64}
+              style={{ marginBottom: 12 }}
+            />
+            <EmptyState
+              title="这个分类还没有成就"
+              body="完成任意一个活动来解锁第一枚徽章"
+              icon="🎖️"
+            />
+          </View>
         )}
       </DashboardCard>
       <DashboardCard>
@@ -167,11 +182,18 @@ export function ProfileTab({
             />
           ))
         ) : (
-          <EmptyState
-            title="还没有装扮"
-            body="先认真完成几次休息，再来挑一个喜欢的称号"
-            icon="✨"
-          />
+          <View style={{ alignItems: "center" }}>
+            <ArtSlot
+              slotId="empty-state-profile"
+              size={72}
+              style={{ marginBottom: 12 }}
+            />
+            <EmptyState
+              title="还没有装扮"
+              body="先认真完成几次休息，再来挑一个喜欢的称号"
+              icon="✨"
+            />
+          </View>
         )}
       </DashboardCard>
       <PrimaryButton

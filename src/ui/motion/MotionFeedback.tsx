@@ -21,6 +21,12 @@ const CONFIGS: Record<MotionFeedbackVariant, MotionConfig> = {
     final: { opacity: 1, scale: 1, translateY: 0 },
     duration: 240
   },
+  "activity-complete": {
+    initial: { opacity: 0, scale: 0.92, translateY: 18 },
+    final: { opacity: 1, scale: 1, translateY: 0 },
+    duration: 280,
+    spring: { damping: 14, stiffness: 190 }
+  },
   "bean-reveal": {
     initial: { opacity: 0, scale: 0.5, translateY: 16 },
     final: { opacity: 1, scale: 1, translateY: 0 },

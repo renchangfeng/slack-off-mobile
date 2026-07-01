@@ -22,6 +22,15 @@ export function ArtSlot({ slotId, size, style, placeholderStyle }: ArtSlotProps)
   const resolvedSize = size ?? (asset.aspectRatio >= 1 ? 64 : 80);
   const placeholderKind = PLACEHOLDER_KINDS[asset.kind];
 
+  if (asset.component) {
+    const Component = asset.component;
+    return (
+      <View accessibilityLabel={asset.alt} style={style}>
+        <Component size={resolvedSize} />
+      </View>
+    );
+  }
+
   if (asset.source) {
     return (
       <View

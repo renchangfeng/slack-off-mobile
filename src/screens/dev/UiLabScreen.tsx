@@ -2,7 +2,8 @@ import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ArtSlot } from "../../ui/art/ArtSlot";
-import { listArtSlotDefinitions, resolveArtAsset } from "../../ui/art/registry";
+import { artAssets, listArtSlotDefinitions, resolveArtAsset } from "../../ui/art/registry";
+import type { ArtAssetKind, ArtSlotId } from "../../ui/art/types";
 import {
   ActivityPreviewCard,
   BrandManifestoCard,
@@ -23,6 +24,18 @@ import { useReducedMotion } from "../../ui/motion/useReducedMotion";
 import type { MotionFeedbackVariant } from "../../ui/motion/types";
 import { useTheme, useThemeSwitcher } from "../../ui/theme/useTheme";
 import { colors, radius, spacing, typography } from "../../ui/tokens";
+
+function groupSlotsByKind(
+  slots: ReturnType<typeof listArtSlotDefinitions>
+): Array<[ArtAssetKind, typeof slots]> {
+  const groups = new Map<ArtAssetKind, typeof slots>();
+  for (const slot of slots) {
+    const list = groups.get(slot.kind) ?? [];
+    list.push(slot);
+    groups.set(slot.kind, list);
+  }
+  return Array.from(groups.entries());
+}
 
 const TONE_PREVIEWS = [
   {
@@ -400,32 +413,65 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         </Surface>
 
         <Surface>
-          <SectionHeader title="Art registry" />
+          <SectionHeader title="Asset pack inventory" kicker="BY KIND" />
           <Text style={[styles.copy, { color: theme.colors.textMuted }]}>
-            Registered slots resolve active-theme assets and fall back to a
-            placeholder with the same layout footprint.
+            All registered slots grouped by asset kind. Each slot resolves the
+            active theme, then the default asset, then a stable placeholder.
           </Text>
-          <View style={styles.artSlotGrid}>
-            {listArtSlotDefinitions().map((slot) => {
-              const asset = resolveArtAsset(theme.id, slot.id);
-              return (
-                <FramedCard key={slot.id} style={styles.artSlotCard}>
-                  <ArtSlot slotId={slot.id} size={48} />
-                  <Text style={styles.artSlotName}>{slot.id}</Text>
-                  <Text style={styles.artSlotMeta}>
-                    {slot.kind} · {asset.fallbackGlyph}
-                  </Text>
-                </FramedCard>
-              );
-            })}
+          <View style={styles.stack}>
+            {groupSlotsByKind(listArtSlotDefinitions()).map(([kind, slots]) => (
+              <View key={kind}>
+                <Text style={styles.assetPackKindLabel}>{kind}</Text>
+                <View style={styles.artSlotGrid}>
+                  {slots.map((slot) => {
+                    const asset = resolveArtAsset(theme.id, slot.id);
+                    return (
+                      <FramedCard key={slot.id} style={styles.artSlotCard}>
+                        <ArtSlot slotId={slot.id} size={48} />
+                        <Text style={styles.artSlotName}>{slot.id}</Text>
+                        <Text style={styles.artSlotMeta}>
+                          {asset.fallbackGlyph} · {asset.alt}
+                        </Text>
+                      </FramedCard>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
           </View>
         </Surface>
 
         <Surface>
-          <SectionHeader title="Missing-asset fallback" />
+          <SectionHeader title="Pixel-rest first pack" kicker="PREVIEWS" />
           <Text style={[styles.copy, { color: theme.colors.textMuted }]}>
-            Final PNG/SVG assets are not bundled yet; every slot below renders a
-            stable placeholder instead of crashing.
+            Component-backed pseudo-pixel assets registered under the pixel-rest
+            theme. Each row shows the asset, its fallback glyph, and intended
+            surface.
+          </Text>
+          <View style={styles.stack}>
+            {artAssets
+              .filter((asset) => asset.themeId === "pixel-rest")
+              .map((asset) => (
+                <View key={asset.id} style={styles.assetPackRow}>
+                  <ArtSlot slotId={asset.slotId} size={56} />
+                  <View style={styles.flex}>
+                    <Text style={styles.assetPackName}>{asset.id}</Text>
+                    <Text style={styles.assetPackMeta}>
+                      {asset.slotId} · {asset.kind}
+                    </Text>
+                    <Text style={styles.assetPackAlt}>{asset.alt}</Text>
+                  </View>
+                  <Text style={styles.assetPackGlyph}>{asset.fallbackGlyph}</Text>
+                </View>
+              ))}
+          </View>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Fallback / missing-asset" kicker="STABILITY" />
+          <Text style={[styles.copy, { color: theme.colors.textMuted }]}>
+            Unknown themes and unregistered slots must still render a stable
+            placeholder with the same layout footprint.
           </Text>
           <View style={styles.tileRow}>
             <View style={styles.pixelArtStack}>
@@ -445,22 +491,35 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
               <Text style={styles.pixelArtLabel}>64px character</Text>
             </View>
           </View>
+          <View style={styles.stack}>
+            <RewardRow
+              icon="🛡️"
+              label="Unknown theme fallback"
+              value={resolveArtAsset("unknown-theme", "achievement-badge").fallbackGlyph}
+            />
+            <RewardRow
+              icon="🛡️"
+              label="Unknown slot fallback"
+              value={resolveArtAsset(theme.id, "not-a-slot" as ArtSlotId).slotId}
+            />
+          </View>
         </Surface>
 
         <Surface>
-          <SectionHeader title="Motion specimens" />
+          <SectionHeader title="Motion specimens" kicker="FIRST CLICK VS REPEAT" />
           <Text style={[styles.copy, { color: theme.colors.textMuted }]}>
             {reducedMotion
               ? "Reduced motion is enabled: feedback uses instant or opacity-only transitions."
-              : "Reduced motion is not enabled: feedback uses brief movement."}
+              : "Reduced motion is not enabled: feedback uses brief movement. Tap a button repeatedly to confirm the trigger debounces identical values."}
           </Text>
           <View style={styles.motionSpecimenRow}>
             {[
-              { key: "check-in", label: "Check-in" },
-              { key: "activity-step", label: "Activity step" },
-              { key: "bean-reveal", label: "Bean reveal" },
-              { key: "achievement-unlock", label: "Achievement" },
-              { key: "theme-switch", label: "Theme switch" }
+              { key: "check-in", label: "Check-in", slot: "home-check-in-character" as const },
+              { key: "activity-step", label: "Activity step", slot: "activity-step-feedback" as const },
+              { key: "activity-complete", label: "Activity done", slot: "activities-card-illustration" as const },
+              { key: "bean-reveal", label: "Bean reveal", slot: "bean-draw-result" as const },
+              { key: "achievement-unlock", label: "Achievement", slot: "achievement-badge" as const },
+              { key: "theme-switch", label: "Theme switch", slot: "home-check-in-character" as const }
             ].map((item) => (
               <View key={item.key} style={styles.motionSpecimen}>
                 <MotionFeedback
@@ -469,7 +528,7 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
                   animateOnMount={false}
                   style={styles.motionBox}
                 >
-                  <ArtSlot slotId="bean-gallery-item" size={32} />
+                  <ArtSlot slotId={item.slot} size={32} />
                 </MotionFeedback>
                 <Pressable
                   accessibilityRole="button"
@@ -478,6 +537,9 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
                 >
                   <Text style={styles.motionButtonText}>{item.label}</Text>
                 </Pressable>
+                <Text style={styles.motionCount}>
+                  {triggers[item.key] ?? 0}x
+                </Text>
               </View>
             ))}
           </View>
@@ -488,6 +550,28 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
           >
             <Text style={styles.inlineActionText}>Fire theme switch motion</Text>
           </Pressable>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Narrow-width QA notes" kicker="REVIEWER NOTES" />
+          <View style={styles.stack}>
+            <Text style={styles.qaNote}>
+              • All art slots keep a fixed size prop; avoid relying on flex-shrink
+              to prevent layout jumps on 360–390 px widths.
+            </Text>
+            <Text style={styles.qaNote}>
+              • Component-backed assets use theme tokens, so they remain visible
+              under both pixel-rest and calm-office without new files.
+            </Text>
+            <Text style={styles.qaNote}>
+              • Replacement contract: drop a PNG/SVG source into the registry for
+              any slot; ArtSlot will prefer source images over the component.
+            </Text>
+            <Text style={styles.qaNote}>
+              • Empty states should always include an ArtSlot above the text to
+              keep the visual weight consistent across tabs.
+            </Text>
+          </View>
         </Surface>
 
         <Surface>
@@ -722,6 +806,51 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: spacing.xs,
     textAlign: "center"
+  },
+  assetPackKindLabel: {
+    color: colors.inkSoft,
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: spacing.md,
+    textTransform: "uppercase"
+  },
+  assetPackRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.md
+  },
+  assetPackName: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  assetPackMeta: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    marginTop: spacing.xs
+  },
+  assetPackAlt: {
+    color: colors.inkSoft,
+    fontSize: 10,
+    marginTop: spacing.xs
+  },
+  assetPackGlyph: {
+    color: colors.inkMuted,
+    fontSize: 20,
+    marginLeft: "auto"
+  },
+  flex: {
+    flex: 1
+  },
+  qaNote: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    lineHeight: 18
+  },
+  motionCount: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    marginTop: spacing.xs
   },
   motionSpecimenRow: {
     flexDirection: "row",

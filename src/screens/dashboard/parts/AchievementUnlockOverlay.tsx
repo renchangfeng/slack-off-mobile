@@ -1,6 +1,7 @@
 import { Modal, Pressable, Text, View } from "react-native";
 import type { CosmeticInventory } from "../../../api/achievements";
 import { ArtSlot } from "../../../ui/art/ArtSlot";
+import { RewardRow, StatusBadge } from "../../../ui/components";
 import { MotionFeedback } from "../../../ui/motion/MotionFeedback";
 import { ActionButton } from "./SharedControls";
 import styles from "../styles";
@@ -39,18 +40,35 @@ export function AchievementUnlockOverlay({
           animateOnMount
         >
           <View style={styles.unlockPanel}>
-            <Text style={styles.unlockEyebrow}>成就解锁</Text>
-            <Text style={styles.unlockMark}>ACHIEVED</Text>
+            <View style={{ alignItems: "center", marginBottom: 8 }}>
+              <StatusBadge tone="completed" label="ACHIEVED" />
+            </View>
             <View style={{ alignItems: "center", marginVertical: 12 }}>
-              <ArtSlot slotId="achievement-badge" size={64} />
+              <ArtSlot slotId="achievement-badge" size={80} />
             </View>
             <Text style={styles.unlockTitle}>{unlock.name}</Text>
             <View style={styles.unlockRule} />
             <Text style={styles.unlockRewardTitle}>本次奖励</Text>
-            <Text style={styles.unlockRewardCopy}>
-              +{unlock.rewards.score} 分 · 抽豆进度 +{unlock.rewards.drawProgress} · 机会 +
-              {unlock.rewards.drawChances}
-            </Text>
+            <View style={{ marginTop: 8 }}>
+              <RewardRow
+                icon="⭐"
+                label="积分"
+                value={`+${unlock.rewards.score}`}
+                positive
+              />
+              <RewardRow
+                icon="🫘"
+                label="抽豆进度"
+                value={`+${unlock.rewards.drawProgress}`}
+                positive
+              />
+              <RewardRow
+                icon="🎟️"
+                label="抽豆机会"
+                value={`+${unlock.rewards.drawChances}`}
+                positive
+              />
+            </View>
             {unlock.rewards.cosmetic ? (
               <View style={styles.cosmeticReveal}>
                 <Text style={styles.kicker}>新装扮</Text>
