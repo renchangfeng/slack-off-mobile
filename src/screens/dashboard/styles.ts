@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12
   },
   inlineActionText: { color: "#ffffff", fontSize: 13, fontWeight: "900" },
-  nextStepPanel: {
+  nextStepFallbackPanel: {
     backgroundColor: "#18232b",
     borderRadius: 8,
     marginBottom: 16,
@@ -443,17 +443,6 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 10,
     minHeight: 62,
-    padding: 12
-  },
-  rhythmRow: {
-    alignItems: "center",
-    borderColor: "#e2dbd0",
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 10,
-    minHeight: 72,
     padding: 12
   },
   listRowCompleted: { backgroundColor: "#edf8f2", borderColor: "#82b99f" },

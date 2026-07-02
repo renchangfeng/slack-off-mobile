@@ -5,7 +5,6 @@ import { MotionFeedback } from "../../ui/motion/MotionFeedback";
 import { DashboardCard } from "./parts/DashboardCard";
 import {
   DailyGoals,
-  DailyRhythmChecklist,
   ProgressionClaimResultPanel,
   ProgressionOverview,
   WeeklyGoals
@@ -28,22 +27,11 @@ export function HomeTab({
   todayLoop,
   actions
 }: HomeTabProps) {
+  const hasRoutePrimaryAction = Boolean(todayLoop.primaryNextAction);
+
   return (
     <>
       <ProgressionOverview progression={progression} />
-      {progressionClaim ? (
-        <ProgressionClaimResultPanel result={progressionClaim} nextStep={nextStep} />
-      ) : null}
-      <DailyGoals
-        progression={progression}
-        loading={loading}
-        onClaim={actions.claimDailyReward}
-      />
-      <WeeklyGoals
-        progression={progression}
-        loading={loading}
-        onClaim={actions.claimWeeklyReward}
-      />
       <DashboardCard>
         <SectionHeader kicker="当前打卡" title={elapsedLabel} />
         <MotionFeedback
@@ -79,19 +67,33 @@ export function HomeTab({
         todayLoop={todayLoop}
         onAction={actions.runTodayLoopAction}
       />
-      <View style={styles.nextStepPanel}>
-        <Text style={styles.darkKicker}>下一步</Text>
-        <Text style={styles.nextStepTitle}>{nextStep.title}</Text>
-        <Text style={styles.nextStepCopy}>{nextStep.description}</Text>
-        <RewardPreview preview={nextStep.rewardPreview ?? null} dark />
-        <ActionButton label={nextStep.actionLabel} onPress={actions.runNextStep} disabled={loading} />
-      </View>
-      <DailyRhythmChecklist
+      {!hasRoutePrimaryAction ? (
+        <View style={styles.nextStepFallbackPanel}>
+          <Text style={styles.darkKicker}>备用下一步</Text>
+          <Text style={styles.nextStepTitle}>{nextStep.title}</Text>
+          <Text style={styles.nextStepCopy}>{nextStep.description}</Text>
+          <RewardPreview preview={nextStep.rewardPreview ?? null} dark />
+          <ActionButton
+            label={nextStep.actionLabel}
+            onPress={actions.runNextStep}
+            disabled={loading}
+          />
+        </View>
+      ) : null}
+      {lastResult ? <CheckInResult result={lastResult} nextStep={nextStep} /> : null}
+      {progressionClaim ? (
+        <ProgressionClaimResultPanel result={progressionClaim} nextStep={nextStep} />
+      ) : null}
+      <DailyGoals
         progression={progression}
         loading={loading}
-        onRunGoal={actions.runDailyGoalAction}
+        onClaim={actions.claimDailyReward}
       />
-      {lastResult ? <CheckInResult result={lastResult} nextStep={nextStep} /> : null}
+      <WeeklyGoals
+        progression={progression}
+        loading={loading}
+        onClaim={actions.claimWeeklyReward}
+      />
     </>
   );
 }

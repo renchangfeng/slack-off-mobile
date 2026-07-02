@@ -9,7 +9,6 @@ import {
   achievementCategoryLabel,
   achievementProgressLabel,
   findGoal,
-  goalActionLabel,
   pickAchievementFocus,
   rarityLabel
 } from "../helpers";
@@ -170,68 +169,6 @@ export function ProgressionClaimResultPanel({
         {result.reward.drawChancesGranted}
       </Text>
       <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
-    </DashboardCard>
-  );
-}
-
-export function DailyRhythmChecklist({
-  progression,
-  loading,
-  onRunGoal
-}: {
-  progression: ProgressionSummary | null;
-  loading: boolean;
-  onRunGoal: (code: string) => void | Promise<void>;
-}) {
-  const goals = progression?.dailyGoals.goals ?? [];
-  const incompleteGoals = goals.filter((goal) => !goal.completed);
-
-  return (
-    <DashboardCard>
-      <View style={styles.rowBetween}>
-        <View style={styles.flex}>
-          <SectionHeader
-            kicker="今天还能做什么"
-            title={incompleteGoals.length ? "把闭环补完整" : "今天已经很会休息"}
-          />
-        </View>
-        <Text style={styles.goalCount}>
-          {progression?.dailyGoals.completed ?? 0}/{progression?.dailyGoals.total ?? 3}
-        </Text>
-      </View>
-      {incompleteGoals.length ? (
-        incompleteGoals.map((goal) => (
-          <View key={goal.code} style={styles.rhythmRow}>
-            <View style={styles.flex}>
-              <Text style={styles.rowTitle}>{goal.title}</Text>
-              <Text style={styles.rowMeta}>{goal.description}</Text>
-              <ProgressBar
-                value={goal.current}
-                max={goal.target}
-                color="#d4a838"
-                trackColor="#e2dbd0"
-              />
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              disabled={loading}
-              onPress={() => void onRunGoal(goal.code)}
-              style={({ pressed }) => [
-                styles.inlineActionButton,
-                (pressed || loading) && styles.buttonMuted
-              ]}
-            >
-              <Text style={styles.inlineActionText}>{goalActionLabel(goal.code)}</Text>
-            </Pressable>
-          </View>
-        ))
-      ) : (
-        <EmptyState
-          title="今日目标已经完成"
-          body="领完奖励后就可以去抽豆、看榜，或者什么都不做"
-          icon="🌙"
-        />
-      )}
     </DashboardCard>
   );
 }

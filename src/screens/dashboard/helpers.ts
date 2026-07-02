@@ -261,13 +261,6 @@ export function achievementProgressLabel(progress: {
   return `${progress.current}/${progress.target}`;
 }
 
-export function goalActionLabel(code: string): string {
-  if (code === "check_in") return "去打卡";
-  if (code === "activity") return "去活动";
-  if (code === "bean_draw") return "去抽豆";
-  return "去完成";
-}
-
 export function findGoal(
   progression: ProgressionSummary | null,
   code: "check_in" | "activity" | "bean_draw"

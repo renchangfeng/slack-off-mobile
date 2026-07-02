@@ -823,6 +823,20 @@ function PlayLoopSpecimens() {
       })
     },
     {
+      label: "Recent result + route",
+      vm: deriveTodayPlayLoop({
+        activeSession: null,
+        lastResult: { reward: { drawChancesGranted: 0 } } as never,
+        activityAssignment: null,
+        activityResult: null,
+        beanCollection: { drawChances: 0, drawProgress: 1 } as never,
+        beanDrawResult: null,
+        progression,
+        achievementList: null,
+        activityUnavailable: false
+      })
+    },
+    {
       label: "Goal claimable",
       vm: deriveTodayPlayLoop({
         activeSession: null,
@@ -859,6 +873,7 @@ function PlayLoopSpecimens() {
           <Text style={styles.miniSpecimenType}>{label}</Text>
           <Text style={styles.miniSpecimenTitle}>{vm.primaryNextAction?.title ?? "Done"}</Text>
           <Text style={styles.copy}>{vm.loopMessage}</Text>
+          <Text style={styles.themeMeta}>Home order: status → check-in → route → result → goals</Text>
           {vm.routeSteps.slice(0, 4).map((step) => (
             <View key={step.id} style={styles.playLoopSpecimenRow}>
               <StatusBadge
@@ -1197,7 +1212,7 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         </Surface>
 
         <Surface>
-          <SectionHeader title="Daily play loop" kicker="TODAY ROUTE" />
+          <SectionHeader title="Home hierarchy" kicker="TODAY ROUTE" />
           <PlayLoopSpecimens />
         </Surface>
 

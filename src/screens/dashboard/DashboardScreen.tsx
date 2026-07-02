@@ -642,35 +642,6 @@ export function DashboardScreen({
     setSelectedTab(action.targetSection);
   }
 
-  async function runDailyGoalAction(code: string) {
-    if (code === "check_in") {
-      setSelectedTab("home");
-      if (activeSession) {
-        await finishSession();
-      } else {
-        await startSession();
-      }
-      return;
-    }
-    if (code === "activity") {
-      setSelectedTab("activities");
-      if (activityAssignment?.status === "active") {
-        await completeActivity();
-      } else {
-        await randomActivity();
-      }
-      return;
-    }
-    if (code === "bean_draw") {
-      setSelectedTab("beans");
-      if ((beanCollection?.drawChances ?? 0) > 0) {
-        await drawBean();
-      } else {
-        setNotice("还差一点抽豆进度。先完成打卡或摸鱼任务，机会就会自己冒出来。");
-      }
-    }
-  }
-
   return (
     <View style={styles.app}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -712,7 +683,6 @@ export function DashboardScreen({
               claimDailyReward: () => claimProgressionReward("daily"),
               claimWeeklyReward: () => claimProgressionReward("weekly"),
               runNextStep,
-              runDailyGoalAction,
               runTodayLoopAction
             }}
           />

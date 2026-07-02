@@ -61,7 +61,6 @@ export type HomeTabProps = {
     claimDailyReward(): void | Promise<void>;
     claimWeeklyReward(): void | Promise<void>;
     runNextStep(): void | Promise<void>;
-    runDailyGoalAction(code: string): void | Promise<void>;
     runTodayLoopAction(action: TodayLoopAction): void | Promise<void>;
   };
 };
