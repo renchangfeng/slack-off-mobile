@@ -19,6 +19,7 @@ import {
 } from "./helpers";
 import styles from "./styles";
 import type { ActivitiesTabProps } from "./types";
+import type { TodayLoopAction } from "../../gameplay/todayLoop";
 
 export function ActivitiesTab({
   loading,
@@ -33,6 +34,7 @@ export function ActivitiesTab({
   progress,
   skipReason,
   nextStep,
+  todayLoop,
   actions
 }: ActivitiesTabProps) {
   const activityPresentation = assignment ? resolveActivityPresentation(assignment) : null;
@@ -237,6 +239,11 @@ export function ActivitiesTab({
               ) : null}
               <Text style={styles.helperText}>{result.feedback}</Text>
               <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
+              <ResultFollowUps
+                loading={loading}
+                todayLoop={todayLoop}
+                onAction={actions.runTodayLoopAction}
+              />
             </View>
           </MotionFeedback>
         ) : null}
@@ -338,5 +345,44 @@ export function ActivitiesTab({
         )}
       </DashboardCard>
     </>
+  );
+}
+
+function ResultFollowUps({
+  loading,
+  todayLoop,
+  onAction
+}: {
+  loading: boolean;
+  todayLoop: ActivitiesTabProps["todayLoop"];
+  onAction: (action: TodayLoopAction) => void | Promise<void>;
+}) {
+  const { primary, secondary } = todayLoop.resultFollowUps;
+  if (!primary && !secondary.length) {
+    return null;
+  }
+  return (
+    <View style={styles.resultFollowUpBox}>
+      {primary ? (
+        <ActionButton
+          label={primary.actionLabel}
+          disabled={loading}
+          onPress={() => onAction(primary)}
+        />
+      ) : null}
+      {secondary.length ? (
+        <View style={styles.todayRouteSecondaryRow}>
+          {secondary.map((action) => (
+            <ActionButton
+              key={`${action.kind}-${action.title}`}
+              label={action.actionLabel}
+              dark
+              disabled={loading}
+              onPress={() => onAction(action)}
+            />
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }

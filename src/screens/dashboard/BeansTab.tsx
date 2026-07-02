@@ -22,6 +22,7 @@ export function BeansTab({
   selectedTheme,
   showcasePosition,
   nextStep,
+  todayLoop,
   actions
 }: BeansTabProps) {
   return (
@@ -32,6 +33,11 @@ export function BeansTab({
         <Text style={styles.copy}>
           当前进度 {collection?.drawProgress ?? 0}/3。每满 3 点自动兑换一次机会。
         </Text>
+        {todayLoop.drawChanceSource ? (
+          <Text style={styles.helperText}>
+            {beanChanceSourceText(todayLoop.drawChanceSource)}
+          </Text>
+        ) : null}
         <View style={styles.beanCollectionSummary}>
           <View style={styles.flex}>
             <Text style={styles.kickerSection}>图鉴完成度</Text>
@@ -183,6 +189,13 @@ export function BeansTab({
             <Text style={styles.helperText}>
               下一步：{drawResult.nextHint ?? nextStep.title}
             </Text>
+            {todayLoop.resultFollowUps.primary ? (
+              <ActionButton
+                label={todayLoop.resultFollowUps.primary.actionLabel}
+                disabled={loading}
+                onPress={() => actions.runTodayLoopAction(todayLoop.resultFollowUps.primary!)}
+              />
+            ) : null}
           </View>
           </MotionFeedback>
         ) : null}
@@ -312,4 +325,11 @@ export function BeansTab({
       </DashboardCard>
     </>
   );
+}
+
+function beanChanceSourceText(source: NonNullable<BeansTabProps["todayLoop"]["drawChanceSource"]>) {
+  if (source === "activity") return "这次机会来自刚完成的摸鱼任务。";
+  if (source === "check-in") return "这次机会来自刚结算的打卡。";
+  if (source === "goal-reward") return "这次机会来自刚领取的成长奖励。";
+  return "这次机会来自碎片兑换。";
 }

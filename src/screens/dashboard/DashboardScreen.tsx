@@ -51,6 +51,7 @@ import {
   type DashboardTab
 } from "../../gameplay/dashboardTabs";
 import { deriveGameplayStep } from "../../gameplay/nextStep";
+import { deriveTodayPlayLoop, type TodayLoopAction } from "../../gameplay/todayLoop";
 import { logEvent } from "../../observability/logger";
 import { useBrandName } from "../../ui/useBrandName";
 import { BottomNav } from "../../ui/BottomNav";
@@ -552,6 +553,17 @@ export function DashboardScreen({
         activityAssignment
     )
   });
+  const todayLoop = deriveTodayPlayLoop({
+    activeSession,
+    lastResult,
+    activityAssignment,
+    activityResult,
+    beanCollection,
+    beanDrawResult,
+    progression,
+    achievementList,
+    activityUnavailable
+  });
   const tabMeta = getDashboardTab(selectedTab);
 
   function jumpToAchievementTarget(achievement: AchievementRecommendation) {
@@ -595,6 +607,39 @@ export function DashboardScreen({
     }
     setSelectedTab("activities");
     await randomActivity();
+  }
+
+  async function runTodayLoopAction(action: TodayLoopAction) {
+    if (action.kind === "check-in") {
+      setSelectedTab("home");
+      if (activeSession) {
+        await finishSession();
+      } else {
+        await startSession();
+      }
+      return;
+    }
+    if (action.kind === "activity") {
+      setSelectedTab("activities");
+      if (activityAssignment?.status === "active") {
+        return;
+      }
+      await randomActivity();
+      return;
+    }
+    if (action.kind === "bean-draw") {
+      setSelectedTab("beans");
+      if ((beanCollection?.drawChances ?? 0) > 0) {
+        await drawBean();
+      }
+      return;
+    }
+    if (action.kind === "goal-reward") {
+      setSelectedTab("home");
+      await claimProgressionReward(action.meta?.period === "weekly" ? "weekly" : "daily");
+      return;
+    }
+    setSelectedTab(action.targetSection);
   }
 
   async function runDailyGoalAction(code: string) {
@@ -660,13 +705,15 @@ export function DashboardScreen({
             lastResult={lastResult}
             progressionClaim={progressionClaim}
             nextStep={nextStep}
+            todayLoop={todayLoop}
             actions={{
               startSession,
               finishSession,
               claimDailyReward: () => claimProgressionReward("daily"),
               claimWeeklyReward: () => claimProgressionReward("weekly"),
               runNextStep,
-              runDailyGoalAction
+              runDailyGoalAction,
+              runTodayLoopAction
             }}
           />
         ) : null}
@@ -685,13 +732,15 @@ export function DashboardScreen({
             progress={activityProgress}
             skipReason={activitySkipReason}
             nextStep={nextStep}
+            todayLoop={todayLoop}
             actions={{
               setCategory: setActivityCategory,
               setProgress: setActivityProgress,
               setSkipReason: setActivitySkipReason,
               randomActivity,
               completeActivity,
-              skipActivity
+              skipActivity,
+              runTodayLoopAction
             }}
           />
         ) : null}
@@ -705,12 +754,14 @@ export function DashboardScreen({
             selectedTheme={beanTheme}
             showcasePosition={showcasePosition}
             nextStep={nextStep}
+            todayLoop={todayLoop}
             actions={{
               setTheme: setBeanTheme,
               setShowcasePosition,
               drawBean,
               exchangeFragments: exchangeBeanFragments,
-              setShowcase: setBeanShowcase
+              setShowcase: setBeanShowcase,
+              runTodayLoopAction
             }}
           />
         ) : null}

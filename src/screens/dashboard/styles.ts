@@ -162,6 +162,87 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 18
   },
+  todayRouteList: {
+    gap: 8,
+    marginTop: 14
+  },
+  todayRouteStep: {
+    alignItems: "center",
+    backgroundColor: "#f4f0e8",
+    borderColor: "#d8d0c4",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    minHeight: 58,
+    padding: 10
+  },
+  todayRouteStepActive: {
+    backgroundColor: "#fff4c9",
+    borderColor: "#d4a838"
+  },
+  todayRouteStepClaimable: {
+    backgroundColor: "#eef7f3",
+    borderColor: "#82b99f"
+  },
+  todayRouteStepDone: {
+    backgroundColor: "#edf8f2",
+    borderColor: "#82b99f"
+  },
+  todayRouteStepOptional: {
+    backgroundColor: "#f0edf8",
+    borderColor: "#b7a6d8"
+  },
+  todayRouteStepGlyph: {
+    color: "#18232b",
+    fontSize: 18,
+    fontWeight: "900",
+    minWidth: 22,
+    textAlign: "center"
+  },
+  todayRoutePrimary: {
+    backgroundColor: "#eef7f3",
+    borderColor: "#b7d9c8",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 12
+  },
+  todayRouteSecondaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12
+  },
+  todayRouteSecondaryButton: {
+    alignItems: "center",
+    backgroundColor: "#18232b",
+    borderRadius: 8,
+    flexGrow: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: 12
+  },
+  todayObjectiveGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 14
+  },
+  todayObjectiveCell: {
+    backgroundColor: "#fffdf8",
+    borderColor: "#e2dbd0",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexBasis: "47%",
+    flexGrow: 1,
+    minHeight: 76,
+    padding: 10
+  },
+  todayObjectiveCellDone: {
+    backgroundColor: "#edf8f2",
+    borderColor: "#82b99f"
+  },
   nextStepTitle: { color: "#ffffff", fontSize: 21, fontWeight: "900", marginTop: 7 },
   nextStepCopy: { color: "#d5cec4", fontSize: 14, lineHeight: 21, marginTop: 7 },
   rewardPreview: {
@@ -228,6 +309,10 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     lineHeight: 24,
     marginTop: 10
+  },
+  resultFollowUpBox: {
+    gap: 8,
+    marginTop: 12
   },
   interactionPanel: {
     backgroundColor: "#f7f2e8",

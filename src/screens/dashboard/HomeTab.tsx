@@ -1,4 +1,4 @@
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { ArtSlot } from "../../ui/art/ArtSlot";
 import { SectionHeader } from "../../ui/components";
 import { MotionFeedback } from "../../ui/motion/MotionFeedback";
@@ -14,6 +14,7 @@ import { ActionButton } from "./parts/SharedControls";
 import { CheckInResult, RewardPreview } from "./parts/ResultPanels";
 import styles from "./styles";
 import type { HomeTabProps } from "./types";
+import type { TodayLoopAction, TodayLoopStep } from "../../gameplay/todayLoop";
 
 export function HomeTab({
   loading,
@@ -24,6 +25,7 @@ export function HomeTab({
   lastResult,
   progressionClaim,
   nextStep,
+  todayLoop,
   actions
 }: HomeTabProps) {
   return (
@@ -72,6 +74,11 @@ export function HomeTab({
           />
         </View>
       </DashboardCard>
+      <TodayPlayRoute
+        loading={loading}
+        todayLoop={todayLoop}
+        onAction={actions.runTodayLoopAction}
+      />
       <View style={styles.nextStepPanel}>
         <Text style={styles.darkKicker}>下一步</Text>
         <Text style={styles.nextStepTitle}>{nextStep.title}</Text>
@@ -87,4 +94,114 @@ export function HomeTab({
       {lastResult ? <CheckInResult result={lastResult} nextStep={nextStep} /> : null}
     </>
   );
+}
+
+function TodayPlayRoute({
+  loading,
+  todayLoop,
+  onAction
+}: {
+  loading: boolean;
+  todayLoop: HomeTabProps["todayLoop"];
+  onAction: (action: TodayLoopAction) => void | Promise<void>;
+}) {
+  const primary = todayLoop.primaryNextAction;
+  return (
+    <DashboardCard>
+      <SectionHeader kicker="今日摸鱼路线" title="先休息，再交差，最后摸豆" />
+      <Text style={styles.copy}>{todayLoop.loopMessage}</Text>
+      <View style={styles.todayRouteList}>
+        {todayLoop.routeSteps.slice(0, 5).map((step) => (
+          <RouteStep key={step.id} step={step} />
+        ))}
+      </View>
+      {primary ? (
+        <View style={styles.todayRoutePrimary}>
+          <Text style={styles.kicker}>当前最该做</Text>
+          <Text style={styles.rowTitle}>{primary.title}</Text>
+          <Text style={styles.rowMeta}>{primary.description}</Text>
+          <RewardPreview preview={primary.rewardPreview} />
+          <ActionButton
+            label={primary.actionLabel}
+            disabled={loading}
+            onPress={() => onAction(primary)}
+          />
+        </View>
+      ) : null}
+      {todayLoop.secondaryActions.length ? (
+        <View style={styles.todayRouteSecondaryRow}>
+          {todayLoop.secondaryActions.map((action) => (
+            <Pressable
+              key={`${action.kind}-${action.title}`}
+              accessibilityRole="button"
+              disabled={loading}
+              onPress={() => void onAction(action)}
+              style={({ pressed }) => [
+                styles.todayRouteSecondaryButton,
+                (pressed || loading) && styles.buttonMuted
+              ]}
+            >
+              <Text style={styles.inlineActionText}>{action.actionLabel}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+      {todayLoop.todayObjectives.length ? (
+        <View style={styles.todayObjectiveGrid}>
+          {todayLoop.todayObjectives.slice(0, 4).map((objective) => (
+            <View
+              key={objective.code}
+              style={[
+                styles.todayObjectiveCell,
+                objective.completed && styles.todayObjectiveCellDone
+              ]}
+            >
+              <Text style={styles.kicker}>{objective.completed ? "已完成" : "进行中"}</Text>
+              <Text style={styles.rowTitle}>{objective.title}</Text>
+              <Text style={styles.rowMeta}>
+                {objective.current}/{objective.target} {objective.unit}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </DashboardCard>
+  );
+}
+
+function RouteStep({ step }: { step: TodayLoopStep }) {
+  return (
+    <View style={[styles.todayRouteStep, routeStepStyle(step.status)]}>
+      <Text style={styles.todayRouteStepGlyph}>{routeStepGlyph(step.status)}</Text>
+      <View style={styles.flex}>
+        <Text style={styles.rowTitle}>{step.title}</Text>
+        <Text style={styles.rowMeta}>{step.description}</Text>
+      </View>
+      <Text style={styles.pendingMark}>{routeStepStatusLabel(step.status)}</Text>
+    </View>
+  );
+}
+
+function routeStepStyle(status: TodayLoopStep["status"]) {
+  if (status === "completed") return styles.todayRouteStepDone;
+  if (status === "active") return styles.todayRouteStepActive;
+  if (status === "claimable") return styles.todayRouteStepClaimable;
+  if (status === "optional") return styles.todayRouteStepOptional;
+  return undefined;
+}
+
+function routeStepGlyph(status: TodayLoopStep["status"]) {
+  if (status === "completed") return "✓";
+  if (status === "active") return "▶";
+  if (status === "claimable") return "!";
+  if (status === "optional") return "?";
+  return "·";
+}
+
+function routeStepStatusLabel(status: TodayLoopStep["status"]) {
+  if (status === "completed") return "完成";
+  if (status === "active") return "进行中";
+  if (status === "claimable") return "可做";
+  if (status === "optional") return "可选";
+  return "待开始";
 }

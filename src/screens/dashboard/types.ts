@@ -21,6 +21,7 @@ import type { ProgressionClaimResult, ProgressionSummary } from "../../api/progr
 import type { SocialReactionType, SocialSummary } from "../../api/social";
 import type { DashboardTab } from "../../gameplay/dashboardTabs";
 import type { deriveGameplayStep } from "../../gameplay/nextStep";
+import type { TodayLoopAction, TodayLoopViewModel } from "../../gameplay/todayLoop";
 
 export type HomeScreenProps = {
   authLabel?: string;
@@ -53,6 +54,7 @@ export type HomeTabProps = {
   lastResult: CheckInFinishResult | null;
   progressionClaim: ProgressionClaimResult | null;
   nextStep: DerivedGameplayStep;
+  todayLoop: TodayLoopViewModel;
   actions: {
     startSession(): void | Promise<void>;
     finishSession(): void | Promise<void>;
@@ -60,6 +62,7 @@ export type HomeTabProps = {
     claimWeeklyReward(): void | Promise<void>;
     runNextStep(): void | Promise<void>;
     runDailyGoalAction(code: string): void | Promise<void>;
+    runTodayLoopAction(action: TodayLoopAction): void | Promise<void>;
   };
 };
 
@@ -76,6 +79,7 @@ export type ActivitiesTabProps = {
   progress: ActivityInteractionProgress;
   skipReason: ActivitySkipReason;
   nextStep: DerivedGameplayStep;
+  todayLoop: TodayLoopViewModel;
   actions: {
     setCategory(category: ActivityCategory | null): void;
     setProgress: Dispatch<SetStateAction<ActivityInteractionProgress>>;
@@ -83,6 +87,7 @@ export type ActivitiesTabProps = {
     randomActivity(): void | Promise<void>;
     completeActivity(): void | Promise<void>;
     skipActivity(): void | Promise<void>;
+    runTodayLoopAction(action: TodayLoopAction): void | Promise<void>;
   };
 };
 
@@ -94,12 +99,14 @@ export type BeansTabProps = {
   selectedTheme: BeanTheme;
   showcasePosition: number;
   nextStep: DerivedGameplayStep;
+  todayLoop: TodayLoopViewModel;
   actions: {
     setTheme(theme: BeanTheme): void;
     setShowcasePosition(position: number): void;
     drawBean(): void | Promise<void>;
     exchangeFragments(): void | Promise<void>;
     setShowcase(beanId: string): void | Promise<void>;
+    runTodayLoopAction(action: TodayLoopAction): void | Promise<void>;
   };
 };
 

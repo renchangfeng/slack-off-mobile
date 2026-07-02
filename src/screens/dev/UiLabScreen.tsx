@@ -39,6 +39,7 @@ import { useReducedMotion } from "../../ui/motion/useReducedMotion";
 import type { MotionFeedbackVariant } from "../../ui/motion/types";
 import { useTheme, useThemeSwitcher } from "../../ui/theme/useTheme";
 import { colors, radius, spacing, typography } from "../../ui/tokens";
+import { deriveTodayPlayLoop, type TodayLoopViewModel } from "../../gameplay/todayLoop";
 
 function groupSlotsByKind(
   slots: ReturnType<typeof listArtSlotDefinitions>
@@ -706,6 +707,173 @@ function MultiStepFlowSpecimens() {
   );
 }
 
+function PlayLoopSpecimens() {
+  const incompleteGoal = (code: "check_in" | "activity" | "bean_draw") => ({
+    code,
+    title: code,
+    description: `${code} progress`,
+    current: 0,
+    target: 1,
+    unit: "times" as const,
+    completed: false
+  });
+  const completeGoal = (code: "check_in" | "activity" | "bean_draw") => ({
+    ...incompleteGoal(code),
+    current: 1,
+    completed: true
+  });
+  const progression = ({
+    dailyGoals: {
+      allCompleted: false,
+      rewardClaimed: true,
+      reward: { score: 12, drawProgress: 1 },
+      goals: [completeGoal("check_in"), incompleteGoal("activity"), incompleteGoal("bean_draw")]
+    },
+    weeklyGoals: {
+      allCompleted: false,
+      rewardClaimed: true,
+      reward: { score: 30, drawProgress: 2 },
+      goals: []
+    }
+  }) as never;
+  const claimableProgression = ({
+    dailyGoals: {
+      allCompleted: true,
+      rewardClaimed: false,
+      reward: { score: 12, drawProgress: 1 },
+      goals: [completeGoal("check_in"), completeGoal("activity"), completeGoal("bean_draw")]
+    },
+    weeklyGoals: {
+      allCompleted: false,
+      rewardClaimed: true,
+      reward: { score: 30, drawProgress: 2 },
+      goals: []
+    }
+  }) as never;
+  const doneProgression = ({
+    dailyGoals: {
+      allCompleted: true,
+      rewardClaimed: true,
+      reward: { score: 12, drawProgress: 1 },
+      goals: [completeGoal("check_in"), completeGoal("activity"), completeGoal("bean_draw")]
+    },
+    weeklyGoals: {
+      allCompleted: false,
+      rewardClaimed: true,
+      reward: { score: 30, drawProgress: 2 },
+      goals: []
+    }
+  }) as never;
+
+  const specimens: Array<{ label: string; vm: TodayLoopViewModel }> = [
+    {
+      label: "Empty morning",
+      vm: deriveTodayPlayLoop({
+        activeSession: null,
+        lastResult: null,
+        activityAssignment: null,
+        activityResult: null,
+        beanCollection: { drawChances: 0, drawProgress: 0 } as never,
+        beanDrawResult: null,
+        progression: null,
+        achievementList: null,
+        activityUnavailable: false
+      })
+    },
+    {
+      label: "Active check-in",
+      vm: deriveTodayPlayLoop({
+        activeSession: { id: "lab-session", userId: "lab", startedAt: new Date().toISOString() } as never,
+        lastResult: null,
+        activityAssignment: null,
+        activityResult: null,
+        beanCollection: { drawChances: 1, drawProgress: 2 } as never,
+        beanDrawResult: null,
+        progression: null,
+        achievementList: null,
+        activityUnavailable: false
+      })
+    },
+    {
+      label: "Active activity",
+      vm: deriveTodayPlayLoop({
+        activeSession: null,
+        lastResult: null,
+        activityAssignment: { assignmentId: "lab-activity", status: "active" } as never,
+        activityResult: null,
+        beanCollection: { drawChances: 0, drawProgress: 1 } as never,
+        beanDrawResult: null,
+        progression,
+        achievementList: null,
+        activityUnavailable: false
+      })
+    },
+    {
+      label: "Draw available",
+      vm: deriveTodayPlayLoop({
+        activeSession: null,
+        lastResult: null,
+        activityAssignment: null,
+        activityResult: { reward: { drawChancesGranted: 1 } } as never,
+        beanCollection: { drawChances: 1, drawProgress: 0 } as never,
+        beanDrawResult: null,
+        progression: null,
+        achievementList: null,
+        activityUnavailable: false
+      })
+    },
+    {
+      label: "Goal claimable",
+      vm: deriveTodayPlayLoop({
+        activeSession: null,
+        lastResult: null,
+        activityAssignment: null,
+        activityResult: null,
+        beanCollection: { drawChances: 0, drawProgress: 0 } as never,
+        beanDrawResult: null,
+        progression: claimableProgression,
+        achievementList: null,
+        activityUnavailable: true
+      })
+    },
+    {
+      label: "Done for now",
+      vm: deriveTodayPlayLoop({
+        activeSession: null,
+        lastResult: null,
+        activityAssignment: null,
+        activityResult: null,
+        beanCollection: { drawChances: 0, drawProgress: 0 } as never,
+        beanDrawResult: null,
+        progression: doneProgression,
+        achievementList: null,
+        activityUnavailable: true
+      })
+    }
+  ];
+
+  return (
+    <View style={styles.flowSpecimenGrid}>
+      {specimens.map(({ label, vm }) => (
+        <FramedCard key={label} style={styles.flowSpecimenCard}>
+          <Text style={styles.miniSpecimenType}>{label}</Text>
+          <Text style={styles.miniSpecimenTitle}>{vm.primaryNextAction?.title ?? "Done"}</Text>
+          <Text style={styles.copy}>{vm.loopMessage}</Text>
+          {vm.routeSteps.slice(0, 4).map((step) => (
+            <View key={step.id} style={styles.playLoopSpecimenRow}>
+              <StatusBadge
+                tone={step.status === "completed" ? "completed" : step.status === "active" ? "active" : "default"}
+                label={step.status}
+              />
+              <Text style={styles.playLoopSpecimenText}>{step.title}</Text>
+            </View>
+          ))}
+        </FramedCard>
+      ))}
+    </View>
+  );
+}
+
 export function UiLabScreen({ onClose }: UiLabScreenProps) {
   const theme = useTheme();
   const reducedMotion = useReducedMotion();
@@ -1026,6 +1194,11 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
               keep the visual weight consistent across tabs.
             </Text>
           </View>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Daily play loop" kicker="TODAY ROUTE" />
+          <PlayLoopSpecimens />
         </Surface>
 
         <Surface>
@@ -1359,6 +1532,18 @@ const styles = StyleSheet.create({
   },
   inlineActionText: {
     color: colors.white,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  playLoopSpecimenRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.sm
+  },
+  playLoopSpecimenText: {
+    color: colors.ink,
+    flex: 1,
     fontSize: 13,
     fontWeight: "900"
   },
