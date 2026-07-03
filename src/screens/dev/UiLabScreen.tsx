@@ -707,6 +707,30 @@ function MultiStepFlowSpecimens() {
   );
 }
 
+function ActivityFeedbackSpecimens() {
+  const options = ["有点意思", "还行", "下次别来这个", "来点更怪的", "短一点"];
+  return (
+    <View style={styles.flowSpecimenGrid}>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <Text style={styles.miniSpecimenType}>pending</Text>
+        <Text style={styles.miniSpecimenTitle}>这次摸鱼感觉如何？</Text>
+        <Text style={styles.copy}>可选反馈，只影响以后推荐，不影响本次奖励。</Text>
+        <View style={styles.feedbackChipRow}>
+          {options.map((option) => (
+            <Pill key={option} label={option} selected={false} />
+          ))}
+        </View>
+      </FramedCard>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <Text style={styles.miniSpecimenType}>submitted</Text>
+        <Text style={styles.miniSpecimenTitle}>这次摸鱼感觉如何？</Text>
+        <Text style={styles.copy}>收到，下次多安排这种手感的摸鱼。</Text>
+        <RewardRow icon="⭐" label="奖励仍然可见" value="+8 分 · 进度 +1" positive />
+      </FramedCard>
+    </View>
+  );
+}
+
 function PlayLoopSpecimens() {
   const incompleteGoal = (code: "check_in" | "activity" | "bean_draw") => ({
     code,
@@ -1260,6 +1284,11 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         </Surface>
 
         <Surface>
+          <SectionHeader title="Activity result feedback" kicker="OPTIONAL FEEDBACK" />
+          <ActivityFeedbackSpecimens />
+        </Surface>
+
+        <Surface>
           <SectionHeader title="Activity mini-interactions" kicker="STEP COMPONENTS" />
           <MiniInteractionSpecimens />
         </Surface>
@@ -1393,6 +1422,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: spacing.xs,
     textAlign: "center"
+  },
+  feedbackChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.md
   },
   scaleRow: {
     flexDirection: "row",

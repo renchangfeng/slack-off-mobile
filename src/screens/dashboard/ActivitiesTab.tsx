@@ -21,6 +21,17 @@ import styles from "./styles";
 import type { ActivitiesTabProps } from "./types";
 import type { TodayLoopAction } from "../../gameplay/todayLoop";
 
+const activityFeedbackOptions: Array<{
+  label: string;
+  value: Parameters<ActivitiesTabProps["actions"]["submitFeedback"]>[0];
+}> = [
+  { label: "有点意思", value: "liked" },
+  { label: "还行", value: "neutral" },
+  { label: "下次别来这个", value: "dislike_similar" },
+  { label: "来点更怪的", value: "want_weirder" },
+  { label: "短一点", value: "shorter" }
+];
+
 export function ActivitiesTab({
   loading,
   goal,
@@ -28,6 +39,7 @@ export function ActivitiesTab({
   result,
   catalog,
   history,
+  feedbackAck,
   message,
   unavailable,
   category,
@@ -140,13 +152,7 @@ export function ActivitiesTab({
               onChange={actions.setProgress}
             />
             <ActionButton
-              label={
-                assignment.status === "active"
-                  ? activityCanComplete
-                    ? "领取互动奖励"
-                    : "先完成互动步骤"
-                  : "本次活动已完成"
-              }
+              label={activityActionLabel(assignment.status, activityCanComplete)}
               disabled={
                 loading ||
                 assignment.status !== "active" ||
@@ -242,6 +248,11 @@ export function ActivitiesTab({
                 <StepReceipt summaries={result.stepSummaries} />
               ) : null}
               <Text style={styles.helperText}>{result.feedback}</Text>
+              <ActivityFeedbackPrompt
+                loading={loading}
+                acknowledgement={feedbackAck?.acknowledgement ?? null}
+                onSubmit={actions.submitFeedback}
+              />
               <Text style={styles.helperText}>
                 下一步：{todayLoop.resultFollowUps.primary?.title ?? nextStep.title}
               </Text>
@@ -352,6 +363,56 @@ export function ActivitiesTab({
       </DashboardCard>
     </>
   );
+}
+
+function ActivityFeedbackPrompt({
+  loading,
+  acknowledgement,
+  onSubmit
+}: {
+  loading: boolean;
+  acknowledgement: string | null;
+  onSubmit: ActivitiesTabProps["actions"]["submitFeedback"];
+}) {
+  return (
+    <View style={styles.activityFeedbackBox}>
+      <Text style={styles.kicker}>这次摸鱼感觉如何？</Text>
+      {acknowledgement ? (
+        <Text style={styles.helperText}>{acknowledgement}</Text>
+      ) : (
+        <View style={styles.activityFeedbackRow}>
+          {activityFeedbackOptions.map((option) => (
+            <CategoryChip
+              key={option.value}
+              label={option.label}
+              selected={false}
+              onPress={() => {
+                if (!loading) {
+                  void onSubmit(option.value);
+                }
+              }}
+            />
+          ))}
+        </View>
+      )}
+      {acknowledgement ? null : (
+        <Text style={styles.smallCopy}>可选反馈，只影响以后推荐，不影响本次奖励。</Text>
+      )}
+    </View>
+  );
+}
+
+function activityActionLabel(
+  status: NonNullable<ActivitiesTabProps["assignment"]>["status"],
+  canComplete: boolean
+) {
+  if (status === "active") {
+    return canComplete ? "领取互动奖励" : "先完成互动步骤";
+  }
+  if (status === "skipped") {
+    return "任务已放弃";
+  }
+  return "本次活动已完成";
 }
 
 function ResultFollowUps({

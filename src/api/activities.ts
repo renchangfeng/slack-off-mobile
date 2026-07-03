@@ -9,6 +9,9 @@ export type ActivityHistory = components["schemas"]["ActivityHistory"];
 export type ActivityInteractionProgress = components["schemas"]["ActivityInteractionProgress"];
 export type ActivityPresentation = components["schemas"]["ActivityPresentation"];
 export type ActivitySkipReason = components["schemas"]["ActivitySkipReason"];
+export type ActivityFeedbackRequest = components["schemas"]["ActivityFeedbackRequest"];
+export type ActivityFeedbackResponse = components["schemas"]["ActivityFeedbackResponse"];
+export type ActivityFeedbackType = components["schemas"]["ActivityFeedbackType"];
 export type ActivityCategory = ActivityCatalog["categories"][number];
 
 export class ActivityApi {
@@ -37,6 +40,16 @@ export class ActivityApi {
     return this.client.post<ActivityCompleteResult>(`/v1/activities/${assignmentId}/complete`, {
       interaction
     });
+  }
+
+  submitFeedback(
+    assignmentId: string,
+    feedback: ActivityFeedbackRequest
+  ): Promise<ApiEnvelope<ActivityFeedbackResponse>> {
+    return this.client.post<ActivityFeedbackResponse>(
+      `/v1/activities/${assignmentId}/feedback`,
+      feedback
+    );
   }
 
   skip(

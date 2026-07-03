@@ -109,6 +109,20 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 21
   },
+  activityFeedbackBox: {
+    backgroundColor: "#fff8e8",
+    borderColor: "#e2dbd0",
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    marginTop: 12,
+    padding: 12
+  },
+  activityFeedbackRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
   progressionPanel: {
     backgroundColor: "#18232b",
     borderRadius: 8,

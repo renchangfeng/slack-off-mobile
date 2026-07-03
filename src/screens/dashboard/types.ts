@@ -10,6 +10,8 @@ import type {
   ActivityCatalog,
   ActivityCategory,
   ActivityCompleteResult,
+  ActivityFeedbackResponse,
+  ActivityFeedbackType,
   ActivityInteractionProgress,
   ActivitySkipReason
 } from "../../api/activities";
@@ -72,6 +74,7 @@ export type ActivitiesTabProps = {
   result: ActivityCompleteResult | null;
   catalog: ActivityCatalog | null;
   history: ActivityAssignment[];
+  feedbackAck: ActivityFeedbackResponse | null;
   message: string | null;
   unavailable: boolean;
   category: ActivityCategory | null;
@@ -85,6 +88,7 @@ export type ActivitiesTabProps = {
     setSkipReason(reason: ActivitySkipReason): void;
     randomActivity(): void | Promise<void>;
     completeActivity(): void | Promise<void>;
+    submitFeedback(feedbackType: ActivityFeedbackType): void | Promise<void>;
     skipActivity(): void | Promise<void>;
     runTodayLoopAction(action: TodayLoopAction): void | Promise<void>;
   };

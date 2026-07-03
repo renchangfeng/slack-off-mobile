@@ -20,6 +20,8 @@ import {
   type ActivityCatalog,
   type ActivityCategory,
   type ActivityCompleteResult,
+  type ActivityFeedbackResponse,
+  type ActivityFeedbackType,
   type ActivityInteractionProgress,
   type ActivitySkipReason
 } from "../../api/activities";
@@ -106,6 +108,7 @@ export function DashboardScreen({
   >([]);
   const [activityAssignment, setActivityAssignment] = useState<ActivityAssignment | null>(null);
   const [activityResult, setActivityResult] = useState<ActivityCompleteResult | null>(null);
+  const [activityFeedbackAck, setActivityFeedbackAck] = useState<ActivityFeedbackResponse | null>(null);
   const [activityProgress, setActivityProgress] = useState<ActivityInteractionProgress>({});
   const [activitySkipReason, setActivitySkipReason] = useState<ActivitySkipReason>("not_interested");
   const [activityMessage, setActivityMessage] = useState<string | null>(null);
@@ -237,6 +240,7 @@ export function DashboardScreen({
   useEffect(() => {
     setActivityProgress({});
     setActivitySkipReason("not_interested");
+    setActivityFeedbackAck(null);
   }, [activityAssignment?.assignmentId]);
 
   async function refreshActivityData(category: ActivityCategory | null = activityCategory) {
@@ -441,6 +445,24 @@ export function DashboardScreen({
     );
     enqueueAchievementUnlocks(response.data.reward.achievementsUnlocked);
     await Promise.all([refreshAfterReward(), refreshActivityData()]);
+  }
+
+  async function submitActivityFeedback(feedbackType: ActivityFeedbackType) {
+    if (!activityResult) {
+      return;
+    }
+    setLoading(true);
+    setActivityMessage(null);
+    const response = await api.activities.submitFeedback(activityResult.assignment.assignmentId, {
+      feedbackType,
+      source: "completion"
+    });
+    setLoading(false);
+    if (response.error) {
+      setActivityMessage(response.error.message);
+      return;
+    }
+    setActivityFeedbackAck(response.data);
   }
 
   async function skipActivity() {
@@ -696,6 +718,7 @@ export function DashboardScreen({
             result={activityResult}
             catalog={activityCatalog}
             history={activityHistory}
+            feedbackAck={activityFeedbackAck}
             message={activityMessage}
             unavailable={activityUnavailable}
             category={activityCategory}
@@ -709,6 +732,7 @@ export function DashboardScreen({
               setSkipReason: setActivitySkipReason,
               randomActivity,
               completeActivity,
+              submitFeedback: submitActivityFeedback,
               skipActivity,
               runTodayLoopAction
             }}
