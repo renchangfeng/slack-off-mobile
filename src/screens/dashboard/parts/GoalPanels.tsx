@@ -165,9 +165,17 @@ export function ProgressionClaimResultPanel({
         }
       />
       <Text style={styles.copy}>
-        得分 +{result.reward.score} · 抽豆进度 +{result.reward.drawProgress} · 机会 +
-        {result.reward.drawChancesGranted}
+        {result.awarded
+          ? "这组目标已经盖章，休息也能留下成长痕迹。"
+          : "这份奖励已经领过，不重复发放，也不重复催你。"}
       </Text>
+      <View style={styles.resultReceiptBox}>
+        <Text style={styles.kicker}>奖励回执</Text>
+        <Text style={styles.rowTitle}>
+          得分 +{result.reward.score} · 抽豆进度 +{result.reward.drawProgress} · 机会 +
+          {result.reward.drawChancesGranted}
+        </Text>
+      </View>
       <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
     </DashboardCard>
   );

@@ -63,12 +63,46 @@ export type TodayLoopResultFollowUp = {
   secondary: TodayLoopAction[];
 };
 
+export type TodayLoopMood =
+  | "first-open"
+  | "in-progress"
+  | "reward-ready"
+  | "optional-follow-up"
+  | "done-for-today";
+
+export type TodayLoopRouteProgress = {
+  completedCoreSteps: number;
+  totalCoreSteps: number;
+  percent: number;
+  progressLabel: string;
+  stageLabel: string;
+};
+
+export type TodayLoopDelight = {
+  mood: TodayLoopMood;
+  title: string;
+  copy: string;
+  doneForToday: boolean;
+};
+
+export type TodayLoopResultDelight = {
+  kind: "check-in" | "activity" | "bean-draw" | "goal-reward";
+  title: string;
+  copy: string;
+  receiptTitle: string;
+  rewardLabel: string;
+  doneForToday: boolean;
+};
+
 export type TodayLoopViewModel = {
   routeSteps: TodayLoopStep[];
   primaryNextAction: TodayLoopAction | null;
   secondaryActions: TodayLoopAction[];
   todayObjectives: TodayLoopObjective[];
   loopMessage: string;
+  routeProgress: TodayLoopRouteProgress;
+  routeDelight: TodayLoopDelight;
+  resultDelight: TodayLoopResultDelight | null;
   resultFollowUps: TodayLoopResultFollowUp;
   drawChanceSource: "check-in" | "activity" | "goal-reward" | "fragment-exchange" | null;
 };
@@ -136,13 +170,27 @@ export function deriveTodayPlayLoop(input: TodayLoopInput): TodayLoopViewModel {
   const routeSteps = buildRouteSteps({
     activeSession,
     checkInGoal,
+    activityGoal,
+    beanDrawGoal,
     activeActivity,
     completedActivity,
     drawChances,
     beanDrawResult,
     claimableGoalPeriod,
     achievementList,
-    progression
+    progression,
+    dailyGoalsCompleted,
+    dailyRewardClaimed
+  });
+
+  const routeProgress = buildRouteProgress({
+    routeSteps,
+    checkInGoal,
+    activityGoal,
+    beanDrawGoal,
+    dailyGoalsCompleted,
+    dailyRewardClaimed,
+    claimableGoalPeriod
   });
 
   const primaryNextAction = pickPrimaryNextAction({
@@ -183,6 +231,25 @@ export function deriveTodayPlayLoop(input: TodayLoopInput): TodayLoopViewModel {
     achievementList
   });
 
+  const routeDelight = buildRouteDelight({
+    routeProgress,
+    primaryNextAction,
+    activeSession,
+    checkInStartedToday,
+    activeActivity,
+    drawChances,
+    claimableGoalPeriod,
+    achievementList
+  });
+
+  const resultDelight = buildResultDelight({
+    lastResult,
+    activityResult,
+    beanDrawResult,
+    claimableGoalPeriod,
+    routeDelight
+  });
+
   const resultFollowUps = buildResultFollowUps({
     activityResult,
     lastResult,
@@ -201,6 +268,9 @@ export function deriveTodayPlayLoop(input: TodayLoopInput): TodayLoopViewModel {
     secondaryActions,
     todayObjectives,
     loopMessage,
+    routeProgress,
+    routeDelight,
+    resultDelight,
     resultFollowUps,
     drawChanceSource
   };
@@ -233,6 +303,8 @@ function goalRewardPreview(
 function buildRouteSteps(state: {
   activeSession: CheckInSession | null;
   checkInGoal: ProgressionGoal | undefined;
+  activityGoal: ProgressionGoal | undefined;
+  beanDrawGoal: ProgressionGoal | undefined;
   activeActivity: boolean;
   completedActivity: boolean;
   drawChances: number;
@@ -240,17 +312,23 @@ function buildRouteSteps(state: {
   claimableGoalPeriod: "daily" | "weekly" | null;
   achievementList: AchievementList | null;
   progression: ProgressionSummary | null;
+  dailyGoalsCompleted: boolean;
+  dailyRewardClaimed: boolean;
 }): TodayLoopStep[] {
   const {
     activeSession,
     checkInGoal,
+    activityGoal,
+    beanDrawGoal,
     activeActivity,
     completedActivity,
     drawChances,
     beanDrawResult,
     claimableGoalPeriod,
     achievementList,
-    progression
+    progression,
+    dailyGoalsCompleted,
+    dailyRewardClaimed
   } = state;
 
   const checkInStep: TodayLoopStep = {
@@ -271,18 +349,21 @@ function buildRouteSteps(state: {
       : null
   };
 
+  const activityCompleted = completedActivity || Boolean(activityGoal?.completed);
+  const beanDrawCompleted = Boolean(beanDrawResult || beanDrawGoal?.completed);
+
   const activityStep: TodayLoopStep = {
     kind: "activity",
     id: "today-activity",
-    title: activeActivity ? "当前任务" : completedActivity ? "已完成任务" : "摸鱼任务",
+    title: activeActivity ? "当前任务" : activityCompleted ? "已完成任务" : "摸鱼任务",
     description: activeActivity
       ? "按任务描述完成互动步骤，然后领取奖励。"
-      : completedActivity
+      : activityCompleted
         ? "今天的互动任务已经交差。"
         : "领一个随机摸鱼任务，继续攒抽豆进度。",
-    actionLabel: activeActivity ? "去做任务" : completedActivity ? "已完成" : "领一个",
+    actionLabel: activeActivity ? "去做任务" : activityCompleted ? "已完成" : "领一个",
     targetSection: "activities",
-    status: activeActivity ? "active" : completedActivity ? "completed" : "pending",
+    status: activeActivity ? "active" : activityCompleted ? "completed" : "pending",
     rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 },
     progress: null
   };
@@ -290,16 +371,16 @@ function buildRouteSteps(state: {
   const beanDrawStep: TodayLoopStep = {
     kind: "bean-draw",
     id: "today-bean-draw",
-    title: drawChances > 0 ? "可以抽豆" : beanDrawResult ? "已抽豆" : "攒抽豆机会",
+    title: drawChances > 0 ? "可以抽豆" : beanDrawCompleted ? "已抽豆" : "攒抽豆机会",
     description:
       drawChances > 0
         ? `有 ${drawChances} 次抽豆机会，不花掉就像把调休留到过期。`
-        : beanDrawResult
+        : beanDrawCompleted
           ? "刚抽完一颗豆，继续攒下一次机会。"
           : "完成打卡或摸鱼任务来攒抽豆进度。",
-    actionLabel: drawChances > 0 ? "抽一颗" : beanDrawResult ? "已抽" : "等机会",
+    actionLabel: drawChances > 0 ? "抽一颗" : beanDrawCompleted ? "已抽" : "等机会",
     targetSection: "beans",
-    status: drawChances > 0 ? "claimable" : beanDrawResult ? "completed" : "pending",
+    status: drawChances > 0 ? "claimable" : beanDrawCompleted ? "completed" : "pending",
     rewardPreview:
       drawChances > 0 ? { score: 0, drawProgress: 0, drawChances } : { score: 0, drawProgress: 0, drawChances: 0 },
     progress: null
@@ -308,13 +389,15 @@ function buildRouteSteps(state: {
   const goalRewardStep: TodayLoopStep = {
     kind: "goal-reward",
     id: "today-goal-reward",
-    title: claimableGoalPeriod ? "可领奖励" : "成长奖励",
+    title: claimableGoalPeriod ? "可领奖励" : dailyGoalsCompleted && dailyRewardClaimed ? "奖励已入账" : "成长奖励",
     description: claimableGoalPeriod
       ? `今天的小目标凑齐了，可以领取${claimableGoalPeriod === "daily" ? "今日" : "本周"}奖励。`
+      : dailyGoalsCompleted && dailyRewardClaimed
+        ? "今日成长奖励已经收好，系统没有继续催你的资格。"
       : "完成每日目标后领取额外的分数和抽豆进度。",
-    actionLabel: claimableGoalPeriod ? "领奖励" : "攒目标",
+    actionLabel: claimableGoalPeriod ? "领奖励" : dailyGoalsCompleted && dailyRewardClaimed ? "已领取" : "攒目标",
     targetSection: "home",
-    status: claimableGoalPeriod ? "claimable" : "pending",
+    status: claimableGoalPeriod ? "claimable" : dailyGoalsCompleted && dailyRewardClaimed ? "completed" : "pending",
     rewardPreview: claimableGoalPeriod ? goalRewardPreview(claimableGoalPeriod, progression) : null,
     progress: null
   };
@@ -422,19 +505,6 @@ function pickPrimaryNextAction(state: {
       targetSection: "home",
       rewardPreview: goalRewardPreview(claimableGoalPeriod, progression),
       meta: { period: claimableGoalPeriod }
-    };
-  }
-
-  const achievement = firstAchievementRecommendation(achievementList);
-  if (achievement) {
-    return {
-      kind: "achievement",
-      title: achievement.name,
-      description: `${achievement.recommendationReason} · ${achievement.remainingEffortLabel}`,
-      actionLabel: achievement.actionHint.label,
-      targetSection: mapRecommendationTarget(achievement.targetSection),
-      rewardPreview: null,
-      meta: { achievementId: achievement.id }
     };
   }
 
@@ -580,6 +650,170 @@ function buildLoopMessage(state: {
     return "顺手再推进一个成就，或者去看看榜。";
   }
   return "今天已经很会休息了，去摸鱼吧——字面意义上的。";
+}
+
+function buildRouteProgress(state: {
+  routeSteps: TodayLoopStep[];
+  checkInGoal: ProgressionGoal | undefined;
+  activityGoal: ProgressionGoal | undefined;
+  beanDrawGoal: ProgressionGoal | undefined;
+  dailyGoalsCompleted: boolean;
+  dailyRewardClaimed: boolean;
+  claimableGoalPeriod: "daily" | "weekly" | null;
+}): TodayLoopRouteProgress {
+  const totalCoreSteps = 4;
+  const completedCoreSteps = [
+    state.checkInGoal?.completed,
+    state.activityGoal?.completed,
+    state.beanDrawGoal?.completed,
+    state.dailyGoalsCompleted && state.dailyRewardClaimed && !state.claimableGoalPeriod
+  ].filter(Boolean).length;
+  const percent = Math.round((completedCoreSteps / totalCoreSteps) * 100);
+  const coreSteps = state.routeSteps.filter((step) =>
+    ["check-in", "activity", "bean-draw", "goal-reward"].includes(step.kind)
+  );
+  const activeStep = coreSteps.find((step) => step.status === "active");
+  const claimableStep = coreSteps.find((step) => step.status === "claimable");
+  const nextPendingStep = coreSteps.find((step) => step.status === "pending");
+  const focusStep = activeStep ?? claimableStep ?? nextPendingStep;
+
+  return {
+    completedCoreSteps,
+    totalCoreSteps,
+    percent,
+    progressLabel: `${completedCoreSteps}/${totalCoreSteps}`,
+    stageLabel: focusStep ? `当前：${focusStep.title}` : "今日收工"
+  };
+}
+
+function buildRouteDelight(state: {
+  routeProgress: TodayLoopRouteProgress;
+  primaryNextAction: TodayLoopAction | null;
+  activeSession: CheckInSession | null;
+  checkInStartedToday: boolean;
+  activeActivity: boolean;
+  drawChances: number;
+  claimableGoalPeriod: "daily" | "weekly" | null;
+  achievementList: AchievementList | null;
+}): TodayLoopDelight {
+  if (!state.checkInStartedToday && !state.activeSession) {
+    return {
+      mood: "first-open",
+      title: "今日路线还没开张",
+      copy: "先坐下，合法休息一下。今天的摸鱼路线会从这次打卡开始记账。",
+      doneForToday: false
+    };
+  }
+
+  if (state.activeSession || state.activeActivity) {
+    return {
+      mood: "in-progress",
+      title: "正在推进今日路线",
+      copy: state.activeSession
+        ? "休息计时中。等你觉得电量回来一点，再结束打卡。"
+        : "当前任务已经摆上桌面，完成它就能继续往豆仓推进。",
+      doneForToday: false
+    };
+  }
+
+  if (state.drawChances > 0 || state.claimableGoalPeriod) {
+    return {
+      mood: "reward-ready",
+      title: "奖励已经在门口探头",
+      copy: state.drawChances > 0
+        ? `你有 ${state.drawChances} 次抽豆机会，适合顺手开奖。`
+        : "目标奖励可以领了，领完就能把今天这段写进档案。",
+      doneForToday: false
+    };
+  }
+
+  const achievement = firstAchievementRecommendation(state.achievementList);
+  if (achievement) {
+    return {
+      mood: "optional-follow-up",
+      title: "主线够了，支线随缘",
+      copy: `${achievement.name} 离你不远，但它只是一个可选小尾巴。`,
+      doneForToday: false
+    };
+  }
+
+  return {
+    mood: "done-for-today",
+    title: "今日收工，可以安心离线",
+    copy: `今日路线 ${state.routeProgress.progressLabel}。已经够会休息了，剩下的可以交给明天。`,
+    doneForToday: true
+  };
+}
+
+function buildResultDelight(state: {
+  lastResult: CheckInFinishResult | null;
+  activityResult: ActivityCompleteResult | null;
+  beanDrawResult: BeanDrawResult | null;
+  claimableGoalPeriod: "daily" | "weekly" | null;
+  routeDelight: TodayLoopDelight;
+}): TodayLoopResultDelight | null {
+  const doneForToday = state.routeDelight.doneForToday;
+
+  if (state.activityResult) {
+    const granted = state.activityResult.reward.drawChancesGranted;
+    return {
+      kind: "activity",
+      title: state.activityResult.resultTitle ?? "摸鱼任务已盖章",
+      copy:
+        state.activityResult.resultCopy ??
+        (granted > 0
+          ? "这次摸鱼没有白摸，豆仓已经听见硬币声。"
+          : "任务完成，精神电量得到一次低调维护。"),
+      receiptTitle: "本次摸鱼记录",
+      rewardLabel: `+${state.activityResult.reward.score} 分 · 抽豆进度 +${state.activityResult.reward.drawProgress} · 机会 +${granted}`,
+      doneForToday
+    };
+  }
+
+  if (state.lastResult) {
+    const rewarded = state.lastResult.reward.rewarded;
+    const chances = state.lastResult.reward.drawChancesGranted ?? 0;
+    return {
+      kind: "check-in",
+      title: rewarded ? "这次休息已被系统承认" : "短休也算给脑子开窗",
+      copy: chances > 0
+        ? "休息结束，顺便摸到一次抽豆机会。"
+        : rewarded
+          ? "休息记录已入账，今天又多了一点不卷证明。"
+          : "时间短了点，但从人类体验上看仍然成立。",
+      receiptTitle: "本次打卡回执",
+      rewardLabel: `+${state.lastResult.reward.score} 分 · 抽豆进度 +${state.lastResult.reward.drawProgress} · 机会 +${chances}`,
+      doneForToday
+    };
+  }
+
+  if (state.beanDrawResult) {
+    return {
+      kind: "bean-draw",
+      title: state.beanDrawResult.duplicate ? "重复豆也有它的碎片价值" : "新豆入仓，今日有点东西",
+      copy: state.beanDrawResult.duplicate
+        ? `转化为 ${state.beanDrawResult.fragmentsGranted} 个碎片，豆仓没有白忙。`
+        : `${state.beanDrawResult.bean.name} 已加入展示名单，今天的休息证据更完整了。`,
+      receiptTitle: "抽豆回执",
+      rewardLabel: state.beanDrawResult.duplicate
+        ? `碎片 +${state.beanDrawResult.fragmentsGranted} · 剩余机会 ${state.beanDrawResult.remainingDrawChances}`
+        : `图鉴更新 · 剩余机会 ${state.beanDrawResult.remainingDrawChances}`,
+      doneForToday
+    };
+  }
+
+  if (state.claimableGoalPeriod) {
+    return {
+      kind: "goal-reward",
+      title: "成长奖励可以收口",
+      copy: `领取${state.claimableGoalPeriod === "daily" ? "今日" : "本周"}奖励后，这段努力就正式归档。`,
+      receiptTitle: "成长回执",
+      rewardLabel: "奖励以实际领取结果为准",
+      doneForToday
+    };
+  }
+
+  return null;
 }
 
 function buildResultFollowUps(state: {

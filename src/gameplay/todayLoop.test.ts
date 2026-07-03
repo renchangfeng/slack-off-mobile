@@ -113,6 +113,7 @@ describe("deriveTodayPlayLoop", () => {
 
     expect(vm.primaryNextAction?.kind).toBe("check-in");
     expect(vm.routeSteps[0].status).toBe("active");
+    expect(vm.routeDelight.mood).toBe("in-progress");
   });
 
   it("starts with check-in before existing draw chances when today's check-in is incomplete", () => {
@@ -130,6 +131,8 @@ describe("deriveTodayPlayLoop", () => {
 
     expect(vm.primaryNextAction?.kind).toBe("check-in");
     expect(vm.secondaryActions.map((action) => action.kind)).toContain("bean-draw");
+    expect(vm.routeProgress.progressLabel).toBe("0/4");
+    expect(vm.routeDelight.mood).toBe("first-open");
   });
 
   it("promotes active activity after today's check-in is complete", () => {
@@ -151,6 +154,7 @@ describe("deriveTodayPlayLoop", () => {
     });
 
     expect(vm.primaryNextAction?.kind).toBe("activity");
+    expect(vm.routeProgress.completedCoreSteps).toBe(1);
   });
 
   it("uses activity result draw chance as result follow-up", () => {
@@ -174,6 +178,9 @@ describe("deriveTodayPlayLoop", () => {
     expect(vm.primaryNextAction?.kind).toBe("bean-draw");
     expect(vm.resultFollowUps.primary?.kind).toBe("bean-draw");
     expect(vm.drawChanceSource).toBe("activity");
+    expect(vm.resultDelight?.kind).toBe("activity");
+    expect(vm.resultDelight?.receiptTitle).toBe("本次摸鱼记录");
+    expect(vm.routeDelight.mood).toBe("reward-ready");
   });
 
   it("surfaces claimable goal rewards before achievements", () => {
@@ -199,5 +206,62 @@ describe("deriveTodayPlayLoop", () => {
 
     expect(vm.primaryNextAction?.kind).toBe("goal-reward");
     expect(vm.primaryNextAction?.rewardPreview).toEqual({ score: 12, drawProgress: 1, drawChances: 0 });
+    expect(vm.routeDelight.mood).toBe("reward-ready");
+  });
+
+  it("keeps achievement recommendations as optional follow-ups after core route actions", () => {
+    const base = progression();
+    const vm = deriveTodayPlayLoop({
+      activeSession: null,
+      lastResult: null,
+      activityAssignment: null,
+      activityResult: null,
+      beanCollection: { drawChances: 0 } as never,
+      beanDrawResult: null,
+      progression: progression({
+        dailyGoals: {
+          ...base.dailyGoals,
+          completed: 3,
+          allCompleted: true,
+          rewardClaimed: true,
+          goals: [goal("check_in", true), goal("activity", true), goal("bean_draw", true)]
+        }
+      }),
+      achievementList: achievements(),
+      activityUnavailable: true
+    });
+
+    expect(vm.primaryNextAction).toBeNull();
+    expect(vm.secondaryActions.map((action) => action.kind)).toContain("achievement");
+    expect(vm.routeDelight.mood).toBe("optional-follow-up");
+    expect(vm.routeProgress.progressLabel).toBe("4/4");
+  });
+
+  it("shows done-for-today when core route is complete and no optional chase exists", () => {
+    const base = progression();
+    const vm = deriveTodayPlayLoop({
+      activeSession: null,
+      lastResult: null,
+      activityAssignment: null,
+      activityResult: null,
+      beanCollection: { drawChances: 0 } as never,
+      beanDrawResult: null,
+      progression: progression({
+        dailyGoals: {
+          ...base.dailyGoals,
+          completed: 3,
+          allCompleted: true,
+          rewardClaimed: true,
+          goals: [goal("check_in", true), goal("activity", true), goal("bean_draw", true)]
+        }
+      }),
+      achievementList: null,
+      activityUnavailable: true
+    });
+
+    expect(vm.primaryNextAction).toBeNull();
+    expect(vm.routeDelight.doneForToday).toBe(true);
+    expect(vm.routeDelight.mood).toBe("done-for-today");
+    expect(vm.routeProgress.stageLabel).toBe("今日收工");
   });
 });

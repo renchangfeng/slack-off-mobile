@@ -6,14 +6,23 @@ import { DashboardCard } from "./DashboardCard";
 import type { CheckInFinishResult } from "../../../api/checkins";
 import styles from "../styles";
 import type { DerivedGameplayStep } from "../types";
+import type { TodayLoopResultDelight } from "../../../gameplay/todayLoop";
 
 export function CheckInResult({
   result,
-  nextStep
+  nextStep,
+  delight
 }: {
   result: CheckInFinishResult;
   nextStep: DerivedGameplayStep;
+  delight?: TodayLoopResultDelight | null;
 }) {
+  const title =
+    delight?.title ??
+    (result.reward.rewarded ? "这次休息被系统正式承认" : "这次太短，精神上仍然算数");
+  const rewardLabel =
+    delight?.rewardLabel ??
+    `得分 +${result.reward.score} · 抽豆进度 +${result.reward.drawProgress} · 机会 +${result.reward.drawChancesGranted ?? 0}`;
   return (
     <MotionFeedback
       variant="check-in"
@@ -22,20 +31,17 @@ export function CheckInResult({
     >
       <DashboardCard>
         <SectionHeader
-          kicker="本次结算"
-          title={
-            result.reward.rewarded
-              ? "这次休息被系统正式承认"
-              : "这次太短，精神上仍然算数"
-          }
+          kicker={delight?.receiptTitle ?? "本次结算"}
+          title={title}
         />
         <View style={{ alignItems: "center", marginVertical: 12 }}>
           <ArtSlot slotId="home-check-in-character" size={64} />
         </View>
-        <Text style={styles.copy}>
-          得分 +{result.reward.score} · 抽豆进度 +{result.reward.drawProgress} · 机会 +
-          {result.reward.drawChancesGranted ?? 0}
-        </Text>
+        <Text style={styles.copy}>{delight?.copy ?? "休息结果已结算。"}</Text>
+        <View style={styles.resultReceiptBox}>
+          <Text style={styles.kicker}>奖励回执</Text>
+          <Text style={styles.rowTitle}>{rewardLabel}</Text>
+        </View>
         <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
       </DashboardCard>
     </MotionFeedback>

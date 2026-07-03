@@ -166,6 +166,51 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 14
   },
+  todayRouteHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "space-between"
+  },
+  todayRouteProgressPill: {
+    backgroundColor: "#18232b",
+    borderRadius: 8,
+    minWidth: 58,
+    paddingHorizontal: 10,
+    paddingVertical: 7
+  },
+  todayRouteProgressText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  todayRouteProgressTrack: {
+    backgroundColor: "#e2dbd0",
+    borderColor: "#d8d0c4",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 10,
+    marginBottom: 10,
+    marginTop: 8,
+    overflow: "hidden"
+  },
+  todayRouteProgressFill: {
+    backgroundColor: "#1f8f62",
+    height: "100%"
+  },
+  todayRouteDelightBox: {
+    backgroundColor: "#fff8df",
+    borderColor: "#d4a838",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+    padding: 12
+  },
+  todayRouteDelightBoxDone: {
+    backgroundColor: "#edf8f2",
+    borderColor: "#82b99f"
+  },
   todayRouteStep: {
     alignItems: "center",
     backgroundColor: "#f4f0e8",
@@ -275,6 +320,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 14,
     padding: 14
+  },
+  resultReceiptBox: {
+    backgroundColor: "#fffdf8",
+    borderColor: "#d8d0c4",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+    padding: 12
   },
   activityResultCertificate: {
     backgroundColor: "#eef7f3",

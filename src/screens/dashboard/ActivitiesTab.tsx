@@ -43,6 +43,8 @@ export function ActivitiesTab({
   const activityCanComplete = assignment
     ? isActivityInteractionComplete(assignment, progress)
     : false;
+  const activityDelight =
+    todayLoop.resultDelight?.kind === "activity" ? todayLoop.resultDelight : null;
 
   return (
     <>
@@ -224,21 +226,25 @@ export function ActivitiesTab({
                 {activityResultPresentation?.badge ?? "活动完成"}
               </Text>
               <Text style={styles.activityResultTitle}>
-                {result.resultTitle ?? "活动奖励已结算"}
+                {activityDelight?.title ?? result.resultTitle ?? "活动奖励已结算"}
               </Text>
-              {result.resultCopy ? (
-                <Text style={styles.helperText}>{result.resultCopy}</Text>
-              ) : null}
-              <Text style={styles.rowMeta}>
-                +{result.reward.score} 分 · 进度 +
-                {result.reward.drawProgress} · 抽豆机会 +
-                {result.reward.drawChancesGranted}
+              <Text style={styles.helperText}>
+                {activityDelight?.copy ?? result.resultCopy ?? "这次摸鱼记录已经归档。"}
               </Text>
+              <View style={styles.resultReceiptBox}>
+                <Text style={styles.kicker}>奖励回执</Text>
+                <Text style={styles.rowTitle}>
+                  {activityDelight?.rewardLabel ??
+                    `+${result.reward.score} 分 · 进度 +${result.reward.drawProgress} · 抽豆机会 +${result.reward.drawChancesGranted}`}
+                </Text>
+              </View>
               {result.stepSummaries?.length ? (
                 <StepReceipt summaries={result.stepSummaries} />
               ) : null}
               <Text style={styles.helperText}>{result.feedback}</Text>
-              <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
+              <Text style={styles.helperText}>
+                下一步：{todayLoop.resultFollowUps.primary?.title ?? nextStep.title}
+              </Text>
               <ResultFollowUps
                 loading={loading}
                 todayLoop={todayLoop}
@@ -363,6 +369,7 @@ function ResultFollowUps({
   }
   return (
     <View style={styles.resultFollowUpBox}>
+      <Text style={styles.kicker}>接下来</Text>
       {primary ? (
         <ActionButton
           label={primary.actionLabel}

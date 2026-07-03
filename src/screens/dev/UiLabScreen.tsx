@@ -764,6 +764,25 @@ function PlayLoopSpecimens() {
       goals: []
     }
   }) as never;
+  const achievementList = ({
+    achievements: [],
+    recommendations: {
+      today: [
+        {
+          id: "lab-achievement",
+          code: "lab-achievement",
+          name: "离摸鱼大师只差一步",
+          recommendationReason: "今天顺手能推进",
+          remainingEffortLabel: "还差 1 次",
+          actionHint: { section: "activities", label: "去活动" },
+          targetSection: "activities",
+          progress: { current: 4, target: 5, unit: "count", percent: 80, completed: false }
+        }
+      ],
+      nearest: [],
+      long_term: []
+    }
+  }) as never;
 
   const specimens: Array<{ label: string; vm: TodayLoopViewModel }> = [
     {
@@ -863,6 +882,20 @@ function PlayLoopSpecimens() {
         achievementList: null,
         activityUnavailable: true
       })
+    },
+    {
+      label: "Achievement optional",
+      vm: deriveTodayPlayLoop({
+        activeSession: null,
+        lastResult: null,
+        activityAssignment: null,
+        activityResult: null,
+        beanCollection: { drawChances: 0, drawProgress: 0 } as never,
+        beanDrawResult: null,
+        progression: doneProgression,
+        achievementList,
+        activityUnavailable: true
+      })
     }
   ];
 
@@ -871,9 +904,19 @@ function PlayLoopSpecimens() {
       {specimens.map(({ label, vm }) => (
         <FramedCard key={label} style={styles.flowSpecimenCard}>
           <Text style={styles.miniSpecimenType}>{label}</Text>
-          <Text style={styles.miniSpecimenTitle}>{vm.primaryNextAction?.title ?? "Done"}</Text>
+          <Text style={styles.miniSpecimenTitle}>{vm.routeDelight.title}</Text>
+          <Text style={styles.themeMeta}>
+            {vm.routeDelight.mood} · {vm.routeProgress.progressLabel} · 360px QA
+          </Text>
           <Text style={styles.copy}>{vm.loopMessage}</Text>
-          <Text style={styles.themeMeta}>Home order: status → check-in → route → result → goals</Text>
+          <Text style={styles.copy}>{vm.routeDelight.copy}</Text>
+          {vm.resultDelight ? (
+            <View style={styles.playLoopSpecimenReceipt}>
+              <Text style={styles.miniSpecimenType}>{vm.resultDelight.receiptTitle}</Text>
+              <Text style={styles.playLoopSpecimenText}>{vm.resultDelight.title}</Text>
+              <Text style={styles.themeMeta}>{vm.resultDelight.rewardLabel}</Text>
+            </View>
+          ) : null}
           {vm.routeSteps.slice(0, 4).map((step) => (
             <View key={step.id} style={styles.playLoopSpecimenRow}>
               <StatusBadge
@@ -1212,7 +1255,7 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         </Surface>
 
         <Surface>
-          <SectionHeader title="Home hierarchy" kicker="TODAY ROUTE" />
+          <SectionHeader title="Daily loop delight" kicker="TODAY ROUTE" />
           <PlayLoopSpecimens />
         </Surface>
 
@@ -1555,6 +1598,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     marginTop: spacing.sm
+  },
+  playLoopSpecimenReceipt: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mintMid,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginTop: spacing.sm,
+    padding: spacing.sm
   },
   playLoopSpecimenText: {
     color: colors.ink,

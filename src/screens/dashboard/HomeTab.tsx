@@ -28,6 +28,10 @@ export function HomeTab({
   actions
 }: HomeTabProps) {
   const hasRoutePrimaryAction = Boolean(todayLoop.primaryNextAction);
+  const shouldShowFallback =
+    !hasRoutePrimaryAction &&
+    !todayLoop.routeDelight.doneForToday &&
+    todayLoop.routeDelight.mood !== "optional-follow-up";
 
   return (
     <>
@@ -67,7 +71,7 @@ export function HomeTab({
         todayLoop={todayLoop}
         onAction={actions.runTodayLoopAction}
       />
-      {!hasRoutePrimaryAction ? (
+      {shouldShowFallback ? (
         <View style={styles.nextStepFallbackPanel}>
           <Text style={styles.darkKicker}>备用下一步</Text>
           <Text style={styles.nextStepTitle}>{nextStep.title}</Text>
@@ -80,7 +84,13 @@ export function HomeTab({
           />
         </View>
       ) : null}
-      {lastResult ? <CheckInResult result={lastResult} nextStep={nextStep} /> : null}
+      {lastResult ? (
+        <CheckInResult
+          result={lastResult}
+          nextStep={nextStep}
+          delight={todayLoop.resultDelight?.kind === "check-in" ? todayLoop.resultDelight : null}
+        />
+      ) : null}
       {progressionClaim ? (
         <ProgressionClaimResultPanel result={progressionClaim} nextStep={nextStep} />
       ) : null}
@@ -110,8 +120,33 @@ function TodayPlayRoute({
   const primary = todayLoop.primaryNextAction;
   return (
     <DashboardCard>
-      <SectionHeader kicker="今日摸鱼路线" title="先休息，再交差，最后摸豆" />
+      <View style={styles.todayRouteHeader}>
+        <View style={styles.flex}>
+          <SectionHeader kicker="今日摸鱼路线" title={todayLoop.routeDelight.title} />
+        </View>
+        <View style={styles.todayRouteProgressPill}>
+          <Text style={styles.todayRouteProgressText}>{todayLoop.routeProgress.progressLabel}</Text>
+        </View>
+      </View>
+      <View style={styles.todayRouteProgressTrack}>
+        <View
+          style={[
+            styles.todayRouteProgressFill,
+            { width: `${todayLoop.routeProgress.percent}%` }
+          ]}
+        />
+      </View>
+      <Text style={styles.kickerSection}>{todayLoop.routeProgress.stageLabel}</Text>
       <Text style={styles.copy}>{todayLoop.loopMessage}</Text>
+      <View
+        style={[
+          styles.todayRouteDelightBox,
+          todayLoop.routeDelight.doneForToday && styles.todayRouteDelightBoxDone
+        ]}
+      >
+        <Text style={styles.rowTitle}>{todayLoop.routeDelight.title}</Text>
+        <Text style={styles.rowMeta}>{todayLoop.routeDelight.copy}</Text>
+      </View>
       <View style={styles.todayRouteList}>
         {todayLoop.routeSteps.slice(0, 5).map((step) => (
           <RouteStep key={step.id} step={step} />

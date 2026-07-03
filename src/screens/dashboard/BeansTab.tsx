@@ -25,6 +25,8 @@ export function BeansTab({
   todayLoop,
   actions
 }: BeansTabProps) {
+  const beanDelight =
+    todayLoop.resultDelight?.kind === "bean-draw" ? todayLoop.resultDelight : null;
   return (
     <>
       <GoalBanner goal={goal} />
@@ -161,14 +163,16 @@ export function BeansTab({
             </View>
             <Text style={styles.kicker}>抽豆结果</Text>
             <Text style={styles.sectionTitle}>
-              {drawResult.resultTitle ?? drawResult.bean.name}
+              {beanDelight?.title ?? drawResult.resultTitle ?? drawResult.bean.name}
             </Text>
             <Text style={styles.accentMeta}>
               {drawResult.bean.name} ·{" "}
               {beanThemeLabel(drawResult.bean.theme)} ·{" "}
               {rarityLabel(drawResult.bean.rarity)}
             </Text>
-            <Text style={styles.copy}>{drawResult.bean.description}</Text>
+            <Text style={styles.copy}>
+              {beanDelight?.copy ?? drawResult.bean.description}
+            </Text>
             <View style={{ marginTop: 8 }}>
               <RewardRow
                 icon={drawResult.duplicate ? "🧩" : "🫘"}
@@ -185,6 +189,15 @@ export function BeansTab({
                 label="剩余机会"
                 value={`${drawResult.remainingDrawChances} 次`}
               />
+            </View>
+            <View style={styles.resultReceiptBox}>
+              <Text style={styles.kicker}>{beanDelight?.receiptTitle ?? "抽豆回执"}</Text>
+              <Text style={styles.rowTitle}>
+                {beanDelight?.rewardLabel ??
+                  (drawResult.duplicate
+                    ? `碎片 +${drawResult.fragmentsGranted} · 剩余机会 ${drawResult.remainingDrawChances}`
+                    : `图鉴更新 · 剩余机会 ${drawResult.remainingDrawChances}`)}
+              </Text>
             </View>
             <Text style={styles.helperText}>
               下一步：{drawResult.nextHint ?? nextStep.title}
