@@ -146,20 +146,29 @@ export function ActivitiesTab({
                 推荐理由：{assignment.recommendationExplanation}
               </Text>
             ) : null}
-            <ActivityInteractionRunner
-              assignment={assignment}
-              progress={progress}
-              onChange={actions.setProgress}
-            />
-            <ActionButton
-              label={activityActionLabel(assignment.status, activityCanComplete)}
-              disabled={
-                loading ||
-                assignment.status !== "active" ||
-                !activityCanComplete
-              }
-              onPress={actions.completeActivity}
-            />
+            {assignment.status === "completed" ? (
+              <ActivityAssignmentStatusPanel
+                title="本次活动已完成"
+                body="互动记录和奖励回执已经归档在下面，不用再重复操作。"
+              />
+            ) : (
+              <>
+                <ActivityInteractionRunner
+                  assignment={assignment}
+                  progress={progress}
+                  onChange={actions.setProgress}
+                />
+                <ActionButton
+                  label={activityActionLabel(assignment.status, activityCanComplete)}
+                  disabled={
+                    loading ||
+                    assignment.status !== "active" ||
+                    !activityCanComplete
+                  }
+                  onPress={actions.completeActivity}
+                />
+              </>
+            )}
             {assignment.status === "active" ? (
               <>
                 <View style={styles.skipReasonBox}>
@@ -398,6 +407,27 @@ function ActivityFeedbackPrompt({
       {acknowledgement ? null : (
         <Text style={styles.smallCopy}>可选反馈，只影响以后推荐，不影响本次奖励。</Text>
       )}
+    </View>
+  );
+}
+
+function ActivityAssignmentStatusPanel({
+  title,
+  body
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <View style={styles.interactionPanel}>
+      <View style={styles.rowBetween}>
+        <View style={styles.flex}>
+          <Text style={styles.kicker}>互动流程</Text>
+          <Text style={styles.rowTitle}>{title}</Text>
+        </View>
+        <Text style={styles.completedMark}>完成</Text>
+      </View>
+      <Text style={styles.helperText}>{body}</Text>
     </View>
   );
 }
