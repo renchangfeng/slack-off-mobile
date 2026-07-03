@@ -1,10 +1,12 @@
 export { AckInteraction } from "./AckInteraction";
 export { BreathInteraction } from "./BreathInteraction";
 export { ChoiceInteraction } from "./ChoiceInteraction";
+export { FallbackInteraction } from "./FallbackInteraction";
 export { MicroJournalInteraction } from "./MicroJournalInteraction";
 export { MiniGameInteraction } from "./MiniGameInteraction";
 export { ReactionInteraction } from "./ReactionInteraction";
 export { RevealInteraction } from "./RevealInteraction";
 export { ShufflePickInteraction } from "./ShufflePickInteraction";
 export { SortInteraction } from "./SortInteraction";
+export { StepSummary } from "./StepSummary";
 export { TapPatternInteraction } from "./TapPatternInteraction";

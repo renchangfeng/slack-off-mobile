@@ -8,7 +8,9 @@ import type { ActivityAssignment, ActivityInteractionProgress } from "../../api/
 import {
   BreathInteraction,
   ChoiceInteraction,
+  FallbackInteraction,
   MicroJournalInteraction,
+  MiniGameInteraction,
   ReactionInteraction,
   RevealInteraction,
   ShufflePickInteraction,
@@ -356,45 +358,107 @@ const MINI_INTERACTION_SPECIMENS: MiniStep[] = [
       { id: "water", label: "多喝一口" },
       { id: "window", label: "看云五秒" }
     ]
-  }
+  },
+  {
+    id: "mini-game",
+    type: "mini_game",
+    title: "轻量小游戏入口",
+    description: "快速点击 5 次完成占位小游戏。",
+    required: true,
+    gameCode: "reaction_tap",
+    requiredResult: "点击 5 次"
+  },
+  {
+    id: "fallback",
+    type: "unknown_step" as unknown as MiniStep["type"],
+    title: "未知互动类型",
+    description: "当服务端下发新版本暂不支持的 step 类型时，显示安全回退。",
+    required: true
+  } as unknown as MiniStep
 ];
 
 function StepComponent({
   step,
   progress,
   onChange,
-  reducedMotion
+  reducedMotion,
+  disabled = false
 }: {
   step: MiniStep;
   progress: ActivityInteractionProgress;
   onChange: React.Dispatch<React.SetStateAction<ActivityInteractionProgress>>;
   reducedMotion: boolean;
+  disabled?: boolean;
 }) {
+  const props = { step, progress, onChange, reducedMotion, disabled };
   if (step.type === "tap-pattern") {
-    return <TapPatternInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+    return <TapPatternInteraction {...props} />;
   }
   if (step.type === "choice") {
-    return <ChoiceInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+    return <ChoiceInteraction {...props} />;
   }
   if (step.type === "shuffle-pick") {
-    return <ShufflePickInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+    return <ShufflePickInteraction {...props} />;
   }
   if (step.type === "sort") {
-    return <SortInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+    return <SortInteraction {...props} />;
   }
   if (step.type === "breath") {
-    return <BreathInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+    return <BreathInteraction {...props} />;
   }
   if (step.type === "reaction") {
-    return <ReactionInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+    return <ReactionInteraction {...props} />;
   }
   if (step.type === "micro-journal") {
-    return <MicroJournalInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+    return <MicroJournalInteraction {...props} />;
   }
   if (step.type === "reveal") {
-    return <RevealInteraction step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />;
+    return <RevealInteraction {...props} />;
   }
-  return <Text style={styles.copy}>Unsupported step type</Text>;
+  if (step.type === "mini_game") {
+    return <MiniGameInteraction {...props} />;
+  }
+  return <FallbackInteraction {...props} />;
+}
+
+function makeDisabledProgress(step: MiniStep): ActivityInteractionProgress {
+  if (step.type === "tap-pattern") {
+    return { tapCounts: { [step.id]: step.requiredTaps ?? 1 } };
+  }
+  if (step.type === "choice") {
+    const option = step.options?.[0];
+    return option ? { choiceAnswers: { [step.id]: option.id } } : {};
+  }
+  if (step.type === "shuffle-pick" || step.type === "reveal") {
+    const item = step.items?.[0];
+    return item ? { selectedOptions: { [step.id]: item.id } } : {};
+  }
+  if (step.type === "sort") {
+    return { sortedItemIds: { [step.id]: step.items?.map((item) => item.id) ?? [] } };
+  }
+  if (step.type === "breath") {
+    return { breathRounds: { [step.id]: step.requiredRounds ?? 1 } };
+  }
+  if (step.type === "reaction") {
+    const successCount = step.requiredSuccessCount ?? 1;
+    return {
+      reactionResults: {
+        [step.id]: { successCount, attempts: step.reactionRounds ?? successCount }
+      }
+    };
+  }
+  if (step.type === "micro-journal") {
+    const mode = step.journalMode ?? "text";
+    if (mode === "tags") {
+      const tag = step.tags?.[0];
+      return tag ? { journalEntries: { [step.id]: { tagIds: [tag.id] } } } : {};
+    }
+    return { journalEntries: { [step.id]: { text: "下班后就离线" } } };
+  }
+  if (step.type === "mini_game") {
+    return { miniGameResults: { [step.id]: { passed: true, score: 5 } } };
+  }
+  return {};
 }
 
 function MiniInteractionSpecimens() {
@@ -423,31 +487,57 @@ function MiniInteractionSpecimens() {
           <MiniInteractionCard key={step.id} step={step} reducedMotion={reducedMotion} />
         ))}
       </View>
+      <Text style={[styles.copy, { color: colors.inkMuted, marginTop: 16 }]}>
+        Disabled / summary states for completed, skipped, or expired assignments.
+      </Text>
+      <View style={styles.miniSpecimenGrid}>
+        {MINI_INTERACTION_SPECIMENS.map((step) => (
+          <MiniInteractionCard
+            key={`${step.id}-disabled`}
+            step={step}
+            reducedMotion={reducedMotion}
+            progress={makeDisabledProgress(step)}
+            disabled
+          />
+        ))}
+      </View>
     </View>
   );
 }
 
 function MiniInteractionCard({
   step,
-  reducedMotion
+  reducedMotion,
+  progress: initialProgress,
+  disabled = false
 }: {
   step: MiniStep;
   reducedMotion: boolean;
+  progress?: ActivityInteractionProgress;
+  disabled?: boolean;
 }) {
-  const [progress, setProgress] = useState<ActivityInteractionProgress>({});
+  const [progress, setProgress] = useState<ActivityInteractionProgress>(initialProgress ?? {});
 
   return (
     <FramedCard style={styles.miniSpecimenCard}>
-      <Text style={styles.miniSpecimenType}>{step.type}</Text>
+      <Text style={styles.miniSpecimenType}>{step.type}{disabled ? " · disabled" : ""}</Text>
       <Text style={styles.miniSpecimenTitle}>{step.title}</Text>
-      <StepComponent step={step} progress={progress} onChange={setProgress} reducedMotion={reducedMotion} />
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => setProgress({})}
-        style={styles.miniSpecimenReset}
-      >
-        <Text style={styles.miniSpecimenResetText}>重置</Text>
-      </Pressable>
+      <StepComponent
+        step={step}
+        progress={progress}
+        onChange={setProgress}
+        reducedMotion={reducedMotion}
+        disabled={disabled}
+      />
+      {disabled ? null : (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setProgress({})}
+          style={styles.miniSpecimenReset}
+        >
+          <Text style={styles.miniSpecimenResetText}>重置</Text>
+        </Pressable>
+      )}
     </FramedCard>
   );
 }

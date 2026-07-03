@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Text, View } from "react-native";
 import { ActionButton } from "../SharedControls";
 import { isStepComplete, markBreathRounds } from "./interactionProgress";
+import { StepSummary } from "./StepSummary";
 import type { ActivityStepInteractionProps } from "./types";
 import styles from "../../styles";
 
@@ -11,7 +12,8 @@ export function BreathInteraction({
   step,
   progress,
   onChange,
-  reducedMotion
+  reducedMotion,
+  disabled
 }: ActivityStepInteractionProps) {
   const required = step.requiredRounds ?? 1;
   const completedRounds = progress.breathRounds?.[step.id] ?? 0;
@@ -87,8 +89,13 @@ export function BreathInteraction({
   }
 
   function start() {
+    if (disabled) return;
     setPhase("inhale");
     setSecondsLeft(inhale);
+  }
+
+  if (disabled) {
+    return <StepSummary step={step} progress={progress} />;
   }
 
   const phaseLabel = {
@@ -133,7 +140,7 @@ export function BreathInteraction({
       <ActionButton
         label={completed ? "呼吸完成" : phase === "idle" ? "开始呼吸" : "呼吸中"}
         onPress={start}
-        disabled={phase !== "idle" || completed}
+        disabled={phase !== "idle" || completed || disabled}
       />
     </View>
   );

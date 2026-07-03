@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { markChoice, shouldLockChoiceSelection } from "./interactionProgress";
+import { StepSummary } from "./StepSummary";
 import type { ActivityStepInteractionProps } from "./types";
 import styles from "../../styles";
 
@@ -7,11 +8,15 @@ export function ChoiceInteraction({
   step,
   progress,
   onChange,
-  reducedMotion: _reducedMotion
+  disabled
 }: ActivityStepInteractionProps) {
   const selectedId = progress.choiceAnswers?.[step.id];
   const selectedOption = step.options?.find((option) => option.id === selectedId);
-  const shouldLockSelection = shouldLockChoiceSelection(step, progress);
+  const shouldLockSelection = shouldLockChoiceSelection(step, progress) || disabled;
+
+  if (disabled) {
+    return <StepSummary step={step} progress={progress} />;
+  }
 
   return (
     <View>

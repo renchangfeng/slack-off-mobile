@@ -5,17 +5,19 @@ import { markTimer } from "./interactionProgress";
 import type { ActivityStepInteractionProps } from "./types";
 import styles from "../../styles";
 
+import { StepSummary } from "./StepSummary";
+
 export function TimerInteraction({
   step,
   progress,
   onChange,
-  reducedMotion: _reducedMotion
+  disabled
 }: ActivityStepInteractionProps) {
   const completed = (progress.timerSeconds?.[step.id] ?? 0) >= (step.durationSeconds ?? 0);
   const [remaining, setRemaining] = useState<number | null>(null);
 
   useEffect(() => {
-    if (remaining === null || remaining <= 0 || completed) return;
+    if (disabled || remaining === null || remaining <= 0 || completed) return;
     const timer = setInterval(() => {
       setRemaining((current) => {
         const next = Math.max(0, (current ?? 0) - 1);
@@ -26,10 +28,15 @@ export function TimerInteraction({
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [completed, onChange, remaining, step.durationSeconds, step.id]);
+  }, [disabled, completed, onChange, remaining, step.durationSeconds, step.id]);
 
   function start() {
+    if (disabled) return;
     setRemaining(step.durationSeconds ?? 0);
+  }
+
+  if (disabled) {
+    return <StepSummary step={step} progress={progress} />;
   }
 
   return (
@@ -45,7 +52,7 @@ export function TimerInteraction({
       <ActionButton
         label={completed ? "倒计时完成" : remaining === null ? "开始倒计时" : "倒计时中"}
         onPress={start}
-        disabled={completed || remaining !== null}
+        disabled={completed || remaining !== null || disabled}
       />
     </View>
   );

@@ -11,4 +11,5 @@ export type ActivityStepInteractionProps = {
   progress: ActivityInteractionProgress;
   onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>;
   reducedMotion: boolean;
+  disabled?: boolean;
 };

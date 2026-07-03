@@ -101,6 +101,79 @@ export function shouldLockChoiceSelection(
   return answer === step.correctOptionId;
 }
 
+export function summarizeStep(
+  step: ActivityStep,
+  progress: ActivityInteractionProgress
+): string {
+  if (!isStepComplete(step, progress)) {
+    return "待完成";
+  }
+  if (step.type === "ack") {
+    return "已确认";
+  }
+  if (step.type === "timer") {
+    return `倒计时完成（${progress.timerSeconds?.[step.id] ?? step.durationSeconds ?? 0} 秒）`;
+  }
+  if (step.type === "choice") {
+    const answer = progress.choiceAnswers?.[step.id];
+    const option = step.options?.find((o) => o.id === answer);
+    return option ? `选择了「${option.label}」` : "完成选择";
+  }
+  if (step.type === "mini_game") {
+    const result = progress.miniGameResults?.[step.id];
+    return result?.passed ? `小游戏通过（分数 ${result.score ?? 0}）` : "完成小游戏";
+  }
+  if (step.type === "tap-pattern") {
+    return `点击 ${progress.tapCounts?.[step.id] ?? step.requiredTaps ?? 1} 次`;
+  }
+  if (step.type === "shuffle-pick" || step.type === "reveal") {
+    const selected = progress.selectedOptions?.[step.id];
+    const item = step.items?.find((i) => i.id === selected);
+    const verb = step.type === "reveal" ? "翻开" : "抽到";
+    return item ? `${verb}「${item.label}」` : "完成抽取";
+  }
+  if (step.type === "sort") {
+    return "完成排序";
+  }
+  if (step.type === "breath") {
+    return `完成 ${progress.breathRounds?.[step.id] ?? step.requiredRounds ?? 1} 轮呼吸`;
+  }
+  if (step.type === "reaction") {
+    const result = progress.reactionResults?.[step.id];
+    return result ? `命中 ${result.successCount} 次` : "完成反应挑战";
+  }
+  if (step.type === "micro-journal") {
+    const entry = progress.journalEntries?.[step.id];
+    const mode = step.journalMode ?? "text";
+    if (mode === "tags" && entry?.tagIds?.length) {
+      const labels = entry.tagIds
+        .map((id) => step.tags?.find((t) => t.id === id)?.label)
+        .filter(Boolean);
+      return `标记了：${labels.join("、")}`;
+    }
+    if (mode === "text" && entry?.text?.trim()) {
+      const snippet = entry.text.trim();
+      return `记录了「${snippet.length > 16 ? `${snippet.slice(0, 16)}…` : snippet}」`;
+    }
+    if (mode === "both" && entry) {
+      const pieces: string[] = [];
+      if (entry.text?.trim()) {
+        const snippet = entry.text.trim();
+        pieces.push(`记录了「${snippet.length > 12 ? `${snippet.slice(0, 12)}…` : snippet}」`);
+      }
+      if (entry.tagIds?.length) {
+        const labels = entry.tagIds
+          .map((id) => step.tags?.find((t) => t.id === id)?.label)
+          .filter(Boolean);
+        pieces.push(`标记了：${labels.join("、")}`);
+      }
+      return pieces.length ? pieces.join("，") : "完成记录";
+    }
+    return "完成记录";
+  }
+  return "已完成";
+}
+
 export function markAck(
   onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>,
   stepId: string

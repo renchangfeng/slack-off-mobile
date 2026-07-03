@@ -401,6 +401,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#edf8f2",
     borderColor: "#82b99f"
   },
+  interactionStepDisabled: {
+    opacity: 0.72
+  },
   timerMini: {
     color: "#232323",
     fontSize: 26,

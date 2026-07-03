@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { markTapPattern } from "./interactionProgress";
+import { StepSummary } from "./StepSummary";
 import type { ActivityStepInteractionProps } from "./types";
 import styles from "../../styles";
 
@@ -8,7 +9,8 @@ export function TapPatternInteraction({
   step,
   progress,
   onChange,
-  reducedMotion
+  reducedMotion,
+  disabled
 }: ActivityStepInteractionProps) {
   const required = step.requiredTaps ?? 1;
   const current = progress.tapCounts?.[step.id] ?? 0;
@@ -17,11 +19,15 @@ export function TapPatternInteraction({
   const [pulse, setPulse] = useState(false);
 
   function tap() {
-    if (completed) return;
+    if (completed || disabled) return;
     const next = current + 1;
     markTapPattern(onChange, step.id, next);
     setPulse(true);
     setTimeout(() => setPulse(false), reducedMotion ? 50 : 120);
+  }
+
+  if (disabled) {
+    return <StepSummary step={step} progress={progress} />;
   }
 
   const actionLabel = step.tapLabel ? `点一下${step.tapLabel}` : "点一下";
@@ -31,7 +37,7 @@ export function TapPatternInteraction({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${actionLabel}，还剩 ${remaining} 次`}
-        disabled={completed}
+        disabled={completed || disabled}
         onPress={tap}
         style={({ pressed }) => [
           tapStyles.area,

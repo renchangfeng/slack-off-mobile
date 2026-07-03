@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import { ActionButton } from "../SharedControls";
 import { markMiniGame } from "./interactionProgress";
+import { StepSummary } from "./StepSummary";
 import type { ActivityStepInteractionProps } from "./types";
 import styles from "../../styles";
 
@@ -9,17 +10,22 @@ export function MiniGameInteraction({
   step,
   progress,
   onChange,
-  reducedMotion: _reducedMotion
+  disabled
 }: ActivityStepInteractionProps) {
   const completed = progress.miniGameResults?.[step.id]?.passed === true;
   const [tapCount, setTapCount] = useState(0);
 
   function tap() {
+    if (disabled) return;
     const next = tapCount + 1;
     setTapCount(next);
     if (next >= 5) {
       markMiniGame(onChange, step.id, next);
     }
+  }
+
+  if (disabled) {
+    return <StepSummary step={step} progress={progress} />;
   }
 
   return (
@@ -31,7 +37,7 @@ export function MiniGameInteraction({
       <ActionButton
         label={completed ? "小游戏通过" : "快速点击"}
         onPress={tap}
-        disabled={completed}
+        disabled={completed || disabled}
       />
     </View>
   );

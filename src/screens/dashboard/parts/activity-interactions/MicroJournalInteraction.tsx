@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { ActionButton } from "../SharedControls";
 import { isStepComplete, markJournalEntry } from "./interactionProgress";
+import { StepSummary } from "./StepSummary";
 import type { ActivityStepInteractionProps } from "./types";
 import styles from "../../styles";
 
@@ -9,7 +10,7 @@ export function MicroJournalInteraction({
   step,
   progress,
   onChange,
-  reducedMotion: _reducedMotion
+  disabled
 }: ActivityStepInteractionProps) {
   const mode = step.journalMode ?? "text";
   const entry = progress.journalEntries?.[step.id] ?? {};
@@ -38,6 +39,7 @@ export function MicroJournalInteraction({
   }, [selectedTagIds, tagMin, tagMax, step.tags, mode]);
 
   function submit() {
+    if (disabled) return;
     const payload: { text?: string; tagIds?: string[] } = {};
     if ((mode === "text" || mode === "both") && textValid) {
       payload.text = text;
@@ -49,14 +51,16 @@ export function MicroJournalInteraction({
   }
 
   function toggleTag(tagId: string) {
-    if (completed) return;
+    if (completed || disabled) return;
     setSelectedTagIds((current) =>
       current.includes(tagId) ? current.filter((id) => id !== tagId) : [...current, tagId]
     );
   }
 
   const canSubmit =
-    (mode === "text" ? textValid : mode === "tags" ? tagsValid : textValid && tagsValid) && !completed;
+    (mode === "text" ? textValid : mode === "tags" ? tagsValid : textValid && tagsValid) &&
+    !completed &&
+    !disabled;
 
   const hintText =
     mode === "text"
@@ -64,6 +68,10 @@ export function MicroJournalInteraction({
       : mode === "tags"
         ? `选 ${tagMin}-${tagMax} 个标签`
         : `文字 ${textMin}-${textMax} 字，并选 ${tagMin}-${tagMax} 个标签`;
+
+  if (disabled) {
+    return <StepSummary step={step} progress={progress} />;
+  }
 
   return (
     <View>

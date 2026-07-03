@@ -11,6 +11,7 @@ import styles from "../styles";
 import { AckInteraction } from "./activity-interactions/AckInteraction";
 import { BreathInteraction } from "./activity-interactions/BreathInteraction";
 import { ChoiceInteraction } from "./activity-interactions/ChoiceInteraction";
+import { FallbackInteraction } from "./activity-interactions/FallbackInteraction";
 import { MicroJournalInteraction } from "./activity-interactions/MicroJournalInteraction";
 import { MiniGameInteraction } from "./activity-interactions/MiniGameInteraction";
 import { ReactionInteraction } from "./activity-interactions/ReactionInteraction";
@@ -70,6 +71,7 @@ export function ActivityInteractionRunner({
           step={step}
           progress={progress}
           onChange={onChange}
+          status={assignment.status}
         />
       ))}
     </View>
@@ -80,20 +82,29 @@ function ActivityStepCard({
   index,
   step,
   progress,
-  onChange
+  onChange,
+  status
 }: {
   index: number;
   step: ActivityAssignment["interaction"]["steps"][number];
   progress: ActivityInteractionProgress;
   onChange: Dispatch<SetStateAction<ActivityInteractionProgress>>;
+  status: ActivityAssignment["status"];
 }) {
   const reducedMotion = useReducedMotion();
   const completed = isActivityStepComplete(step, progress);
-  const Body = STEP_COMPONENTS[step.type];
+  const disabled = status !== "active";
+  const Body = STEP_COMPONENTS[step.type] ?? FallbackInteraction;
 
   return (
     <MotionFeedback variant="activity-step" trigger={completed ? `${step.id}:done` : undefined}>
-      <View style={[styles.interactionStep, completed && styles.interactionStepDone]}>
+      <View
+        style={[
+          styles.interactionStep,
+          completed && styles.interactionStepDone,
+          disabled && styles.interactionStepDisabled
+        ]}
+      >
         <View style={styles.rowBetween}>
           <Text style={styles.kicker}>第 {index + 1} 步 · {activityStepTypeLabel(step.type)}</Text>
           <View style={{ alignItems: "center", flexDirection: "row", gap: 6 }}>
@@ -105,11 +116,13 @@ function ActivityStepCard({
         </View>
         <Text style={styles.rowTitle}>{step.title}</Text>
         <Text style={styles.rowMeta}>{step.description}</Text>
-        {Body ? (
-          <Body step={step} progress={progress} onChange={onChange} reducedMotion={reducedMotion} />
-        ) : (
-          <Text style={styles.helperText}>暂不支持此互动类型</Text>
-        )}
+        <Body
+          step={step}
+          progress={progress}
+          onChange={onChange}
+          reducedMotion={reducedMotion}
+          disabled={disabled}
+        />
       </View>
     </MotionFeedback>
   );

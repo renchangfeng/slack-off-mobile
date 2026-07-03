@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { ActionButton } from "../SharedControls";
 import { isStepComplete, markReactionResult } from "./interactionProgress";
+import { StepSummary } from "./StepSummary";
 import type { ActivityStepInteractionProps } from "./types";
 import styles from "../../styles";
 
@@ -11,7 +12,8 @@ export function ReactionInteraction({
   step,
   progress,
   onChange,
-  reducedMotion
+  reducedMotion,
+  disabled
 }: ActivityStepInteractionProps) {
   const required = step.requiredSuccessCount ?? 1;
   const totalRounds = step.reactionRounds ?? required;
@@ -37,7 +39,7 @@ export function ReactionInteraction({
   }, []);
 
   function startRound() {
-    if (resultRef.current.attempts >= totalRounds || completed) return;
+    if (disabled || resultRef.current.attempts >= totalRounds || completed) return;
     setState("waiting");
     const delay = 1000 + Math.random() * 1500;
     timeoutRef.current = setTimeout(() => {
@@ -49,10 +51,9 @@ export function ReactionInteraction({
   }
 
   function tap() {
-    if (state === "ready") {
-      if (windowRef.current) clearTimeout(windowRef.current);
-      finishRound(true);
-    }
+    if (disabled || state !== "ready") return;
+    if (windowRef.current) clearTimeout(windowRef.current);
+    finishRound(true);
   }
 
   function finishRound(success: boolean) {
@@ -75,13 +76,17 @@ export function ReactionInteraction({
     hit: "命中"
   };
 
+  if (disabled) {
+    return <StepSummary step={step} progress={progress} />;
+  }
+
   return (
     <View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`反应区域，${stateLabel[state]}`}
         onPress={tap}
-        disabled={state !== "ready"}
+        disabled={state !== "ready" || disabled}
         style={{
           alignItems: "center",
           backgroundColor:
@@ -129,7 +134,7 @@ export function ReactionInteraction({
       <ActionButton
         label={completed ? "反应挑战完成" : canStart ? "开始" : "进行中"}
         onPress={startRound}
-        disabled={!canStart || completed}
+        disabled={!canStart || completed || disabled}
       />
     </View>
   );

@@ -1,13 +1,14 @@
 import { useRef } from "react";
 import { Pressable, Text, View } from "react-native";
 import { markSelectedOption } from "./interactionProgress";
+import { StepSummary } from "./StepSummary";
 import type { ActivityStepInteractionProps } from "./types";
 
 export function ShufflePickInteraction({
   step,
   progress,
   onChange,
-  reducedMotion: _reducedMotion
+  disabled
 }: ActivityStepInteractionProps) {
   const selectedId = progress.selectedOptions?.[step.id];
   const selectedItem = step.items?.find((item) => item.id === selectedId);
@@ -17,6 +18,10 @@ export function ShufflePickInteraction({
     [...(step.items ?? [])].sort(() => Math.random() - 0.5)
   );
   const items = itemsRef.current;
+
+  if (disabled) {
+    return <StepSummary step={step} progress={progress} />;
+  }
 
   return (
     <View style={{ gap: 8, marginTop: 12 }}>
@@ -35,7 +40,7 @@ export function ShufflePickInteraction({
                   ? `未抽中，第 ${index + 1} 张`
                   : `第 ${index + 1} 张，点击抽取`
             }
-            disabled={completed}
+            disabled={completed || disabled}
             onPress={() => markSelectedOption(onChange, step.id, item.id)}
             style={{
               alignItems: "center",

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { ActionButton } from "../SharedControls";
 import { isStepComplete, markSortedItems } from "./interactionProgress";
+import { StepSummary } from "./StepSummary";
 import type { ActivityStepInteractionProps } from "./types";
 import styles from "../../styles";
 
@@ -9,7 +10,7 @@ export function SortInteraction({
   step,
   progress,
   onChange,
-  reducedMotion: _reducedMotion
+  disabled
 }: ActivityStepInteractionProps) {
   const items = step.items ?? [];
   const submitted = progress.sortedItemIds?.[step.id];
@@ -33,6 +34,10 @@ export function SortInteraction({
   const accepted = submitted && isStepComplete(step, progress);
   const needsCorrectOrder = step.correctOrder && step.correctOrder.length > 0;
 
+  if (disabled) {
+    return <StepSummary step={step} progress={progress} />;
+  }
+
   return (
     <View>
       <View style={{ gap: 6, marginTop: 12 }}>
@@ -43,8 +48,8 @@ export function SortInteraction({
             <View key={id} style={styles.sortRow}>
               <Text style={styles.sortLabel}>{index + 1}. {item.label}</Text>
               <View style={{ flexDirection: "row", gap: 6 }}>
-                <SortArrow onPress={() => move(id, -1)} label="↑" disabled={completed} />
-                <SortArrow onPress={() => move(id, 1)} label="↓" disabled={completed} />
+                <SortArrow onPress={() => move(id, -1)} label="↑" disabled={Boolean(completed || disabled)} />
+                <SortArrow onPress={() => move(id, 1)} label="↓" disabled={Boolean(completed || disabled)} />
               </View>
             </View>
           );
@@ -53,7 +58,7 @@ export function SortInteraction({
       <ActionButton
         label={accepted ? "已提交排序" : "提交排序"}
         onPress={submit}
-        disabled={completed}
+        disabled={completed || disabled}
       />
       {submitted ? (
         <Text style={styles.helperText}>

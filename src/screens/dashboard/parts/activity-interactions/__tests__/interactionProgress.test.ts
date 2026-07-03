@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   isStepComplete,
   markTapPattern,
-  shouldLockChoiceSelection
+  shouldLockChoiceSelection,
+  summarizeStep
 } from "../interactionProgress";
 import type { ActivityStep } from "../types";
 
@@ -22,6 +23,12 @@ describe("isStepComplete", () => {
     const step = makeStep("ack");
     expect(isStepComplete(step, {})).toBe(false);
     expect(isStepComplete(step, { completedStepIds: ["step"] })).toBe(true);
+  });
+
+  it("unknown step types are not treated as complete by ack progress", () => {
+    const step = makeStep("unknown-step" as ActivityStep["type"]);
+    expect(isStepComplete(step, { completedStepIds: ["step"] })).toBe(false);
+    expect(summarizeStep(step, { completedStepIds: ["step"] })).toBe("待完成");
   });
 
   it("timer requires enough seconds", () => {
@@ -163,5 +170,92 @@ describe("markTapPattern", () => {
       progress = typeof value === "function" ? value(progress) : value;
     }, "step", 4);
     expect(progress).toEqual({ tapCounts: { step: 4 } });
+  });
+});
+
+describe("summarizeStep", () => {
+  it("returns pending for incomplete step", () => {
+    const step = makeStep("ack");
+    expect(summarizeStep(step, {})).toBe("待完成");
+  });
+
+  it("summarizes choice selection", () => {
+    const step = makeStep("choice", {
+      options: [
+        { id: "a", label: "A", resultText: "" },
+        { id: "b", label: "B", resultText: "" }
+      ]
+    });
+    expect(summarizeStep(step, { choiceAnswers: { step: "a" } })).toBe("选择了「A」");
+  });
+
+  it("summarizes tap-pattern count", () => {
+    const step = makeStep("tap-pattern", { requiredTaps: 5 });
+    expect(summarizeStep(step, { tapCounts: { step: 5 } })).toBe("点击 5 次");
+  });
+
+  it("summarizes breath rounds", () => {
+    const step = makeStep("breath", { requiredRounds: 3 });
+    expect(summarizeStep(step, { breathRounds: { step: 3 } })).toBe("完成 3 轮呼吸");
+  });
+
+  it("summarizes journal text with truncation", () => {
+    const step = makeStep("micro-journal", {
+      journalMode: "text",
+      textMinLength: 3,
+      textMaxLength: 40
+    });
+    expect(summarizeStep(step, { journalEntries: { step: { text: "下班后离线" } } })).toBe(
+      "记录了「下班后离线」"
+    );
+    expect(
+      summarizeStep(step, {
+        journalEntries: { step: { text: "12345678901234567890" } }
+      })
+    ).toBe("记录了「1234567890123456…」");
+  });
+
+  it("summarizes journal tags", () => {
+    const step = makeStep("micro-journal", {
+      journalMode: "tags",
+      tags: [
+        { id: "calm", label: "平静", resultText: "" },
+        { id: "tired", label: "累", resultText: "" }
+      ],
+      minTagCount: 1,
+      maxTagCount: 1
+    });
+    expect(summarizeStep(step, { journalEntries: { step: { tagIds: ["calm"] } } })).toBe(
+      "标记了：平静"
+    );
+  });
+
+  it("summarizes reaction successes", () => {
+    const step = makeStep("reaction", { requiredSuccessCount: 2 });
+    expect(
+      summarizeStep(step, {
+        reactionResults: { step: { successCount: 2, attempts: 3 } }
+      })
+    ).toBe("命中 2 次");
+  });
+
+  it("summarizes reveal item", () => {
+    const step = makeStep("reveal", {
+      items: [
+        { id: "early", label: "准点下班" },
+        { id: "water", label: "多喝一口" }
+      ]
+    });
+    expect(summarizeStep(step, { selectedOptions: { step: "water" } })).toBe("翻开「多喝一口」");
+  });
+
+  it("summarizes shuffle-pick item", () => {
+    const step = makeStep("shuffle-pick", {
+      items: [
+        { id: "cotton", label: "棉花糖观测员" },
+        { id: "wander", label: "流浪水汽" }
+      ]
+    });
+    expect(summarizeStep(step, { selectedOptions: { step: "wander" } })).toBe("抽到「流浪水汽」");
   });
 });

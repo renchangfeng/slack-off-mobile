@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { markSelectedOption } from "./interactionProgress";
+import { StepSummary } from "./StepSummary";
 import type { ActivityStepInteractionProps } from "./types";
 
 export function RevealInteraction({
   step,
   progress,
   onChange,
-  reducedMotion
+  reducedMotion,
+  disabled
 }: ActivityStepInteractionProps) {
   const selectedId = progress.selectedOptions?.[step.id];
   const selectedItem = step.items?.find((item) => item.id === selectedId);
@@ -15,12 +17,16 @@ export function RevealInteraction({
   const [pressedId, setPressedId] = useState<string | null>(null);
 
   function reveal(itemId: string) {
-    if (completed) return;
+    if (completed || disabled) return;
     setPressedId(itemId);
     setTimeout(() => {
       markSelectedOption(onChange, step.id, itemId);
       setPressedId(null);
     }, reducedMotion ? 50 : 220);
+  }
+
+  if (disabled) {
+    return <StepSummary step={step} progress={progress} />;
   }
 
   return (
@@ -41,7 +47,7 @@ export function RevealInteraction({
                   ? "未翻开"
                   : "点击翻开"
             }
-            disabled={completed}
+            disabled={completed || disabled}
             onPress={() => reveal(item.id)}
             style={{
               alignItems: "center",
