@@ -67,6 +67,21 @@ const styles = StyleSheet.create({
     gap: 8,
     justifyContent: "space-between"
   },
+  historyCard: {
+    backgroundColor: "#fffdf8",
+    borderColor: "#d8d0c4",
+    borderLeftWidth: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+    padding: 12
+  },
+  historyCardTopRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between"
+  },
   activityBadge: {
     alignSelf: "flex-start",
     borderRadius: 8,

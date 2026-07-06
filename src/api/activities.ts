@@ -1,4 +1,4 @@
-import type { components } from "./generated";
+import type { components, paths } from "./generated";
 import type { ApiClient, ApiEnvelope } from "./client";
 
 export type ActivityAssignment = components["schemas"]["ActivityAssignment"];
@@ -6,6 +6,8 @@ export type ActivityCompleteResult = components["schemas"]["ActivityCompleteResu
 export type ActivityCatalog = components["schemas"]["ActivityCatalog"];
 export type ActivityCatalogItem = components["schemas"]["ActivityCatalogItem"];
 export type ActivityHistory = components["schemas"]["ActivityHistory"];
+export type ActivityHistorySession = components["schemas"]["ActivityHistorySession"];
+export type ActivityReplayHint = components["schemas"]["ActivityReplayHint"];
 export type ActivityInteractionProgress = components["schemas"]["ActivityInteractionProgress"];
 export type ActivityPresentation = components["schemas"]["ActivityPresentation"];
 export type ActivitySkipReason = components["schemas"]["ActivitySkipReason"];
@@ -14,14 +16,15 @@ export type ActivityFeedbackResponse = components["schemas"]["ActivityFeedbackRe
 export type ActivityFeedbackType = components["schemas"]["ActivityFeedbackType"];
 export type ActivityCategory = ActivityCatalog["categories"][number];
 
+export type ActivityRandomRequest = NonNullable<
+  paths["/v1/activities/random"]["post"]["requestBody"]
+>["content"]["application/json"];
+
 export class ActivityApi {
   constructor(private readonly client: ApiClient) {}
 
-  random(category?: ActivityCategory): Promise<ApiEnvelope<ActivityAssignment>> {
-    return this.client.post<ActivityAssignment>(
-      "/v1/activities/random",
-      category ? { category } : undefined
-    );
+  random(request: ActivityRandomRequest = {}): Promise<ApiEnvelope<ActivityAssignment>> {
+    return this.client.post<ActivityAssignment>("/v1/activities/random", request);
   }
 
   getCatalog(category?: ActivityCategory): Promise<ApiEnvelope<ActivityCatalog>> {
@@ -29,8 +32,13 @@ export class ActivityApi {
     return this.client.get<ActivityCatalog>(`/v1/activities/catalog${query}`);
   }
 
-  getHistory(limit = 10): Promise<ApiEnvelope<ActivityHistory>> {
-    return this.client.get<ActivityHistory>(`/v1/activities/history?limit=${limit}`);
+  getHistory(params?: { window?: "today" | "recent"; limit?: number; cursor?: string }): Promise<ApiEnvelope<ActivityHistory>> {
+    const search = new URLSearchParams();
+    if (params?.window) search.set("window", params.window);
+    if (params?.limit) search.set("limit", String(params.limit));
+    if (params?.cursor) search.set("cursor", params.cursor);
+    const query = search.toString();
+    return this.client.get<ActivityHistory>(`/v1/activities/history${query ? `?${query}` : ""}`);
   }
 
   complete(

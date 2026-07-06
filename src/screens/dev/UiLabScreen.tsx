@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ArtSlot } from "../../ui/art/ArtSlot";
 import { artAssets, listArtSlotDefinitions, resolveArtAsset } from "../../ui/art/registry";
 import type { ArtAssetKind, ArtSlotId } from "../../ui/art/types";
-import type { ActivityAssignment, ActivityInteractionProgress } from "../../api/activities";
+import type { ActivityAssignment, ActivityHistorySession, ActivityInteractionProgress } from "../../api/activities";
 import {
   BreathInteraction,
   ChoiceInteraction,
@@ -18,6 +18,7 @@ import {
   TapPatternInteraction
 } from "../dashboard/parts/activity-interactions";
 import { ActivityInteractionRunner } from "../dashboard/parts/ActivityInteractionRunner";
+import { ActivityHistorySection } from "../dashboard/ActivitiesTab";
 
 type MiniStep = ActivityAssignment["interaction"]["steps"][number];
 
@@ -821,6 +822,81 @@ function ActivityFeedbackSpecimens() {
   );
 }
 
+function makeHistorySession(partial: Partial<ActivityHistorySession> & Pick<ActivityHistorySession, "assignmentId" | "status" | "sessionAt">): ActivityHistorySession {
+  const base: ActivityHistorySession = {
+    assignmentId: partial.assignmentId,
+    templateId: "template-1",
+    code: "lab-code",
+    title: "Lab activity",
+    description: "UI Lab specimen session.",
+    category: "rest",
+    difficulty: "easy",
+    status: partial.status,
+    flavor: "quick",
+    presentation: {
+      badge: "UI Lab",
+      tone: "calm",
+      accentColor: "#2f6f8f",
+      headline: "Lab activity",
+      scene: "A specimen session for the UI Lab.",
+      prompt: "Preview the history card layout.",
+      statLabel: "预览",
+      statValue: "100%"
+    },
+    rewardSummary: { score: 8, drawProgress: 1, rewarded: partial.status === "completed" },
+    assignedAt: partial.sessionAt,
+    completedAt: partial.status === "completed" ? partial.sessionAt : null,
+    sessionAt: partial.sessionAt,
+    skipReason: partial.status === "skipped" ? "not_interested" : null,
+    feedback: partial.status === "completed" ? { type: "liked", acknowledgement: "收到，下次多安排这种手感的摸鱼。" } : null,
+    replayHint: {
+      sourceAssignmentId: partial.assignmentId,
+      sourceTemplateId: "template-1",
+      preferredCategory: "rest",
+      preferredFlavor: "quick",
+      excludeTemplateId: "template-1"
+    }
+  };
+  return { ...base, ...partial };
+}
+
+function ActivityHistorySpecimens() {
+  const now = new Date().toISOString();
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const populated: ActivityHistorySession[] = [
+    makeHistorySession({ assignmentId: "lab-completed", status: "completed", sessionAt: now, title: "完成的小休息" }),
+    makeHistorySession({ assignmentId: "lab-skipped", status: "skipped", sessionAt: yesterday, title: "跳过的脑洞", category: "imagination", skipReason: "too_much_work" }),
+    makeHistorySession({ assignmentId: "lab-expired", status: "expired", sessionAt: yesterday, title: "过期的办公室表演", category: "office_theater" })
+  ];
+  return (
+    <View style={styles.stack}>
+      <Text style={[styles.copy, { color: colors.inkMuted }]}>
+        Empty, populated, and expandable history receipts. Tap a card to expand the detail receipt; skipped sessions show the skip reason and a try-similar action.
+      </Text>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <ActivityHistorySection
+          loading={false}
+          error={null}
+          history={[]}
+          cursor={null}
+          onTrySimilar={() => undefined}
+          onLoadMore={() => undefined}
+        />
+      </FramedCard>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <ActivityHistorySection
+          loading={false}
+          error={null}
+          history={populated}
+          cursor="lab-cursor"
+          onTrySimilar={() => undefined}
+          onLoadMore={() => undefined}
+        />
+      </FramedCard>
+    </View>
+  );
+}
+
 function PlayLoopSpecimens() {
   const incompleteGoal = (code: "check_in" | "activity" | "bean_draw") => ({
     code,
@@ -1376,6 +1452,11 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         <Surface>
           <SectionHeader title="Activity result feedback" kicker="OPTIONAL FEEDBACK" />
           <ActivityFeedbackSpecimens />
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Activity history" kicker="SESSION TIMELINE" />
+          <ActivityHistorySpecimens />
         </Surface>
 
         <Surface>

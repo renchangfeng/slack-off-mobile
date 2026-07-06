@@ -22,7 +22,9 @@ import {
   type ActivityCompleteResult,
   type ActivityFeedbackResponse,
   type ActivityFeedbackType,
+  type ActivityHistorySession,
   type ActivityInteractionProgress,
+  type ActivityRandomRequest,
   type ActivitySkipReason
 } from "../../api/activities";
 import {
@@ -63,7 +65,7 @@ import { ActivitiesTab } from "./ActivitiesTab";
 import { BeansTab } from "./BeansTab";
 import { LeaderboardsTab } from "./LeaderboardsTab";
 import { ProfileTab } from "./ProfileTab";
-import { formatDuration, findGoal, isActivityInteractionComplete } from "./helpers";
+import { buildReplaySimilarRequest, formatDuration, findGoal, isActivityInteractionComplete } from "./helpers";
 import styles from "./styles";
 import type {
   AchievementUnlockFeedback,
@@ -115,7 +117,10 @@ export function DashboardScreen({
   const [activityUnavailable, setActivityUnavailable] = useState(false);
   const [activityCategory, setActivityCategory] = useState<ActivityCategory | null>(null);
   const [activityCatalog, setActivityCatalog] = useState<ActivityCatalog | null>(null);
-  const [activityHistory, setActivityHistory] = useState<ActivityAssignment[]>([]);
+  const [activityHistory, setActivityHistory] = useState<ActivityHistorySession[]>([]);
+  const [activityHistoryLoading, setActivityHistoryLoading] = useState(false);
+  const [activityHistoryError, setActivityHistoryError] = useState<string | null>(null);
+  const [activityHistoryCursor, setActivityHistoryCursor] = useState<string | null>(null);
   const [cosmeticInventory, setCosmeticInventory] = useState<CosmeticInventory | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
   const [leaderboardWindow, setLeaderboardWindow] = useState<LeaderboardWindow>("daily");
@@ -245,11 +250,17 @@ export function DashboardScreen({
   }, [activityAssignment?.assignmentId]);
 
   async function refreshActivityData(category: ActivityCategory | null = activityCategory) {
+    setActivityHistoryLoading(true);
+    setActivityHistoryError(null);
     const [catalogResponse, historyResponse] = await Promise.all([
       api.activities.getCatalog(category ?? undefined),
-      api.activities.getHistory()
+      api.activities.getHistory({ window: "recent", limit: 20 })
     ]);
+    setActivityHistoryLoading(false);
     if (catalogResponse.error || historyResponse.error) {
+      setActivityHistoryError(
+        historyResponse.error?.message ?? catalogResponse.error?.message ?? "活动资料加载失败"
+      );
       setActivityMessage(
         catalogResponse.error?.message ??
           historyResponse.error?.message ??
@@ -259,6 +270,7 @@ export function DashboardScreen({
     }
     setActivityCatalog(catalogResponse.data);
     setActivityHistory(historyResponse.data?.items ?? []);
+    setActivityHistoryCursor(historyResponse.data?.nextCursor ?? null);
   }
 
   async function refreshAfterReward() {
@@ -389,13 +401,17 @@ export function DashboardScreen({
     await refreshBeans();
   }
 
-  async function randomActivity() {
+  async function randomActivity(request: ActivityRandomRequest = {}) {
     setLoading(true);
     setMessage(null);
     setNotice(null);
     setActivityMessage(null);
     setActivityResult(null);
-    const response = await api.activities.random(activityCategory ?? undefined);
+    setActivityFeedbackAck(null);
+    const response = await api.activities.random({
+      category: activityCategory ?? undefined,
+      ...request
+    });
     setLoading(false);
     if (response.error) {
       if (response.error.code === "NO_ELIGIBLE_ACTIVITY") {
@@ -411,6 +427,29 @@ export function DashboardScreen({
     setActivityProgress({});
     setNotice("任务已领取。完成后回到活动页领取奖励。");
     await refreshActivityData();
+  }
+
+  async function trySimilarActivity(session: ActivityHistorySession) {
+    await randomActivity(buildReplaySimilarRequest(session));
+  }
+
+  async function loadMoreHistory() {
+    if (!activityHistoryCursor || activityHistoryLoading) {
+      return;
+    }
+    setActivityHistoryLoading(true);
+    const response = await api.activities.getHistory({
+      window: "recent",
+      limit: 20,
+      cursor: activityHistoryCursor
+    });
+    setActivityHistoryLoading(false);
+    if (response.error) {
+      setActivityHistoryError(response.error.message);
+      return;
+    }
+    setActivityHistory((current) => [...current, ...(response.data?.items ?? [])]);
+    setActivityHistoryCursor(response.data?.nextCursor ?? null);
   }
 
   function selectActivityCategory(category: ActivityCategory | null) {
@@ -727,6 +766,9 @@ export function DashboardScreen({
             result={activityResult}
             catalog={activityCatalog}
             history={activityHistory}
+            historyLoading={activityHistoryLoading}
+            historyError={activityHistoryError}
+            historyCursor={activityHistoryCursor}
             feedbackAck={activityFeedbackAck}
             message={activityMessage}
             unavailable={activityUnavailable}
@@ -740,6 +782,8 @@ export function DashboardScreen({
               setProgress: setActivityProgress,
               setSkipReason: setActivitySkipReason,
               randomActivity,
+              trySimilarActivity,
+              loadMoreHistory,
               completeActivity,
               submitFeedback: submitActivityFeedback,
               skipActivity,

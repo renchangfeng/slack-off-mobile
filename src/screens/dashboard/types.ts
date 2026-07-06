@@ -12,7 +12,9 @@ import type {
   ActivityCompleteResult,
   ActivityFeedbackResponse,
   ActivityFeedbackType,
+  ActivityHistorySession,
   ActivityInteractionProgress,
+  ActivityRandomRequest,
   ActivitySkipReason
 } from "../../api/activities";
 import type { BeanCollection, BeanDrawResult, BeanTheme } from "../../api/beans";
@@ -73,7 +75,10 @@ export type ActivitiesTabProps = {
   assignment: ActivityAssignment | null;
   result: ActivityCompleteResult | null;
   catalog: ActivityCatalog | null;
-  history: ActivityAssignment[];
+  history: ActivityHistorySession[];
+  historyLoading: boolean;
+  historyError: string | null;
+  historyCursor: string | null;
   feedbackAck: ActivityFeedbackResponse | null;
   message: string | null;
   unavailable: boolean;
@@ -86,7 +91,9 @@ export type ActivitiesTabProps = {
     setCategory(category: ActivityCategory | null): void;
     setProgress: Dispatch<SetStateAction<ActivityInteractionProgress>>;
     setSkipReason(reason: ActivitySkipReason): void;
-    randomActivity(): void | Promise<void>;
+    randomActivity(request?: ActivityRandomRequest): void | Promise<void>;
+    trySimilarActivity(session: ActivityHistorySession): void | Promise<void>;
+    loadMoreHistory(): void | Promise<void>;
     completeActivity(): void | Promise<void>;
     submitFeedback(feedbackType: ActivityFeedbackType): void | Promise<void>;
     skipActivity(): void | Promise<void>;

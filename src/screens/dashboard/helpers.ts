@@ -7,8 +7,10 @@ import type {
   ActivityAssignment,
   ActivityCatalog,
   ActivityCategory,
+  ActivityHistorySession,
   ActivityInteractionProgress,
   ActivityPresentation,
+  ActivityRandomRequest,
   ActivitySkipReason
 } from "../../api/activities";
 import type { BeanTheme } from "../../api/beans";
@@ -70,6 +72,18 @@ export function difficultyLabel(difficulty: string): string {
   return ({ easy: "轻松", normal: "正常", hard: "硬核" }[difficulty] ?? difficulty);
 }
 
+export function flavorLabel(flavor: string): string {
+  return (
+    {
+      quick: "快速完成",
+      weird: "脑洞一点",
+      recharge: "充电恢复",
+      tiny_challenge: "小挑战",
+      tiny_reflection: "小反思"
+    }[flavor] ?? flavor
+  );
+}
+
 export function beanThemeLabel(theme: string): string {
   return (
     {
@@ -109,6 +123,64 @@ export function formatCooldown(seconds: number): string {
     return `${Math.ceil(seconds / 60)} 分钟`;
   }
   return `${Math.ceil(seconds / 3600)} 小时`;
+}
+
+export function formatHistorySessionTime(value: string): string {
+  return formatActivityTime(value);
+}
+
+export function historyStatusLabel(
+  status: ActivityAssignment["status"],
+  rewarded: boolean
+): string {
+  if (status === "completed") return rewarded ? "已完成" : "未完成奖励";
+  if (status === "skipped") return "已跳过";
+  if (status === "expired") return "已过期";
+  return "进行中";
+}
+
+export function deriveHistorySections(history: ActivityHistorySession[]): {
+  today: ActivityHistorySession[];
+  recent: ActivityHistorySession[];
+} {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today: ActivityHistorySession[] = [];
+  const recent: ActivityHistorySession[] = [];
+  for (const session of history) {
+    const sessionDate = new Date(session.sessionAt);
+    if (sessionDate >= startOfToday) {
+      today.push(session);
+    } else {
+      recent.push(session);
+    }
+  }
+  return { today, recent };
+}
+
+export function resolveHistoryPresentation(
+  session: ActivityHistorySession
+): ActivityPresentation {
+  return (
+    session.presentation ??
+    resolveActivityPresentation({
+      title: session.title,
+      description: session.description,
+      category: session.category,
+      difficulty: session.difficulty
+    })
+  );
+}
+
+export function buildReplaySimilarRequest(session: ActivityHistorySession): ActivityRandomRequest {
+  return {
+    replayHint: {
+      sourceAssignmentId: session.assignmentId,
+      preferredCategory: session.category,
+      preferredFlavor: session.flavor ?? undefined,
+      excludeTemplateId: session.templateId
+    }
+  };
 }
 
 export function resolveActivityPresentation(activity: {
