@@ -241,6 +241,7 @@ export function DashboardScreen({
     setActivityProgress({});
     setActivitySkipReason("not_interested");
     setActivityFeedbackAck(null);
+    setActivityResult(null);
   }, [activityAssignment?.assignmentId]);
 
   async function refreshActivityData(category: ActivityCategory | null = activityCategory) {
@@ -412,6 +413,12 @@ export function DashboardScreen({
     await refreshActivityData();
   }
 
+  function selectActivityCategory(category: ActivityCategory | null) {
+    setActivityCategory(category);
+    setActivityUnavailable(false);
+    setActivityMessage(null);
+  }
+
   async function completeActivity() {
     if (!activityAssignment) {
       return;
@@ -471,6 +478,8 @@ export function DashboardScreen({
     setMessage(null);
     setNotice(null);
     setActivityMessage(null);
+    setActivityResult(null);
+    setActivityFeedbackAck(null);
     const response = await api.activities.skip(activityAssignment.assignmentId, activitySkipReason);
     setLoading(false);
     if (response.error) {
@@ -727,7 +736,7 @@ export function DashboardScreen({
             nextStep={nextStep}
             todayLoop={todayLoop}
             actions={{
-              setCategory: setActivityCategory,
+              setCategory: selectActivityCategory,
               setProgress: setActivityProgress,
               setSkipReason: setActivitySkipReason,
               randomActivity,

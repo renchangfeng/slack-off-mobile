@@ -11,10 +11,10 @@ import {
   activityCategories,
   activityCategoryLabel,
   activityInteractionSummaryLabel,
+  deriveActivityDisplayState,
   difficultyLabel,
   formatActivityTime,
   formatCooldown,
-  isActivityInteractionComplete,
   resolveActivityPresentation
 } from "./helpers";
 import styles from "./styles";
@@ -52,9 +52,7 @@ export function ActivitiesTab({
   const activityPresentation = assignment ? resolveActivityPresentation(assignment) : null;
   const activityResultPresentation = result ? resolveActivityPresentation(result.assignment) : null;
   const activityAccentColor = activityPresentation?.accentColor ?? "#2f6f8f";
-  const activityCanComplete = assignment
-    ? isActivityInteractionComplete(assignment, progress)
-    : false;
+  const displayState = deriveActivityDisplayState(assignment, progress, unavailable);
   const activityDelight =
     todayLoop.resultDelight?.kind === "activity" ? todayLoop.resultDelight : null;
 
@@ -84,7 +82,24 @@ export function ActivitiesTab({
         </ScrollView>
       </DashboardCard>
       <DashboardCard>
-        {assignment ? (
+        {displayState.kind === "empty" || displayState.kind === "unavailable" ? (
+          <View style={{ alignItems: "center" }}>
+            <ArtSlot
+              slotId={displayState.kind === "unavailable" ? "empty-state-generic" : "empty-state-activities"}
+              size={80}
+              style={{ marginBottom: 12 }}
+            />
+            <EmptyState
+              title={displayState.kind === "unavailable" ? "暂无可推荐任务" : "还没有任务"}
+              body={
+                displayState.kind === "unavailable"
+                  ? "当前任务都在冷却中，晚一点再来领取。"
+                  : "给自己找个合理的离线理由，点下面的按钮抽一个"
+              }
+              icon={displayState.kind === "unavailable" ? "🌫️" : "🪣"}
+            />
+          </View>
+        ) : (
           <>
             <View
               style={[
@@ -111,65 +126,70 @@ export function ActivitiesTab({
               </View>
               <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
                 <StatusBadge
-                  tone="active"
-                  label={activityCategoryLabel(assignment.category)}
+                  tone={displayState.kind === "completed" ? "completed" : "active"}
+                  label={activityCategoryLabel(assignment!.category)}
                 />
-                <StatusBadge tone="default" label={difficultyLabel(assignment.difficulty)} />
+                <StatusBadge tone="default" label={difficultyLabel(assignment!.difficulty)} />
               </View>
               <Text style={styles.activityHeadline}>
-                {activityPresentation?.headline ?? assignment.title}
+                {activityPresentation?.headline ?? assignment!.title}
               </Text>
               <Text style={styles.activityScene}>
-                {activityPresentation?.scene ?? assignment.description}
+                {activityPresentation?.scene ?? assignment!.description}
               </Text>
               <View style={styles.activityPromptBox}>
                 <Text style={styles.activityPrompt}>
-                  {activityPresentation?.prompt ?? assignment.description}
+                  {activityPresentation?.prompt ?? assignment!.description}
                 </Text>
               </View>
               <View style={{ marginTop: 8 }}>
                 <RewardRow
                   icon="⭐"
                   label="预计奖励"
-                  value={`+${assignment.rewardPreview.score} 分 · 进度 +${assignment.rewardPreview.drawProgress}`}
+                  value={`+${assignment!.rewardPreview.score} 分 · 进度 +${assignment!.rewardPreview.drawProgress}`}
                   positive
                 />
                 <RewardRow
                   icon="🫘"
                   label="交互方式"
-                  value={assignment.interactionSummary.flavorLabel}
+                  value={assignment!.interactionSummary.flavorLabel}
                 />
               </View>
             </View>
-            {assignment.recommendationExplanation ? (
+            {assignment!.recommendationExplanation ? (
               <Text style={styles.helperText}>
-                推荐理由：{assignment.recommendationExplanation}
+                推荐理由：{assignment!.recommendationExplanation}
               </Text>
             ) : null}
-            {assignment.status === "completed" ? (
+            {displayState.kind === "completed" ? (
               <ActivityAssignmentStatusPanel
                 title="本次活动已完成"
                 body="互动记录和奖励回执已经归档在下面，不用再重复操作。"
               />
+            ) : displayState.kind === "skipped" ? (
+              <ActivityAssignmentStatusPanel
+                title="任务已放弃"
+                body="这次没有发放奖励，可以换一个更顺眼的任务。"
+              />
             ) : (
               <>
                 <ActivityInteractionRunner
-                  assignment={assignment}
+                  assignment={assignment!}
                   progress={progress}
                   onChange={actions.setProgress}
                 />
                 <ActionButton
-                  label={activityActionLabel(assignment.status, activityCanComplete)}
-                  disabled={
-                    loading ||
-                    assignment.status !== "active" ||
-                    !activityCanComplete
+                  label={
+                    displayState.kind === "active-ready"
+                      ? "领取互动奖励"
+                      : "先完成互动步骤"
                   }
+                  disabled={loading || displayState.kind !== "active-ready"}
                   onPress={actions.completeActivity}
                 />
               </>
             )}
-            {assignment.status === "active" ? (
+            {displayState.kind === "active-incomplete" || displayState.kind === "active-ready" ? (
               <>
                 <View style={styles.skipReasonBox}>
                   <Text style={styles.kicker}>不想做的原因</Text>
@@ -203,19 +223,6 @@ export function ActivitiesTab({
               </>
             ) : null}
           </>
-        ) : (
-          <View style={{ alignItems: "center" }}>
-            <ArtSlot
-              slotId="empty-state-activities"
-              size={80}
-              style={{ marginBottom: 12 }}
-            />
-            <EmptyState
-              title="还没有任务"
-              body="给自己找个合理的离线理由，点下面的按钮抽一个"
-              icon="🪣"
-            />
-          </View>
         )}
         {result ? (
           <MotionFeedback
@@ -274,7 +281,7 @@ export function ActivitiesTab({
           </MotionFeedback>
         ) : null}
         {message ? <Text style={styles.message}>{message}</Text> : null}
-        {assignment?.status !== "active" ? (
+        {displayState.kind !== "active-incomplete" && displayState.kind !== "active-ready" ? (
           <ActionButton
             label={
               unavailable
@@ -430,19 +437,6 @@ function ActivityAssignmentStatusPanel({
       <Text style={styles.helperText}>{body}</Text>
     </View>
   );
-}
-
-function activityActionLabel(
-  status: NonNullable<ActivitiesTabProps["assignment"]>["status"],
-  canComplete: boolean
-) {
-  if (status === "active") {
-    return canComplete ? "领取互动奖励" : "先完成互动步骤";
-  }
-  if (status === "skipped") {
-    return "任务已放弃";
-  }
-  return "本次活动已完成";
 }
 
 function ResultFollowUps({

@@ -9,6 +9,7 @@ import {
   achievementTargetTab,
   activityCategoryLabel,
   beanThemeLabel,
+  deriveActivityDisplayState,
   difficultyLabel,
   fallbackActivityStatValue,
   findGoal,
@@ -254,5 +255,59 @@ describe("achievement focus helpers", () => {
     expect(
       achievementTargetTab({ targetSection: "leaderboards" } as import("../../../api/achievements").AchievementRecommendation)
     ).toBe("rankings");
+  });
+});
+
+describe("deriveActivityDisplayState", () => {
+  const baseAssignment = {
+    assignmentId: "a1",
+    status: "active",
+    title: "测试任务",
+    description: "描述",
+    category: "rest",
+    difficulty: "easy",
+    interaction: {
+      steps: [
+        { id: "s1", type: "ack", title: "确认", description: "确认一下", required: true }
+      ]
+    },
+    interactionSummary: { flavorLabel: "测试" },
+    rewardPreview: { score: 3, drawProgress: 0 }
+  } as ActivityAssignment;
+
+  it("returns empty when there is no assignment", () => {
+    expect(deriveActivityDisplayState(null, {}, false)).toEqual({ kind: "empty" });
+  });
+
+  it("returns unavailable when no assignment and service reports unavailable", () => {
+    expect(deriveActivityDisplayState(null, {}, true)).toEqual({ kind: "unavailable" });
+  });
+
+  it("returns completed for completed assignments regardless of progress", () => {
+    const completed = { ...baseAssignment, status: "completed" as const };
+    expect(deriveActivityDisplayState(completed, {}, false)).toEqual({ kind: "completed" });
+  });
+
+  it("returns skipped for skipped assignments", () => {
+    const skipped = { ...baseAssignment, status: "skipped" as const };
+    expect(deriveActivityDisplayState(skipped, {}, false)).toEqual({ kind: "skipped" });
+  });
+
+  it("returns active-incomplete when required steps are not done", () => {
+    expect(deriveActivityDisplayState(baseAssignment, {}, false)).toEqual({
+      kind: "active-incomplete",
+      canComplete: false
+    });
+  });
+
+  it("returns active-ready when all required steps are done", () => {
+    expect(
+      deriveActivityDisplayState(baseAssignment, { completedStepIds: ["s1"] }, false)
+    ).toEqual({ kind: "active-ready", canComplete: true });
+  });
+
+  it("treats a completed assignment as resolved even if local progress is empty", () => {
+    const completed = { ...baseAssignment, status: "completed" as const };
+    expect(deriveActivityDisplayState(completed, {}, false).kind).toBe("completed");
   });
 });

@@ -189,6 +189,34 @@ export function fallbackActivityStatValue(seed: string, difficulty: string): str
   return `${Math.min(96, base + (hash % 22))}%`;
 }
 
+export type ActivityDisplayState =
+  | { kind: "empty" }
+  | { kind: "unavailable" }
+  | { kind: "active-incomplete"; canComplete: false }
+  | { kind: "active-ready"; canComplete: true }
+  | { kind: "completed" }
+  | { kind: "skipped" };
+
+export function deriveActivityDisplayState(
+  assignment: ActivityAssignment | null,
+  progress: ActivityInteractionProgress,
+  unavailable: boolean
+): ActivityDisplayState {
+  if (!assignment) {
+    return unavailable ? { kind: "unavailable" } : { kind: "empty" };
+  }
+  if (assignment.status === "completed") {
+    return { kind: "completed" };
+  }
+  if (assignment.status === "skipped") {
+    return { kind: "skipped" };
+  }
+  const complete = isActivityInteractionComplete(assignment, progress);
+  return complete
+    ? { kind: "active-ready", canComplete: true }
+    : { kind: "active-incomplete", canComplete: false };
+}
+
 export function isActivityInteractionComplete(
   assignment: ActivityAssignment,
   progress: ActivityInteractionProgress
