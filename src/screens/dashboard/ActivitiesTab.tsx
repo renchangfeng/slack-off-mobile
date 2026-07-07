@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { useTheme } from "../../ui/theme/useTheme";
 import { ArtSlot } from "../../ui/art/ArtSlot";
-import { EmptyState, RewardRow, SectionHeader, StatusBadge } from "../../ui/components";
+import { EmptyState, FramedCard, Pill, RewardRow, SectionHeader, StatusBadge } from "../../ui/components";
 import { MotionFeedback } from "../../ui/motion/MotionFeedback";
 import { DashboardCard } from "./parts/DashboardCard";
 import { ActivityInteractionRunner } from "./parts/ActivityInteractionRunner";
@@ -12,21 +13,25 @@ import {
   activityCategories,
   activityCategoryLabel,
   activityInteractionSummaryLabel,
+  deriveActivityDailyReport,
   deriveActivityDisplayState,
+  deriveActivityHistoryInsights,
   deriveHistorySections,
   difficultyLabel,
   flavorLabel,
   formatActivityTime,
   formatCooldown,
   formatHistorySessionTime,
-  historyStatusLabel,
+  historySessionTimeValue,
+  historySessionStatusTone,
   resolveActivityPresentation,
-  resolveHistoryPresentation
+  resolveHistoryPresentation,
+  skipReasonLabel
 } from "./helpers";
 import styles from "./styles";
 import type { ActivitiesTabProps } from "./types";
 import type { TodayLoopAction } from "../../gameplay/todayLoop";
-import type { ActivityHistorySession, ActivitySkipReason } from "../../api/activities";
+import type { ActivityHistorySession } from "../../api/activities";
 
 const activityFeedbackOptions: Array<{
   label: string;
@@ -386,10 +391,17 @@ export function ActivityHistorySection({
 }) {
   const { today, recent } = deriveHistorySections(history);
   const hasAny = today.length > 0 || recent.length > 0;
+  const report = deriveActivityDailyReport(history);
+  const insights = deriveActivityHistoryInsights(history);
+  const showReport = hasAny || !loading;
 
   return (
     <View>
       <SectionHeader kicker="活动记录" title="最近休息过什么" />
+      {showReport ? <ActivityDailyReportPanel report={report} /> : null}
+      {showReport && insights.hasEnoughData ? (
+        <ActivityHistoryInsightsPanel insights={insights} />
+      ) : null}
       {error ? <Text style={styles.message}>{error}</Text> : null}
       {!hasAny && !loading ? (
         <View style={{ alignItems: "center" }}>
@@ -437,7 +449,92 @@ export function ActivityHistorySection({
   );
 }
 
-function ActivityHistoryCard({
+function ActivityDailyReportPanel({ report }: { report: import("./helpers").ActivityDailyReport }) {
+  const theme = useTheme();
+  return (
+    <FramedCard style={styles.dailyReportCard} accent={report.hasToday ? theme.colors.primary : theme.colors.border}>
+      <Text style={[styles.kicker, { color: report.hasToday ? theme.colors.primary : theme.colors.textMuted }]}>
+        今日摸鱼日报
+      </Text>
+      <View style={styles.dailyReportGrid}>
+        <View style={styles.dailyReportCell}>
+          <Text style={styles.dailyReportValue}>{report.completedCount}</Text>
+          <Text style={styles.dailyReportLabel}>完成</Text>
+        </View>
+        <View style={styles.dailyReportCell}>
+          <Text style={styles.dailyReportValue}>{report.skippedCount + report.expiredCount}</Text>
+          <Text style={styles.dailyReportLabel}>跳过/过期</Text>
+        </View>
+        <View style={styles.dailyReportCell}>
+          <Text style={styles.dailyReportValue}>+{report.totalScore}</Text>
+          <Text style={styles.dailyReportLabel}>分数</Text>
+        </View>
+        <View style={styles.dailyReportCell}>
+          <Text style={styles.dailyReportValue}>+{report.totalDrawProgress}</Text>
+          <Text style={styles.dailyReportLabel}>抽豆进度</Text>
+        </View>
+      </View>
+      {report.dominantCategory ? (
+        <View style={{ flexDirection: "row", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+          <Pill label={activityCategoryLabel(report.dominantCategory)} selected accentColor={theme.colors.primary} />
+          {report.dominantFlavor ? (
+            <Pill label={flavorLabel(report.dominantFlavor)} accentColor={theme.colors.textMuted} />
+          ) : null}
+        </View>
+      ) : null}
+      <Text style={styles.dailyReportSummary}>{report.summary}</Text>
+    </FramedCard>
+  );
+}
+
+function ActivityHistoryInsightsPanel({
+  insights
+}: {
+  insights: import("./helpers").ActivityHistoryInsights;
+}) {
+  const theme = useTheme();
+  if (!insights.hasEnoughData) return null;
+  return (
+    <FramedCard style={styles.insightCard} accent={theme.colors.warning}>
+      <Text style={[styles.kicker, { color: theme.colors.warning }]}>最近偏好</Text>
+      <View style={{ flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+        {insights.dominantCategory7d ? (
+          <Pill label={activityCategoryLabel(insights.dominantCategory7d)} selected accentColor={theme.colors.primary} />
+        ) : null}
+        {insights.dominantFlavor7d ? (
+          <Pill label={flavorLabel(insights.dominantFlavor7d)} accentColor={theme.colors.textMuted} />
+        ) : null}
+        {insights.commonSkipReason ? (
+          <Pill label={`跳过：${skipReasonLabel(insights.commonSkipReason)}`} accentColor={theme.colors.warning} />
+        ) : null}
+      </View>
+      {insights.suggestion ? <Text style={styles.insightSuggestion}>{insights.suggestion}</Text> : null}
+    </FramedCard>
+  );
+}
+
+function historySessionShortLabel(status: ActivityHistorySession["status"]): string {
+  if (status === "completed") return "已完成";
+  if (status === "skipped") return "已跳过";
+  if (status === "expired") return "已过期";
+  return "进行中";
+}
+
+function sessionRewardMark(session: ActivityHistorySession): { label: string; style: typeof styles.completedMark | typeof styles.pendingMark | typeof styles.expiredMark } {
+  const rewardSummary = session.rewardSummary ?? { score: 0, drawProgress: 0, rewarded: false };
+  if (session.status === "expired") {
+    return { label: "已过期", style: styles.expiredMark };
+  }
+  if (session.status === "skipped") {
+    return { label: "已跳过", style: styles.pendingMark };
+  }
+  if (rewardSummary.rewarded) {
+    return { label: `+${rewardSummary.score}`, style: styles.completedMark };
+  }
+  return { label: "无奖励", style: styles.pendingMark };
+}
+
+export function ActivityHistoryCard({
   session,
   onTrySimilar
 }: {
@@ -447,35 +544,39 @@ function ActivityHistoryCard({
   const [expanded, setExpanded] = useState(false);
   const presentation = resolveHistoryPresentation(session);
   const accentColor = presentation.accentColor ?? "#2f6f8f";
-  const statusLabel = historyStatusLabel(session.status, session.rewardSummary.rewarded);
+  const rewardSummary = session.rewardSummary ?? { score: 0, drawProgress: 0, rewarded: false };
+  const statusTone = historySessionStatusTone(session.status, rewardSummary.rewarded);
+  const rewardMark = sessionRewardMark(session);
+
+  const statusCardStyle =
+    session.status === "completed"
+      ? styles.historyCardCompleted
+      : session.status === "skipped"
+        ? styles.historyCardSkipped
+        : session.status === "expired"
+          ? styles.historyCardExpired
+          : null;
 
   return (
-    <View style={[styles.historyCard, { borderColor: accentColor }]}>
+    <View style={[styles.historyCard, statusCardStyle, { borderColor: accentColor }]}>
       <Pressable onPress={() => setExpanded((value) => !value)}>
         <View style={styles.historyCardTopRow}>
           <View style={styles.flex}>
-            <Text style={styles.rowTitle}>{session.title}</Text>
-            <View style={{ flexDirection: "row", gap: 6, marginTop: 4 }}>
+            <Text style={styles.rowTitle}>{presentation.headline ?? session.title}</Text>
+            <View style={{ flexDirection: "row", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
               <StatusBadge
-                tone={session.status === "completed" ? "completed" : "default"}
-                label={activityCategoryLabel(session.category)}
+                tone={statusTone}
+                label={historySessionShortLabel(session.status)}
               />
+              <StatusBadge tone="default" label={activityCategoryLabel(session.category)} />
               <StatusBadge tone="default" label={difficultyLabel(session.difficulty)} />
               {session.flavor ? (
                 <StatusBadge tone="default" label={flavorLabel(session.flavor)} />
               ) : null}
             </View>
-            <Text style={styles.rowMeta}>
-              {statusLabel} · {formatHistorySessionTime(session.sessionAt)}
-            </Text>
+            <Text style={styles.rowMeta}>{formatHistorySessionTime(historySessionTimeValue(session))}</Text>
           </View>
-          <Text
-            style={
-              session.rewardSummary.rewarded ? styles.completedMark : styles.pendingMark
-            }
-          >
-            {session.rewardSummary.rewarded ? "已奖励" : "无奖励"}
-          </Text>
+          <Text style={rewardMark.style}>{rewardMark.label}</Text>
         </View>
       </Pressable>
       {expanded ? (
@@ -489,7 +590,7 @@ function ActivityHistoryCard({
   );
 }
 
-function ActivityHistoryDetail({
+export function ActivityHistoryDetail({
   session,
   presentation,
   onTrySimilar
@@ -498,49 +599,55 @@ function ActivityHistoryDetail({
   presentation: ReturnType<typeof resolveHistoryPresentation>;
   onTrySimilar: ActivitiesTabProps["actions"]["trySimilarActivity"];
 }) {
+  const theme = useTheme();
+  const fallbackCopy = presentation.scene ?? session.description ?? session.title;
+  const rewardSummary = session.rewardSummary ?? { score: 0, drawProgress: 0, rewarded: false };
+
   return (
-    <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: "#e5e5e5" }}>
-      <Text style={styles.smallCopy}>{presentation.scene ?? session.description}</Text>
+    <View
+      style={{
+        marginTop: 10,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderColor: theme.colors.border
+      }}
+    >
       {session.status === "completed" ? (
         <>
-          <View style={styles.resultReceiptBox}>
+          <Text style={styles.mementoTitle}>{presentation.headline ?? session.title}</Text>
+          <Text style={styles.smallCopy}>{presentation.scene ?? fallbackCopy}</Text>
+          <View style={styles.mementoReceiptBox}>
             <Text style={styles.kicker}>奖励回执</Text>
-            <Text style={styles.rowTitle}>
-              +{session.rewardSummary.score} 分 · 进度 +{session.rewardSummary.drawProgress}
-            </Text>
+            <RewardRow icon="⭐" label="获得分数" value={`+${rewardSummary.score}`} positive />
+            <RewardRow icon="🫘" label="抽豆进度" value={`+${rewardSummary.drawProgress}`} />
           </View>
           {session.feedback ? (
             <Text style={styles.helperText}>反馈：{session.feedback.acknowledgement}</Text>
           ) : null}
         </>
+      ) : session.status === "expired" ? (
+        <View style={styles.mementoReceiptBox}>
+          <Text style={styles.kicker}>已过期</Text>
+          <Text style={styles.helperText}>这个任务超时了，已经不能领取奖励。换个新任务继续吧。</Text>
+          {session.skipReason ? (
+            <Text style={styles.helperText}>记录原因：{skipReasonLabel(session.skipReason)}</Text>
+          ) : null}
+        </View>
       ) : (
-        <View style={styles.resultReceiptBox}>
+        <View style={styles.mementoReceiptBox}>
           <Text style={styles.kicker}>无奖励</Text>
-          <Text style={styles.helperText}>
-            {session.skipReason ? `跳过原因：${skipReasonLabel(session.skipReason)}` : "这次没有发放奖励。"}
-          </Text>
+          <Text style={styles.helperText}>这次没有发放奖励，换个任务继续就好。</Text>
+          {session.skipReason ? (
+            <Text style={styles.helperText}>跳过原因：{skipReasonLabel(session.skipReason)}</Text>
+          ) : null}
         </View>
       )}
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-        <ActionButton
-          label="来个类似的"
-          dark
-          onPress={() => onTrySimilar(session)}
-        />
-      </View>
+      {session.status !== "expired" ? (
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+          <ActionButton label="来个类似的" dark onPress={() => onTrySimilar(session)} />
+        </View>
+      ) : null}
     </View>
-  );
-}
-
-function skipReasonLabel(reason: ActivitySkipReason): string {
-  return (
-    {
-      not_interested: "没兴趣",
-      too_much_work: "太麻烦",
-      not_convenient: "不方便",
-      want_weirder: "想来点怪的",
-      other: "换个口味"
-    }[reason] ?? reason
   );
 }
 

@@ -18,7 +18,11 @@ import {
   TapPatternInteraction
 } from "../dashboard/parts/activity-interactions";
 import { ActivityInteractionRunner } from "../dashboard/parts/ActivityInteractionRunner";
-import { ActivityHistorySection } from "../dashboard/ActivitiesTab";
+import {
+  ActivityHistoryCard,
+  ActivityHistoryDetail,
+  ActivityHistorySection
+} from "../dashboard/ActivitiesTab";
 
 type MiniStep = ActivityAssignment["interaction"]["steps"][number];
 
@@ -43,6 +47,7 @@ import type { MotionFeedbackVariant } from "../../ui/motion/types";
 import { useTheme, useThemeSwitcher } from "../../ui/theme/useTheme";
 import { colors, radius, spacing, typography } from "../../ui/tokens";
 import { deriveTodayPlayLoop, type TodayLoopViewModel } from "../../gameplay/todayLoop";
+import { resolveHistoryPresentation } from "../dashboard/helpers";
 
 function groupSlotsByKind(
   slots: ReturnType<typeof listArtSlotDefinitions>
@@ -891,6 +896,122 @@ function ActivityHistorySpecimens() {
           cursor="lab-cursor"
           onTrySimilar={() => undefined}
           onLoadMore={() => undefined}
+        />
+      </FramedCard>
+      <ActivityHistoryPolishSpecimens />
+    </View>
+  );
+}
+
+function ActivityHistoryPolishSpecimens() {
+  const now = new Date().toISOString();
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
+  const emptyReport: ActivityHistorySession[] = [];
+  const populatedReport: ActivityHistorySession[] = [
+    makeHistorySession({
+      assignmentId: "lab-report-completed",
+      status: "completed",
+      sessionAt: now,
+      title: "完成的小休息",
+      category: "rest",
+      flavor: "recharge"
+    }),
+    makeHistorySession({
+      assignmentId: "lab-report-skipped",
+      status: "skipped",
+      sessionAt: now,
+      title: "跳过的脑洞",
+      category: "imagination",
+      flavor: "weird",
+      skipReason: "want_weirder"
+    })
+  ];
+  const skipHeavy: ActivityHistorySession[] = [
+    makeHistorySession({ assignmentId: "lab-skip-1", status: "skipped", sessionAt: yesterday, skipReason: "too_much_work" }),
+    makeHistorySession({ assignmentId: "lab-skip-2", status: "skipped", sessionAt: twoDaysAgo, skipReason: "too_much_work" }),
+    makeHistorySession({ assignmentId: "lab-skip-3", status: "completed", sessionAt: twoDaysAgo })
+  ];
+  const completedSession = makeHistorySession({
+    assignmentId: "lab-card-completed",
+    status: "completed",
+    sessionAt: now,
+    title: "已完成的小休息",
+    category: "rest",
+    flavor: "recharge"
+  });
+  const skippedSession = makeHistorySession({
+    assignmentId: "lab-card-skipped",
+    status: "skipped",
+    sessionAt: now,
+    title: "已跳过的脑洞",
+    category: "imagination",
+    flavor: "weird",
+    skipReason: "not_interested"
+  });
+  const expiredSession = makeHistorySession({
+    assignmentId: "lab-card-expired",
+    status: "expired",
+    sessionAt: now,
+    title: "已过期的办公室表演",
+    category: "office_theater",
+    flavor: "quick"
+  });
+
+  return (
+    <View style={styles.stack}>
+      <Text style={[styles.copy, { color: colors.inkMuted }]}>
+        Daily report, insights, status cards, and memento detail. All data is local mock state; no API calls are made.
+      </Text>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <ActivityHistorySection
+          loading={false}
+          error={null}
+          history={emptyReport}
+          cursor={null}
+          onTrySimilar={() => undefined}
+          onLoadMore={() => undefined}
+        />
+      </FramedCard>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <ActivityHistorySection
+          loading={false}
+          error={null}
+          history={populatedReport}
+          cursor={null}
+          onTrySimilar={() => undefined}
+          onLoadMore={() => undefined}
+        />
+      </FramedCard>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <ActivityHistorySection
+          loading={false}
+          error={null}
+          history={skipHeavy}
+          cursor={null}
+          onTrySimilar={() => undefined}
+          onLoadMore={() => undefined}
+        />
+      </FramedCard>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <Text style={styles.miniSpecimenType}>completed card</Text>
+        <ActivityHistoryCard session={completedSession} onTrySimilar={() => undefined} />
+      </FramedCard>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <Text style={styles.miniSpecimenType}>skipped card</Text>
+        <ActivityHistoryCard session={skippedSession} onTrySimilar={() => undefined} />
+      </FramedCard>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <Text style={styles.miniSpecimenType}>expired card</Text>
+        <ActivityHistoryCard session={expiredSession} onTrySimilar={() => undefined} />
+      </FramedCard>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <Text style={styles.miniSpecimenType}>memento detail</Text>
+        <ActivityHistoryDetail
+          session={completedSession}
+          presentation={resolveHistoryPresentation(completedSession)}
+          onTrySimilar={() => undefined}
         />
       </FramedCard>
     </View>

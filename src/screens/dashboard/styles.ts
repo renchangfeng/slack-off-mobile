@@ -358,6 +358,93 @@ const styles = StyleSheet.create({
     marginTop: 10,
     padding: 12
   },
+  dailyReportCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+    padding: 12
+  },
+  dailyReportGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10
+  },
+  dailyReportCell: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 8,
+    flexBasis: "47%",
+    flexGrow: 1,
+    minHeight: 68,
+    justifyContent: "center",
+    padding: 10
+  },
+  dailyReportValue: {
+    color: colors.ink,
+    fontSize: 22,
+    fontWeight: "900"
+  },
+  dailyReportLabel: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    marginTop: 4
+  },
+  dailyReportSummary: {
+    color: colors.inkSoft,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 10
+  },
+  insightCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+    padding: 12
+  },
+  insightSuggestion: {
+    color: colors.inkSoft,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 10
+  },
+  expiredMark: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  mementoTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 24,
+    marginTop: 6
+  },
+  mementoReceiptBox: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+    marginTop: 10,
+    padding: 12
+  },
+  historyCardCompleted: {
+    backgroundColor: colors.mintLight,
+    borderColor: colors.mintMid
+  },
+  historyCardSkipped: {
+    backgroundColor: colors.warningSoft,
+    borderColor: colors.goldDeep
+  },
+  historyCardExpired: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border
+  },
   activityResultCertificate: {
     backgroundColor: "#eef7f3",
     borderLeftWidth: 6,

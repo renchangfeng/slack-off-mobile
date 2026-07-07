@@ -10,7 +10,9 @@ import {
   activityCategoryLabel,
   beanThemeLabel,
   buildReplaySimilarRequest,
+  deriveActivityDailyReport,
   deriveActivityDisplayState,
+  deriveActivityHistoryInsights,
   deriveHistorySections,
   difficultyLabel,
   fallbackActivityStatValue,
@@ -21,13 +23,16 @@ import {
   formatHistorySessionTime,
   getLeaderboardList,
   getLeaderboardPodium,
+  historySessionTimeValue,
+  historySessionStatusTone,
   historyStatusLabel,
   isActivityInteractionComplete,
   isActivityStepComplete,
   pickAchievementFocus,
   rarityLabel,
   resolveActivityPresentation,
-  resolveHistoryPresentation
+  resolveHistoryPresentation,
+  skipReasonLabel
 } from "../helpers";
 
 describe("formatDuration", () => {
@@ -335,6 +340,12 @@ describe("formatHistorySessionTime", () => {
     expect(formatted).toContain("6");
     expect(formatted).toContain("26");
   });
+
+  it("falls back for missing or invalid values", () => {
+    expect(formatHistorySessionTime(null)).toBe("时间未知");
+    expect(formatHistorySessionTime(undefined)).toBe("时间未知");
+    expect(formatHistorySessionTime("not-a-date")).toBe("时间未知");
+  });
 });
 
 describe("historyStatusLabel", () => {
@@ -376,6 +387,40 @@ describe("deriveHistorySections", () => {
     const result = deriveHistorySections([makeSession(yesterday)]);
     expect(result.today).toHaveLength(0);
     expect(result.recent).toHaveLength(1);
+  });
+
+  it("falls back to completedAt or assignedAt when sessionAt is missing", () => {
+    const now = new Date().toISOString();
+    const result = deriveHistorySections([
+      { ...makeSession(""), sessionAt: undefined as never, completedAt: now }
+    ]);
+    expect(result.today).toHaveLength(1);
+  });
+});
+
+describe("historySessionTimeValue", () => {
+  it("uses sessionAt, then completedAt, then assignedAt", () => {
+    expect(
+      historySessionTimeValue({
+        sessionAt: "session",
+        completedAt: "completed",
+        assignedAt: "assigned"
+      } as ActivityHistorySession)
+    ).toBe("session");
+    expect(
+      historySessionTimeValue({
+        sessionAt: undefined,
+        completedAt: "completed",
+        assignedAt: "assigned"
+      } as unknown as ActivityHistorySession)
+    ).toBe("completed");
+    expect(
+      historySessionTimeValue({
+        sessionAt: undefined,
+        completedAt: null,
+        assignedAt: "assigned"
+      } as unknown as ActivityHistorySession)
+    ).toBe("assigned");
   });
 });
 
@@ -437,5 +482,232 @@ describe("resolveHistoryPresentation", () => {
     const result = resolveHistoryPresentation(session);
     expect(result.badge).toBe("小游戏入口");
     expect(result.tone).toBe("game");
+  });
+});
+
+function makeHistorySession(
+  partial: Partial<ActivityHistorySession> &
+    Pick<ActivityHistorySession, "assignmentId" | "status" | "sessionAt">
+): ActivityHistorySession {
+  const base: ActivityHistorySession = {
+    assignmentId: partial.assignmentId,
+    templateId: "template-1",
+    code: "test-code",
+    title: "Test activity",
+    description: "Test session.",
+    category: "rest",
+    difficulty: "easy",
+    status: partial.status,
+    flavor: "quick",
+    presentation: {
+      badge: "Test",
+      tone: "calm",
+      accentColor: "#1f8f62",
+      headline: "Test activity",
+      scene: "Test scene.",
+      prompt: "Test prompt.",
+      statLabel: "统计",
+      statValue: "100%"
+    },
+    rewardSummary: { score: 8, drawProgress: 1, rewarded: partial.status === "completed" },
+    assignedAt: partial.sessionAt,
+    completedAt: partial.status === "completed" ? partial.sessionAt : null,
+    sessionAt: partial.sessionAt,
+    skipReason: partial.status === "skipped" ? "not_interested" : null,
+    feedback: null,
+    replayHint: {
+      sourceAssignmentId: partial.assignmentId,
+      sourceTemplateId: "template-1",
+      preferredCategory: partial.category ?? "rest",
+      preferredFlavor: "quick",
+      excludeTemplateId: "template-1"
+    }
+  };
+  return { ...base, ...partial };
+}
+
+describe("deriveActivityDailyReport", () => {
+  it("returns zero totals and empty summary when there is no history", () => {
+    const report = deriveActivityDailyReport([]);
+    expect(report.completedCount).toBe(0);
+    expect(report.skippedCount).toBe(0);
+    expect(report.expiredCount).toBe(0);
+    expect(report.totalScore).toBe(0);
+    expect(report.totalDrawProgress).toBe(0);
+    expect(report.dominantCategory).toBeNull();
+    expect(report.dominantFlavor).toBeNull();
+    expect(report.hasToday).toBe(false);
+    expect(report.summary).toContain("今天还没有摸鱼记录");
+  });
+
+  it("counts only today's rewarded completions toward score and draw progress", () => {
+    const now = new Date().toISOString();
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const history: ActivityHistorySession[] = [
+      makeHistorySession({ assignmentId: "a", status: "completed", sessionAt: now, rewardSummary: { score: 10, drawProgress: 2, rewarded: true } }),
+      makeHistorySession({ assignmentId: "b", status: "completed", sessionAt: now, rewardSummary: { score: 5, drawProgress: 1, rewarded: false }, category: "game", flavor: "weird" }),
+      makeHistorySession({ assignmentId: "c", status: "skipped", sessionAt: now, category: "imagination" }),
+      makeHistorySession({ assignmentId: "d", status: "expired", sessionAt: now, category: "office_theater" }),
+      makeHistorySession({ assignmentId: "e", status: "completed", sessionAt: yesterday, rewardSummary: { score: 99, drawProgress: 9, rewarded: true } })
+    ];
+    const report = deriveActivityDailyReport(history);
+    expect(report.completedCount).toBe(2);
+    expect(report.skippedCount).toBe(1);
+    expect(report.expiredCount).toBe(1);
+    expect(report.totalScore).toBe(10);
+    expect(report.totalDrawProgress).toBe(2);
+    expect(report.hasToday).toBe(true);
+  });
+
+  it("picks dominant category and flavor from completed sessions first, then all today", () => {
+    const now = new Date().toISOString();
+    const history: ActivityHistorySession[] = [
+      makeHistorySession({ assignmentId: "a", status: "completed", sessionAt: now, category: "game", flavor: "weird" }),
+      makeHistorySession({ assignmentId: "b", status: "completed", sessionAt: now, category: "game", flavor: "weird" }),
+      makeHistorySession({ assignmentId: "c", status: "skipped", sessionAt: now, category: "rest", flavor: "quick" })
+    ];
+    const report = deriveActivityDailyReport(history);
+    expect(report.dominantCategory).toBe("game");
+    expect(report.dominantFlavor).toBe("weird");
+  });
+
+  it("falls back to all today sessions when no completions exist", () => {
+    const now = new Date().toISOString();
+    const history: ActivityHistorySession[] = [
+      makeHistorySession({ assignmentId: "a", status: "skipped", sessionAt: now, category: "physical", flavor: "tiny_challenge" }),
+      makeHistorySession({ assignmentId: "b", status: "expired", sessionAt: now, category: "physical", flavor: "tiny_challenge" })
+    ];
+    const report = deriveActivityDailyReport(history);
+    expect(report.dominantCategory).toBe("physical");
+    expect(report.dominantFlavor).toBe("tiny_challenge");
+    expect(report.summary).toContain("跳过了");
+  });
+
+  it("summarizes a fully rewarded day", () => {
+    const now = new Date().toISOString();
+    const history: ActivityHistorySession[] = [
+      makeHistorySession({ assignmentId: "a", status: "completed", sessionAt: now, rewardSummary: { score: 8, drawProgress: 1, rewarded: true }, category: "rest", flavor: "recharge" })
+    ];
+    const report = deriveActivityDailyReport(history);
+    expect(report.summary).toContain("完成了 1 个小休息");
+    expect(report.summary).toContain("+8");
+    expect(report.summary).toContain("充电恢复");
+  });
+});
+
+describe("deriveActivityHistoryInsights", () => {
+  it("returns empty suggestions when history is sparse", () => {
+    const insights = deriveActivityHistoryInsights([]);
+    expect(insights.hasEnoughData).toBe(false);
+    expect(insights.suggestion).toBeNull();
+    expect(insights.dominantCategory7d).toBeNull();
+    expect(insights.dominantFlavor7d).toBeNull();
+    expect(insights.commonSkipReason).toBeNull();
+    expect(insights.skipHeavy).toBe(false);
+  });
+
+  it("computes dominant category, flavor, and common skip reason over the last 7 days", () => {
+    const now = new Date().toISOString();
+    const history: ActivityHistorySession[] = [
+      makeHistorySession({ assignmentId: "a", status: "completed", sessionAt: now, category: "game", flavor: "weird" }),
+      makeHistorySession({ assignmentId: "b", status: "skipped", sessionAt: now, category: "game", flavor: "weird", skipReason: "too_much_work" }),
+      makeHistorySession({ assignmentId: "c", status: "skipped", sessionAt: now, category: "rest", flavor: "quick", skipReason: "too_much_work" }),
+      makeHistorySession({ assignmentId: "d", status: "completed", sessionAt: now, category: "game", flavor: "weird" })
+    ];
+    const insights = deriveActivityHistoryInsights(history);
+    expect(insights.hasEnoughData).toBe(true);
+    expect(insights.dominantCategory7d).toBe("game");
+    expect(insights.dominantFlavor7d).toBe("weird");
+    expect(insights.commonSkipReason).toBe("too_much_work");
+  });
+
+  it("flags skip-heavy history", () => {
+    const now = new Date().toISOString();
+    const history: ActivityHistorySession[] = [
+      makeHistorySession({ assignmentId: "a", status: "skipped", sessionAt: now, skipReason: "too_much_work" }),
+      makeHistorySession({ assignmentId: "b", status: "skipped", sessionAt: now, skipReason: "not_interested" }),
+      makeHistorySession({ assignmentId: "c", status: "completed", sessionAt: now })
+    ];
+    const insights = deriveActivityHistoryInsights(history);
+    expect(insights.skipHeavy).toBe(true);
+    expect(insights.suggestion).toContain("跳过比较多");
+  });
+
+  it("ignores sessions outside the window", () => {
+    const now = new Date().toISOString();
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const history: ActivityHistorySession[] = [
+      makeHistorySession({ assignmentId: "a", status: "completed", sessionAt: now, category: "game", flavor: "weird" }),
+      makeHistorySession({ assignmentId: "b", status: "completed", sessionAt: eightDaysAgo, category: "rest", flavor: "quick" })
+    ];
+    const insights = deriveActivityHistoryInsights(history);
+    expect(insights.dominantCategory7d).toBe("game");
+    expect(insights.dominantFlavor7d).toBe("weird");
+  });
+
+  it("respects a custom window", () => {
+    const now = new Date().toISOString();
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    const history: ActivityHistorySession[] = [
+      makeHistorySession({ assignmentId: "a", status: "completed", sessionAt: twoDaysAgo, category: "rest", flavor: "quick" })
+    ];
+    const insights = deriveActivityHistoryInsights(history, 1);
+    expect(insights.hasEnoughData).toBe(false);
+    expect(insights.dominantCategory7d).toBeNull();
+
+    const included = deriveActivityHistoryInsights(history, 3);
+    expect(included.hasEnoughData).toBe(false);
+    expect(included.dominantCategory7d).toBe("rest");
+  });
+});
+
+describe("historySessionStatusTone", () => {
+  it("maps completed + rewarded to completed", () => {
+    expect(historySessionStatusTone("completed", true)).toBe("completed");
+  });
+
+  it("maps completed unrewarded and skipped to warning", () => {
+    expect(historySessionStatusTone("completed", false)).toBe("warning");
+    expect(historySessionStatusTone("skipped", false)).toBe("warning");
+    expect(historySessionStatusTone("skipped", true)).toBe("warning");
+  });
+
+  it("maps expired to locked", () => {
+    expect(historySessionStatusTone("expired", false)).toBe("locked");
+    expect(historySessionStatusTone("expired", true)).toBe("locked");
+  });
+
+  it("maps active to default", () => {
+    expect(historySessionStatusTone("active", false)).toBe("default");
+    expect(historySessionStatusTone("active", true)).toBe("default");
+  });
+});
+
+describe("skipReasonLabel", () => {
+  it("returns Chinese labels for known reasons", () => {
+    expect(skipReasonLabel("not_interested")).toBe("没兴趣");
+    expect(skipReasonLabel("too_much_work")).toBe("太麻烦");
+    expect(skipReasonLabel("not_convenient")).toBe("不方便");
+    expect(skipReasonLabel("want_weirder")).toBe("想来点怪的");
+    expect(skipReasonLabel("other")).toBe("换个口味");
+  });
+
+  it("falls back to the raw reason value", () => {
+    expect(skipReasonLabel("unknown_reason" as never)).toBe("unknown_reason");
+  });
+});
+
+describe("skipped sessions never count as rewarded completions", () => {
+  it("excludes skipped sessions from daily report score and completion count", () => {
+    const now = new Date().toISOString();
+    const history: ActivityHistorySession[] = [
+      makeHistorySession({ assignmentId: "a", status: "skipped", sessionAt: now, rewardSummary: { score: 10, drawProgress: 1, rewarded: true } }),
+      makeHistorySession({ assignmentId: "b", status: "completed", sessionAt: now, rewardSummary: { score: 6, drawProgress: 1, rewarded: true } })
+    ];
+    const report = deriveActivityDailyReport(history);
+    expect(report.completedCount).toBe(1);
+    expect(report.skippedCount).toBe(1);
+    expect(report.totalScore).toBe(6);
+    expect(report.totalDrawProgress).toBe(1);
   });
 });

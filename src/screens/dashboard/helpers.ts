@@ -125,7 +125,14 @@ export function formatCooldown(seconds: number): string {
   return `${Math.ceil(seconds / 3600)} 小时`;
 }
 
-export function formatHistorySessionTime(value: string): string {
+export function historySessionTimeValue(session: ActivityHistorySession): string | null {
+  return session.sessionAt ?? session.completedAt ?? session.assignedAt ?? null;
+}
+
+export function formatHistorySessionTime(value: string | null | undefined): string {
+  if (!value) return "时间未知";
+  const time = new Date(value);
+  if (Number.isNaN(time.getTime())) return "时间未知";
   return formatActivityTime(value);
 }
 
@@ -148,7 +155,12 @@ export function deriveHistorySections(history: ActivityHistorySession[]): {
   const today: ActivityHistorySession[] = [];
   const recent: ActivityHistorySession[] = [];
   for (const session of history) {
-    const sessionDate = new Date(session.sessionAt);
+    const sessionTime = historySessionTimeValue(session);
+    const sessionDate = sessionTime ? new Date(sessionTime) : null;
+    if (!sessionDate || Number.isNaN(sessionDate.getTime())) {
+      recent.push(session);
+      continue;
+    }
     if (sessionDate >= startOfToday) {
       today.push(session);
     } else {
@@ -181,6 +193,262 @@ export function buildReplaySimilarRequest(session: ActivityHistorySession): Acti
       excludeTemplateId: session.templateId
     }
   };
+}
+
+export type ActivityFlavor = NonNullable<ActivityHistorySession["flavor"]>;
+
+export type HistorySessionStatusTone = "active" | "completed" | "locked" | "warning" | "default";
+
+export function historySessionStatusTone(
+  status: ActivityAssignment["status"],
+  rewarded: boolean
+): HistorySessionStatusTone {
+  if (status === "completed") {
+    return rewarded ? "completed" : "warning";
+  }
+  if (status === "skipped") return "warning";
+  if (status === "expired") return "locked";
+  return "default";
+}
+
+export function skipReasonLabel(reason: ActivitySkipReason): string {
+  return (
+    {
+      not_interested: "没兴趣",
+      too_much_work: "太麻烦",
+      not_convenient: "不方便",
+      want_weirder: "想来点怪的",
+      other: "换个口味"
+    }[reason] ?? reason
+  );
+}
+
+export type ActivityDailyReport = {
+  completedCount: number;
+  skippedCount: number;
+  expiredCount: number;
+  totalScore: number;
+  totalDrawProgress: number;
+  dominantCategory: ActivityCategory | null;
+  dominantFlavor: ActivityFlavor | null;
+  summary: string;
+  hasToday: boolean;
+};
+
+function historyRewardSummary(session: ActivityHistorySession): {
+  score: number;
+  drawProgress: number;
+  rewarded: boolean;
+} {
+  return session.rewardSummary ?? { score: 0, drawProgress: 0, rewarded: false };
+}
+
+function countBy<T extends string>(items: T[]): Map<T, number> {
+  const counts = new Map<T, number>();
+  for (const item of items) {
+    counts.set(item, (counts.get(item) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function maxByCount<T>(counts: Map<T, number>): T | null {
+  let best: T | null = null;
+  let bestCount = 0;
+  for (const [key, count] of counts) {
+    if (count > bestCount) {
+      best = key;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+function dominantCategory(sessions: ActivityHistorySession[]): ActivityCategory | null {
+  return maxByCount(countBy(sessions.map((session) => session.category)));
+}
+
+function dominantFlavor(sessions: ActivityHistorySession[]): ActivityFlavor | null {
+  const flavors = sessions.map((session) => session.flavor).filter(Boolean) as ActivityFlavor[];
+  return flavors.length > 0 ? maxByCount(countBy(flavors)) : null;
+}
+
+export function deriveActivityDailyReport(history: ActivityHistorySession[]): ActivityDailyReport {
+  const { today } = deriveHistorySections(history);
+  const completedToday = today.filter((session) => session.status === "completed");
+  const skippedToday = today.filter((session) => session.status === "skipped");
+  const expiredToday = today.filter((session) => session.status === "expired");
+
+  const completedCount = completedToday.length;
+  const skippedCount = skippedToday.length;
+  const expiredCount = expiredToday.length;
+
+  const rewardedToday = completedToday.filter((session) => historyRewardSummary(session).rewarded);
+  const totalScore = rewardedToday.reduce((sum, session) => sum + historyRewardSummary(session).score, 0);
+  const totalDrawProgress = rewardedToday.reduce(
+    (sum, session) => sum + historyRewardSummary(session).drawProgress,
+    0
+  );
+
+  const dominantCat =
+    dominantCategory(completedToday) ?? dominantCategory(today);
+  const dominantFlav =
+    dominantFlavor(completedToday) ?? dominantFlavor(today);
+
+  const summary = buildDailyReportSummary({
+    completedCount,
+    skippedCount,
+    expiredCount,
+    totalScore,
+    totalDrawProgress,
+    dominantCategory: dominantCat,
+    dominantFlavor: dominantFlav,
+    hasToday: today.length > 0
+  });
+
+  return {
+    completedCount,
+    skippedCount,
+    expiredCount,
+    totalScore,
+    totalDrawProgress,
+    dominantCategory: dominantCat,
+    dominantFlavor: dominantFlav,
+    summary,
+    hasToday: today.length > 0
+  };
+}
+
+function buildDailyReportSummary(report: {
+  completedCount: number;
+  skippedCount: number;
+  expiredCount: number;
+  totalScore: number;
+  totalDrawProgress: number;
+  dominantCategory: ActivityCategory | null;
+  dominantFlavor: ActivityFlavor | null;
+  hasToday: boolean;
+}): string {
+  if (!report.hasToday) {
+    return "今天还没有摸鱼记录。来个短平快的，给自己开个小差。";
+  }
+
+  const totalUnrewarded = report.skippedCount + report.expiredCount;
+  const categoryLabel = report.dominantCategory
+    ? activityCategoryLabel(report.dominantCategory)
+    : null;
+  const flavorLabel = report.dominantFlavor ? flavorLabelHelper(report.dominantFlavor) : null;
+
+  if (report.completedCount > 0 && totalUnrewarded === 0) {
+    const base = `今天完成了 ${report.completedCount} 个小休息，累计 +${report.totalScore} 分`;
+    if (report.totalDrawProgress > 0) {
+      return `${base} · 进度 +${report.totalDrawProgress}。${flavorLabel ?? categoryLabel ?? "继续"} 是你的首选。`;
+    }
+    return `${base}。${flavorLabel ?? categoryLabel ?? "继续"} 是你的首选。`;
+  }
+
+  if (report.completedCount > 0 && totalUnrewarded > 0) {
+    return `今天完成了 ${report.completedCount} 个，跳过了 ${totalUnrewarded} 个。${flavorLabel ?? categoryLabel ?? "这个节奏"} 型任务出现最多。`;
+  }
+
+  if (totalUnrewarded > 0) {
+    return `今天跳过了 ${totalUnrewarded} 个任务。没关系，偏好也是数据。`;
+  }
+
+  return "今天活动记录有点特别，慢慢来。";
+}
+
+export type ActivityHistoryInsights = {
+  dominantCategory7d: ActivityCategory | null;
+  dominantFlavor7d: ActivityFlavor | null;
+  commonSkipReason: ActivitySkipReason | null;
+  suggestion: string | null;
+  hasEnoughData: boolean;
+  skipHeavy: boolean;
+};
+
+export function deriveActivityHistoryInsights(
+  history: ActivityHistorySession[],
+  windowDays = 7
+): ActivityHistoryInsights {
+  const cutoff = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+  const recent = history.filter((session) => {
+    const sessionTime = historySessionTimeValue(session);
+    if (!sessionTime) return false;
+    const sessionDate = new Date(sessionTime);
+    return !Number.isNaN(sessionDate.getTime()) && sessionDate >= cutoff;
+  });
+
+  if (recent.length === 0) {
+    return {
+      dominantCategory7d: null,
+      dominantFlavor7d: null,
+      commonSkipReason: null,
+      suggestion: null,
+      hasEnoughData: false,
+      skipHeavy: false
+    };
+  }
+
+  const skipped = recent.filter((session) => session.status === "skipped");
+  const skipReasons = skipped
+    .map((session) => session.skipReason)
+    .filter(Boolean) as ActivitySkipReason[];
+
+  const commonReason = skipReasons.length > 0 ? maxByCount(countBy(skipReasons)) : null;
+  const skipHeavy = skipped.length >= 2 && skipped.length / recent.length >= 0.5;
+  const hasEnoughData = recent.length >= 3 || skipped.length >= 2;
+
+  const dominantCat = dominantCategory(recent);
+  const dominantFlav = dominantFlavor(recent);
+
+  const suggestion = buildInsightSuggestion({
+    skipHeavy,
+    dominantCategory: dominantCat,
+    dominantFlavor: dominantFlav,
+    commonSkipReason: commonReason,
+    hasEnoughData
+  });
+
+  return {
+    dominantCategory7d: dominantCat,
+    dominantFlavor7d: dominantFlav,
+    commonSkipReason: commonReason,
+    suggestion,
+    hasEnoughData,
+    skipHeavy
+  };
+}
+
+function buildInsightSuggestion(input: {
+  skipHeavy: boolean;
+  dominantCategory: ActivityCategory | null;
+  dominantFlavor: ActivityFlavor | null;
+  commonSkipReason: ActivitySkipReason | null;
+  hasEnoughData: boolean;
+}): string | null {
+  if (!input.hasEnoughData) return null;
+
+  if (input.skipHeavy) {
+    return "最近跳过比较多。下次可以优先试试短平快的回血任务，或者按原因换推荐。";
+  }
+
+  if (input.dominantFlavor) {
+    return `你最近偏爱 ${flavorLabelHelper(input.dominantFlavor)} 型任务，可以继续按这个节奏来。`;
+  }
+
+  if (input.dominantCategory) {
+    return `你最近常选 ${activityCategoryLabel(input.dominantCategory)}，保持这个节奏就挺好。`;
+  }
+
+  if (input.commonSkipReason) {
+    return `你最近常跳过任务因为“${skipReasonLabel(input.commonSkipReason)}”，推荐时会参考这一点。`;
+  }
+
+  return null;
+}
+
+function flavorLabelHelper(flavor: ActivityFlavor): string {
+  return flavorLabel(flavor);
 }
 
 export function resolveActivityPresentation(activity: {
