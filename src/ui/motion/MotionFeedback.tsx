@@ -43,6 +43,12 @@ const CONFIGS: Record<MotionFeedbackVariant, MotionConfig> = {
     initial: { opacity: 0, scale: 0.98, translateY: 4 },
     final: { opacity: 1, scale: 1, translateY: 0 },
     duration: 200
+  },
+  "fish-feed": {
+    initial: { opacity: 0, scale: 0.9, translateY: 12 },
+    final: { opacity: 1, scale: 1, translateY: 0 },
+    duration: 260,
+    spring: { damping: 14, stiffness: 190 }
   }
 };
 

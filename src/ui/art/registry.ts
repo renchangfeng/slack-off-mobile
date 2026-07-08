@@ -9,6 +9,7 @@ import {
   PixelRestEmptyStateBeans,
   PixelRestEmptyStateGeneric,
   PixelRestEmptyStateProfile,
+  PixelRestFish,
   PixelRestHomeCharacter
 } from "./assets/pixel-rest";
 import {
@@ -117,6 +118,22 @@ const artSlotDefinitions: Record<ArtSlotId, ArtSlotDefinition> = {
     defaultSize: 80,
     fallbackGlyph: "🌫️",
     alt: "通用空状态",
+    aspectRatio: 1
+  },
+  "fish-tank-fish": {
+    id: "fish-tank-fish",
+    kind: "fish",
+    defaultSize: 80,
+    fallbackGlyph: "🐟",
+    alt: "鱼缸里的小鱼",
+    aspectRatio: 1
+  },
+  "fish-tank-empty": {
+    id: "fish-tank-empty",
+    kind: "empty-state",
+    defaultSize: 80,
+    fallbackGlyph: "🫗",
+    alt: "空鱼缸",
     aspectRatio: 1
   }
 };
@@ -341,6 +358,35 @@ const artAssets: ArtAsset[] = [
     kind: "bean",
     fallbackGlyph: "🫘",
     alt: "抽豆结果",
+    aspectRatio: 1
+  },
+  {
+    id: "pixel-rest.fish-tank-fish",
+    slotId: "fish-tank-fish",
+    kind: "fish",
+    themeId: pixelRestTheme.id,
+    component: PixelRestFish,
+    fallbackGlyph: "🐟",
+    alt: "像素休息风小鱼",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.primary
+  },
+  {
+    id: "default.fish-tank-empty",
+    slotId: "fish-tank-empty",
+    kind: "empty-state",
+    fallbackGlyph: "🫗",
+    alt: "空鱼缸",
+    aspectRatio: 1
+  },
+  {
+    id: "pixel-rest.fish-tank-empty",
+    slotId: "fish-tank-empty",
+    kind: "empty-state",
+    themeId: pixelRestTheme.id,
+    component: PixelRestEmptyStateGeneric,
+    fallbackGlyph: "🫗",
+    alt: "像素休息风空鱼缸",
     aspectRatio: 1
   }
 ];

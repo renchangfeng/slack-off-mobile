@@ -9,5 +9,6 @@ export {
   PixelRestEmptyStateBeans,
   PixelRestEmptyStateGeneric,
   PixelRestEmptyStateProfile,
+  PixelRestFish,
   PixelRestHomeCharacter
 } from "./components";

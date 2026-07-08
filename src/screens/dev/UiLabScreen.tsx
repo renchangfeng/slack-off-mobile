@@ -18,11 +18,13 @@ import {
   TapPatternInteraction
 } from "../dashboard/parts/activity-interactions";
 import { ActivityInteractionRunner } from "../dashboard/parts/ActivityInteractionRunner";
+import { FishTankCard } from "../dashboard/parts/FishTankCard";
 import {
   ActivityHistoryCard,
   ActivityHistoryDetail,
   ActivityHistorySection
 } from "../dashboard/ActivitiesTab";
+import type { FishTankSummary } from "../../api/fishTank";
 
 type MiniStep = ActivityAssignment["interaction"]["steps"][number];
 
@@ -1243,6 +1245,158 @@ function PlayLoopSpecimens() {
   );
 }
 
+function makeFishSummary(
+  partial: Partial<FishTankSummary> & Pick<FishTankSummary, "initialized" | "fish" | "nextAction">
+): FishTankSummary {
+  return {
+    moodCopy: "小鱼正在假装工作。",
+    careAvailability: {
+      feed: {
+        available: partial.nextAction === "feed",
+        nextAvailableAt: null,
+        cooldownRemainingSeconds: 0
+      }
+    },
+    ...partial
+  };
+}
+
+const FISH_TANK_SPECIMENS: Array<{
+  label: string;
+  summary: FishTankSummary | null;
+  loading: boolean;
+  error: string | null;
+  resultCopy?: string | null;
+}> = [
+  {
+    label: "Loading",
+    summary: null,
+    loading: true,
+    error: null
+  },
+  {
+    label: "Uninitialized",
+    summary: makeFishSummary({
+      initialized: false,
+      fish: [],
+      nextAction: "initialize",
+      moodCopy: "这里还空着，放一条小鱼进来。"
+    }),
+    loading: false,
+    error: null
+  },
+  {
+    label: "Care available",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-1",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "feed"
+    }),
+    loading: false,
+    error: null
+  },
+  {
+    label: "Cooldown",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-2",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "wait",
+      moodCopy: "小鱼吃饱了，正在发呆。",
+      careAvailability: {
+        feed: {
+          available: false,
+          nextAvailableAt: new Date(Date.now() + 25 * 60 * 1000).toISOString(),
+          cooldownRemainingSeconds: 25 * 60
+        }
+      }
+    }),
+    loading: false,
+    error: null
+  },
+  {
+    label: "Success receipt",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-3",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "wait",
+      moodCopy: "投喂成功，小鱼很开心。",
+      careAvailability: {
+        feed: {
+          available: false,
+          nextAvailableAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          cooldownRemainingSeconds: 30 * 60
+        }
+      }
+    }),
+    loading: false,
+    error: null,
+    resultCopy: "小鱼打了个饱嗝，卷度 -5。"
+  },
+  {
+    label: "Error",
+    summary: null,
+    loading: false,
+    error: "小鱼临时失联，请稍后再试。"
+  }
+];
+
+function FishTankSpecimens() {
+  return (
+    <View style={styles.flowSpecimenGrid}>
+      {FISH_TANK_SPECIMENS.map(({ label, summary, loading, error, resultCopy }) => (
+        <FramedCard key={label} style={styles.flowSpecimenCard}>
+          <Text style={styles.miniSpecimenType}>{label}</Text>
+          <FishTankCard
+            loading={loading}
+            summary={summary}
+            error={error}
+            resultCopy={resultCopy ?? null}
+            onInitialize={() => undefined}
+            onFeed={() => undefined}
+            onRetry={() => undefined}
+          />
+        </FramedCard>
+      ))}
+    </View>
+  );
+}
+
 export function UiLabScreen({ onClose }: UiLabScreenProps) {
   const theme = useTheme();
   const reducedMotion = useReducedMotion();
@@ -1606,6 +1760,14 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
               />
             ))}
           </View>
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Fish tank" kicker="PERSONAL MVP" />
+          <Text style={[styles.copy, { color: colors.inkMuted }]}>
+            Loading, uninitialized, care-available, cooldown, success receipt, and error states.
+          </Text>
+          <FishTankSpecimens />
         </Surface>
 
         <PrimaryButton label="返回 App" dark onPress={onClose} />

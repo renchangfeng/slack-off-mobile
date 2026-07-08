@@ -579,6 +579,27 @@ const styles = StyleSheet.create({
   },
   pixelArtCharacterHead: {
     backgroundColor: colors.ink
+  },
+  pixelArtFish: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceSignal,
+    borderColor: colors.ink,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs
+  },
+  pixelArtFishBody: {
+    backgroundColor: colors.primary
+  },
+  pixelArtFishTail: {
+    borderBottomColor: "transparent",
+    borderLeftColor: colors.primary,
+    borderTopColor: "transparent",
+    height: 0,
+    marginLeft: -2,
+    width: 0
   }
 });
 
@@ -746,7 +767,7 @@ export function SectionHeader({ title, kicker, trailing, style }: SectionHeaderP
   );
 }
 
-type PixelArtKind = "bean" | "badge" | "activity" | "character";
+type PixelArtKind = "bean" | "badge" | "activity" | "character" | "fish";
 
 type PixelArtPlaceholderProps = {
   kind: PixelArtKind;
@@ -795,6 +816,39 @@ export function PixelArtPlaceholder({ kind, size = 64, style }: PixelArtPlacehol
         <View style={styles.pixelArtActivityBar} />
         <View style={styles.pixelArtActivityBar} />
         <View style={[styles.pixelArtActivityBar, styles.pixelArtActivityBarShort]} />
+      </View>
+    );
+  }
+  if (kind === "fish") {
+    return (
+      <View
+        style={[
+          styles.pixelArt,
+          styles.pixelArtFish,
+          { width: size, height: Math.round(size * 0.6) },
+          style
+        ]}
+      >
+        <View
+          style={[
+            styles.pixelArtFishBody,
+            {
+              width: Math.round(size * 0.66),
+              height: Math.round(size * 0.4),
+              borderRadius: Math.round(size * 0.2)
+            }
+          ]}
+        />
+        <View
+          style={[
+            styles.pixelArtFishTail,
+            {
+              borderLeftWidth: Math.round(size * 0.22),
+              borderTopWidth: Math.round(size * 0.14),
+              borderBottomWidth: Math.round(size * 0.14)
+            }
+          ]}
+        />
       </View>
     );
   }

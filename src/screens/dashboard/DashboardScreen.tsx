@@ -34,6 +34,7 @@ import {
   type BeanTheme
 } from "../../api/beans";
 import { ApiClient } from "../../api/client";
+import { FishTankApi, type FishTankSummary } from "../../api/fishTank";
 import { CheckInApi, type CheckInFinishResult, type CheckInSession } from "../../api/checkins";
 import {
   LeaderboardApi,
@@ -85,6 +86,7 @@ export function DashboardScreen({
       activities: new ActivityApi(client),
       beans: new BeanApi(client),
       checkIns: new CheckInApi(client),
+      fishTank: new FishTankApi(client),
       leaderboards: new LeaderboardApi(client),
       progression: new ProgressionApi(client),
       social: new SocialApi(client)
@@ -101,6 +103,10 @@ export function DashboardScreen({
   const [beanDrawResult, setBeanDrawResult] = useState<BeanDrawResult | null>(null);
   const [beanTheme, setBeanTheme] = useState<BeanTheme>("office");
   const [showcasePosition, setShowcasePosition] = useState(1);
+  const [fishTank, setFishTank] = useState<FishTankSummary | null>(null);
+  const [fishTankLoading, setFishTankLoading] = useState(false);
+  const [fishTankError, setFishTankError] = useState<string | null>(null);
+  const [fishTankResultCopy, setFishTankResultCopy] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<CheckInFinishResult | null>(null);
   const [achievementList, setAchievementList] = useState<AchievementList | null>(null);
   const [achievementCategoryFilter, setAchievementCategoryFilter] =
@@ -151,6 +157,18 @@ export function DashboardScreen({
     }
     setBeanCollection(response.data);
   }, [api.beans]);
+
+  const refreshFishTank = useCallback(async () => {
+    setFishTankLoading(true);
+    setFishTankError(null);
+    const response = await api.fishTank.getSummary();
+    setFishTankLoading(false);
+    if (response.error) {
+      setFishTankError(response.error.message);
+      return;
+    }
+    setFishTank(response.data);
+  }, [api.fishTank]);
 
   const refreshAchievements = useCallback(async () => {
     const [achievementResponse, cosmeticResponse] = await Promise.all([
@@ -209,6 +227,7 @@ export function DashboardScreen({
     await Promise.all([
       refreshProgression(),
       refreshBeans(),
+      refreshFishTank(),
       refreshAchievements(),
       refreshLeaderboard("daily", "global"),
       refreshSocial()
@@ -218,6 +237,7 @@ export function DashboardScreen({
     api.checkIns,
     refreshAchievements,
     refreshBeans,
+    refreshFishTank,
     refreshLeaderboard,
     refreshProgression,
     refreshSocial
@@ -371,6 +391,32 @@ export function DashboardScreen({
     );
     enqueueAchievementUnlocks(response.data?.achievementsUnlocked ?? []);
     await refreshAfterReward();
+  }
+
+  async function initializeTank() {
+    setFishTankLoading(true);
+    setFishTankError(null);
+    const response = await api.fishTank.initializeTank();
+    setFishTankLoading(false);
+    if (response.error) {
+      setFishTankError(response.error.message);
+      return;
+    }
+    setFishTank(response.data);
+    setFishTankResultCopy(null);
+  }
+
+  async function feedFish() {
+    setFishTankLoading(true);
+    setFishTankError(null);
+    const response = await api.fishTank.interact("feed");
+    setFishTankLoading(false);
+    if (response.error) {
+      setFishTankError(response.error.message);
+      return;
+    }
+    setFishTankResultCopy(response.data?.resultCopy ?? null);
+    setFishTank(response.data?.tank ?? null);
   }
 
   async function exchangeBeanFragments() {
@@ -802,13 +848,20 @@ export function DashboardScreen({
             showcasePosition={showcasePosition}
             nextStep={nextStep}
             todayLoop={todayLoop}
+            fishTank={fishTank}
+            fishTankLoading={fishTankLoading}
+            fishTankError={fishTankError}
+            fishTankResultCopy={fishTankResultCopy}
             actions={{
               setTheme: setBeanTheme,
               setShowcasePosition,
               drawBean,
               exchangeFragments: exchangeBeanFragments,
               setShowcase: setBeanShowcase,
-              runTodayLoopAction
+              runTodayLoopAction,
+              initializeTank,
+              feedFish,
+              refreshFishTank
             }}
           />
         ) : null}

@@ -36,6 +36,8 @@ describe("art registry", () => {
     expect(ids).toContain("bean-gallery-item");
     expect(ids).toContain("achievement-badge");
     expect(ids).toContain("empty-state-generic");
+    expect(ids).toContain("fish-tank-fish");
+    expect(ids).toContain("fish-tank-empty");
   });
 
   it("requires every slot to carry stable layout metadata", () => {
@@ -135,6 +137,27 @@ describe("art registry", () => {
       expect(pixelRestAsset!.component).toBeDefined();
       expect(pixelRestAsset!.source).toBeUndefined();
     }
+  });
+
+  it("registers fish tank slots with the correct kinds", () => {
+    const fishSlot = getArtSlotDefinition("fish-tank-fish");
+    expect(fishSlot.kind).toBe("fish");
+    expect(fishSlot.fallbackGlyph).toBeTruthy();
+
+    const emptySlot = getArtSlotDefinition("fish-tank-empty");
+    expect(emptySlot.kind).toBe("empty-state");
+    expect(emptySlot.fallbackGlyph).toBeTruthy();
+  });
+
+  it("resolves component-backed fish assets for pixel-rest", () => {
+    const fishAsset = resolveArtAsset(pixelRestTheme.id, "fish-tank-fish");
+    expect(fishAsset.themeId).toBe(pixelRestTheme.id);
+    expect(fishAsset.kind).toBe("fish");
+    expect(fishAsset.component).toBeDefined();
+
+    const emptyAsset = resolveArtAsset(pixelRestTheme.id, "fish-tank-empty");
+    expect(emptyAsset.kind).toBe("empty-state");
+    expect(emptyAsset.component).toBeDefined();
   });
 
   it("resolves the pixel-rest component asset for active theme", () => {

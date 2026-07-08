@@ -7,7 +7,8 @@ export type ArtAssetKind =
   | "bean"
   | "badge"
   | "empty-state"
-  | "scene-prop";
+  | "scene-prop"
+  | "fish";
 
 export type ArtSlotId =
   | "home-check-in-character"
@@ -21,7 +22,9 @@ export type ArtSlotId =
   | "empty-state-activities"
   | "empty-state-beans"
   | "empty-state-profile"
-  | "empty-state-generic";
+  | "empty-state-generic"
+  | "fish-tank-fish"
+  | "fish-tank-empty";
 
 export type ArtAssetRenderProps = {
   size: number;

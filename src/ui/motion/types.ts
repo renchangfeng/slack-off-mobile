@@ -4,6 +4,7 @@ export type MotionFeedbackVariant =
   | "activity-complete"
   | "bean-reveal"
   | "achievement-unlock"
-  | "theme-switch";
+  | "theme-switch"
+  | "fish-feed";
 
 export type MotionIntensity = "normal" | "reduced";

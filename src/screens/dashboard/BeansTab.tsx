@@ -5,6 +5,7 @@ import { MotionFeedback } from "../../ui/motion/MotionFeedback";
 import { DashboardCard } from "./parts/DashboardCard";
 import { ActionButton, ProgressBar } from "./parts/SharedControls";
 import { GoalBanner } from "./parts/GoalPanels";
+import { FishTankCard } from "./parts/FishTankCard";
 import {
   beanRarities,
   beanThemeLabel,
@@ -23,6 +24,10 @@ export function BeansTab({
   showcasePosition,
   nextStep,
   todayLoop,
+  fishTank,
+  fishTankLoading,
+  fishTankError,
+  fishTankResultCopy,
   actions
 }: BeansTabProps) {
   const beanDelight =
@@ -30,6 +35,15 @@ export function BeansTab({
   return (
     <>
       <GoalBanner goal={goal} />
+      <FishTankCard
+        loading={fishTankLoading}
+        summary={fishTank}
+        error={fishTankError}
+        resultCopy={fishTankResultCopy}
+        onInitialize={actions.initializeTank}
+        onFeed={actions.feedFish}
+        onRetry={actions.refreshFishTank}
+      />
       <DashboardCard>
         <SectionHeader kicker="抽豆账户" title={`${collection?.drawChances ?? 0} 次机会`} />
         <Text style={styles.copy}>

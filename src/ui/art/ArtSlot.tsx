@@ -6,14 +6,15 @@ import type { ArtAssetKind, ArtSlotId, ArtSlotProps } from "./types";
 
 const PLACEHOLDER_KINDS: Record<
   ArtAssetKind,
-  "bean" | "badge" | "activity" | "character"
+  "bean" | "badge" | "activity" | "character" | "fish"
 > = {
   bean: "bean",
   badge: "badge",
   activity: "activity",
   character: "character",
   "empty-state": "character",
-  "scene-prop": "badge"
+  "scene-prop": "badge",
+  fish: "fish"
 };
 
 export function ArtSlot({ slotId, size, style, placeholderStyle }: ArtSlotProps) {

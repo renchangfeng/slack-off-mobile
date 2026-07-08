@@ -118,6 +118,23 @@ export function PixelRestBean({ size }: ArtAssetRenderProps) {
   );
 }
 
+export function PixelRestFish({ size }: ArtAssetRenderProps) {
+  const theme = useTheme();
+  const c = theme.colors;
+  return (
+    <PixelCanvas size={size} aspectRatio={1}>
+      {/* body */}
+      <Pixel size={size} x={0.2} y={0.32} w={0.56} h={0.36} color={c.primary} radius={0.16} />
+      {/* tail */}
+      <Pixel size={size} x={0.74} y={0.38} w={0.16} h={0.24} color={c.accent} radius={0.04} />
+      {/* eye */}
+      <Pixel size={size} x={0.32} y={0.42} w={0.08} h={0.08} color={c.surfaceWarm} radius={0.04} />
+      {/* fin */}
+      <Pixel size={size} x={0.44} y={0.24} w={0.14} h={0.1} color={c.warning} radius={0.02} />
+    </PixelCanvas>
+  );
+}
+
 export function PixelRestBeanMachine({ size }: ArtAssetRenderProps) {
   const theme = useTheme();
   const c = theme.colors;
