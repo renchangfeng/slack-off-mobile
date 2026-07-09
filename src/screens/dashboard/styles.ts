@@ -714,6 +714,13 @@ const styles = StyleSheet.create({
   showcasePlaceholder: { marginBottom: 6 },
   showcaseBeanName: { color: colors.ink, fontSize: 13, fontWeight: "900", marginTop: 7 },
   showcaseHint: { color: colors.primary, fontSize: 11, fontWeight: "900", marginTop: 9 },
+  combinationFishHint: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: "800",
+    lineHeight: 17,
+    marginTop: 5
+  },
   raritySummaryRow: { flexDirection: "row", gap: 5, marginTop: 14 },
   raritySummaryCell: {
     alignItems: "center",

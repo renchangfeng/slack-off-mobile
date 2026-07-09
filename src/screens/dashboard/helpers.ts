@@ -720,3 +720,16 @@ export const activitySkipReasonOptions: Array<{ value: ActivitySkipReason; label
 
 export const beanThemes: BeanTheme[] = ["office", "restroom", "daydream"];
 export const beanRarities = ["common", "uncommon", "rare", "epic", "legendary"] as const;
+
+export function resourceIcon(resourceType: string): string {
+  switch (resourceType) {
+    case "food":
+      return "🍤";
+    case "bubble":
+      return "🫧";
+    case "hatch_progress":
+      return "🥚";
+    default:
+      return "🐟";
+  }
+}

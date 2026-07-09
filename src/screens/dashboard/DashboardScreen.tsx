@@ -94,6 +94,7 @@ export function DashboardScreen({
   }, [getAccessToken]);
 
   const brand = useBrandName();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [selectedTab, setSelectedTab] = useState<DashboardTab>("home");
   const [activeSession, setActiveSession] = useState<CheckInSession | null>(null);
@@ -758,9 +759,16 @@ export function DashboardScreen({
     setSelectedTab(action.targetSection);
   }
 
+  function inspectFishTank() {
+    setSelectedTab("beans");
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 0);
+  }
+
   return (
     <View style={styles.app}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerTopRow}>
             <Text style={styles.brand}>{brand}</Text>
@@ -861,7 +869,8 @@ export function DashboardScreen({
               runTodayLoopAction,
               initializeTank,
               feedFish,
-              refreshFishTank
+              refreshFishTank,
+              inspectFishTank
             }}
           />
         ) : null}

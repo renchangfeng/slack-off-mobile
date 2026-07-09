@@ -125,6 +125,7 @@ export type BeansTabProps = {
     initializeTank(): void | Promise<void>;
     feedFish(): void | Promise<void>;
     refreshFishTank(): void | Promise<void>;
+    inspectFishTank(): void;
   };
 };
 

@@ -25,6 +25,9 @@ import {
   ActivityHistorySection
 } from "../dashboard/ActivitiesTab";
 import type { FishTankSummary } from "../../api/fishTank";
+import type { components } from "../../api/generated";
+
+type FishTankResourceOutcome = components["schemas"]["FishTankResourceOutcome"];
 
 type MiniStep = ActivityAssignment["interaction"]["steps"][number];
 
@@ -49,7 +52,7 @@ import type { MotionFeedbackVariant } from "../../ui/motion/types";
 import { useTheme, useThemeSwitcher } from "../../ui/theme/useTheme";
 import { colors, radius, spacing, typography } from "../../ui/tokens";
 import { deriveTodayPlayLoop, type TodayLoopViewModel } from "../../gameplay/todayLoop";
-import { resolveHistoryPresentation } from "../dashboard/helpers";
+import { resourceIcon, resolveHistoryPresentation } from "../dashboard/helpers";
 
 function groupSlotsByKind(
   slots: ReturnType<typeof listArtSlotDefinitions>
@@ -1257,6 +1260,16 @@ function makeFishSummary(
         cooldownRemainingSeconds: 0
       }
     },
+    resourceSummary: {
+      resources: [
+        { resourceType: "food", quantity: 0, label: "鱼食" },
+        { resourceType: "bubble", quantity: 0, label: "气泡" },
+        { resourceType: "hatch_progress", quantity: 0, label: "孵化进度" }
+      ],
+      totalFood: 0,
+      totalBubbles: 0,
+      totalHatchProgress: 0
+    },
     ...partial
   };
 }
@@ -1369,6 +1382,38 @@ const FISH_TANK_SPECIMENS: Array<{
     resultCopy: "小鱼打了个饱嗝，卷度 -5。"
   },
   {
+    label: "With resources",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-4",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "feed",
+      resourceSummary: {
+        resources: [
+          { resourceType: "bubble", quantity: 3, label: "气泡" },
+          { resourceType: "food", quantity: 2, label: "鱼食" },
+          { resourceType: "hatch_progress", quantity: 1, label: "孵化进度" }
+        ],
+        totalBubbles: 3,
+        totalFood: 2,
+        totalHatchProgress: 1
+      }
+    }),
+    loading: false,
+    error: null
+  },
+  {
     label: "Error",
     summary: null,
     loading: false,
@@ -1393,6 +1438,65 @@ function FishTankSpecimens() {
           />
         </FramedCard>
       ))}
+    </View>
+  );
+}
+
+const DRAW_OUTCOME_SPECIMENS: FishTankResourceOutcome[] = [
+  {
+    resourceType: "bubble",
+    quantity: 1,
+    label: "气泡",
+    copy: "气泡 +1：鱼缸看起来更像在认真摸鱼。"
+  },
+  {
+    resourceType: "hatch_progress",
+    quantity: 1,
+    label: "孵化进度",
+    copy: "孵化进度 +1：新邻居正在路上。"
+  },
+  {
+    resourceType: "food",
+    quantity: 2,
+    label: "鱼食",
+    copy: "重复豆没有白来，鱼缸库存 +2。"
+  }
+];
+
+function BeanDrawOutcomeSpecimens() {
+  return (
+    <View style={styles.flowSpecimenGrid}>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <Text style={styles.miniSpecimenType}>new bean</Text>
+        <Text style={styles.miniSpecimenTitle}>新豆入仓 + 鱼缸反馈</Text>
+        {DRAW_OUTCOME_SPECIMENS.slice(0, 2).map((outcome) => (
+          <RewardRow
+            key={outcome.resourceType}
+            icon={resourceIcon(outcome.resourceType)}
+            label={outcome.label}
+            value={`+${outcome.quantity}`}
+            positive
+          />
+        ))}
+        <Text style={styles.copy}>{DRAW_OUTCOME_SPECIMENS[0]?.copy}</Text>
+      </FramedCard>
+      <FramedCard style={styles.flowSpecimenCard}>
+        <Text style={styles.miniSpecimenType}>duplicate rare</Text>
+        <Text style={styles.miniSpecimenTitle}>重复稀有豆 + 鱼缸反馈</Text>
+        {[
+          DRAW_OUTCOME_SPECIMENS[0],
+          { ...DRAW_OUTCOME_SPECIMENS[2], quantity: 2 }
+        ].map((outcome) => (
+          <RewardRow
+            key={outcome.resourceType}
+            icon={resourceIcon(outcome.resourceType)}
+            label={outcome.label}
+            value={`+${outcome.quantity}`}
+            positive
+          />
+        ))}
+        <Text style={styles.copy}>{DRAW_OUTCOME_SPECIMENS[2]?.copy}</Text>
+      </FramedCard>
     </View>
   );
 }
@@ -1765,9 +1869,17 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
         <Surface>
           <SectionHeader title="Fish tank" kicker="PERSONAL MVP" />
           <Text style={[styles.copy, { color: colors.inkMuted }]}>
-            Loading, uninitialized, care-available, cooldown, success receipt, and error states.
+            Loading, uninitialized, care-available, cooldown, success receipt, with resources, and error states.
           </Text>
           <FishTankSpecimens />
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Bean draw to fish tank" kicker="RESOURCE OUTCOMES" />
+          <Text style={[styles.copy, { color: colors.inkMuted }]}>
+            Outcomes rendered inside the bean draw result for new and duplicate rare draws.
+          </Text>
+          <BeanDrawOutcomeSpecimens />
         </Surface>
 
         <PrimaryButton label="返回 App" dark onPress={onClose} />

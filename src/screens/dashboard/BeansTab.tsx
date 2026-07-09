@@ -10,7 +10,8 @@ import {
   beanRarities,
   beanThemeLabel,
   beanThemes,
-  rarityLabel
+  rarityLabel,
+  resourceIcon
 } from "./helpers";
 import styles from "./styles";
 import type { BeansTabProps } from "./types";
@@ -203,6 +204,28 @@ export function BeansTab({
                 label="剩余机会"
                 value={`${drawResult.remainingDrawChances} 次`}
               />
+              {drawResult.fishTankOutcomes?.length > 0 ? (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.kicker}>鱼缸也收到了</Text>
+                  {drawResult.fishTankOutcomes.map((outcome) => (
+                    <RewardRow
+                      key={outcome.resourceType}
+                      icon={resourceIcon(outcome.resourceType)}
+                      label={outcome.label}
+                      value={`+${outcome.quantity}`}
+                      positive
+                    />
+                  ))}
+                  <Text style={styles.helperText}>
+                    {drawResult.fishTankOutcomes[0]?.copy}
+                  </Text>
+                  <ActionButton
+                    label="看看鱼缸库存"
+                    disabled={loading}
+                    onPress={actions.inspectFishTank}
+                  />
+                </View>
+              ) : null}
             </View>
             <View style={styles.resultReceiptBox}>
               <Text style={styles.kicker}>{beanDelight?.receiptTitle ?? "抽豆回执"}</Text>
@@ -327,6 +350,12 @@ export function BeansTab({
               <View style={styles.flex}>
                 <Text style={styles.rowTitle}>{combination.name}</Text>
                 <Text style={styles.rowMeta}>收集指定豆子即可自动完成</Text>
+                {combination.fishTankEffect ? (
+                  <Text style={styles.combinationFishHint}>
+                    {combination.fishTankEffect.available ? "已解锁" : "鱼缸联动"} ·{" "}
+                    {combination.fishTankEffect.label}：{combination.fishTankEffect.hint}
+                  </Text>
+                ) : null}
               </View>
               <Text
                 style={combination.completed ? styles.completedMark : styles.progressValue}

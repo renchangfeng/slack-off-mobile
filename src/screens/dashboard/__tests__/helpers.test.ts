@@ -30,6 +30,7 @@ import {
   isActivityStepComplete,
   pickAchievementFocus,
   rarityLabel,
+  resourceIcon,
   resolveActivityPresentation,
   resolveHistoryPresentation,
   skipReasonLabel
@@ -65,6 +66,13 @@ describe("label helpers", () => {
   it("labels rarities", () => {
     expect(rarityLabel("legendary")).toBe("传说");
     expect(rarityLabel("common")).toBe("普通");
+  });
+
+  it("maps fish tank resource types to icons", () => {
+    expect(resourceIcon("food")).toBe("🍤");
+    expect(resourceIcon("bubble")).toBe("🫧");
+    expect(resourceIcon("hatch_progress")).toBe("🥚");
+    expect(resourceIcon("unknown")).toBe("🐟");
   });
 
   it("formats activity time", () => {

@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { ArtSlot } from "../../../ui/art/ArtSlot";
-import { SectionHeader, StatusBadge } from "../../../ui/components";
+import {
+  RewardRow,
+  SectionHeader,
+  StatusBadge
+} from "../../../ui/components";
 import { MotionFeedback } from "../../../ui/motion/MotionFeedback";
 import { useTheme } from "../../../ui/theme/useTheme";
 import { DashboardCard } from "./DashboardCard";
 import { ActionButton } from "./SharedControls";
 import styles from "../styles";
+import { resourceIcon } from "../helpers";
 import type { FishTankSummary } from "../../../api/fishTank";
 
 type FishTankCardProps = {
@@ -131,6 +136,21 @@ export function FishTankCard({
       />
       {summary.fish.length > 1 ? (
         <Text style={styles.helperText}>已收集 {summary.fish.length} 条小鱼</Text>
+      ) : null}
+      {summary.resourceSummary?.resources?.some((resource) => resource.quantity > 0) ? (
+        <View style={{ marginTop: 8 }}>
+          <Text style={styles.kicker}>鱼缸库存</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+            {summary.resourceSummary.resources.map((resource) => (
+              <RewardRow
+                key={resource.resourceType}
+                icon={resourceIcon(resource.resourceType)}
+                label={resource.label}
+                value={`${resource.quantity}`}
+              />
+            ))}
+          </View>
+        </View>
       ) : null}
     </DashboardCard>
   );
