@@ -5,6 +5,7 @@ export type MotionFeedbackVariant =
   | "bean-reveal"
   | "achievement-unlock"
   | "theme-switch"
-  | "fish-feed";
+  | "fish-feed"
+  | "fish-hatch";
 
 export type MotionIntensity = "normal" | "reduced";

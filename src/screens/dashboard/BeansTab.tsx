@@ -29,6 +29,9 @@ export function BeansTab({
   fishTankLoading,
   fishTankError,
   fishTankResultCopy,
+  hatchResult,
+  hatchError,
+  hatchLoading,
   actions
 }: BeansTabProps) {
   const beanDelight =
@@ -41,8 +44,13 @@ export function BeansTab({
         summary={fishTank}
         error={fishTankError}
         resultCopy={fishTankResultCopy}
+        hatchResult={hatchResult}
+        hatchError={hatchError}
+        hatchLoading={hatchLoading}
         onInitialize={actions.initializeTank}
         onFeed={actions.feedFish}
+        onHatch={actions.hatchFish}
+        onDismissHatchResult={actions.dismissHatchResult}
         onRetry={actions.refreshFishTank}
       />
       <DashboardCard>

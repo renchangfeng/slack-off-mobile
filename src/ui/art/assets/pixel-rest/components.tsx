@@ -238,6 +238,56 @@ export function PixelRestEmptyStateProfile({ size }: ArtAssetRenderProps) {
   );
 }
 
+export function PixelRestHatchEgg({ size }: ArtAssetRenderProps) {
+  const theme = useTheme();
+  const c = theme.colors;
+  return (
+    <PixelCanvas size={size} aspectRatio={1}>
+      {/* egg body */}
+      <Pixel size={size} x={0.24} y={0.22} w={0.52} h={0.6} color={c.surfaceMuted} radius={0.2} />
+      {/* spots */}
+      <Pixel size={size} x={0.34} y={0.34} w={0.1} h={0.1} color={c.accent} radius={0.04} />
+      <Pixel size={size} x={0.56} y={0.52} w={0.08} h={0.08} color={c.warning} radius={0.03} />
+      {/* crack */}
+      <Pixel size={size} x={0.48} y={0.42} w={0.04} h={0.18} color={c.text} radius={0.01} />
+    </PixelCanvas>
+  );
+}
+
+export function PixelRestHatchReveal({ size }: ArtAssetRenderProps) {
+  const theme = useTheme();
+  const c = theme.colors;
+  return (
+    <PixelCanvas size={size} aspectRatio={1}>
+      {/* sparkle burst */}
+      <Pixel size={size} x={0.42} y={0.12} w={0.16} h={0.16} color={c.warning} radius={0.04} />
+      <Pixel size={size} x={0.16} y={0.42} w={0.12} h={0.12} color={c.accent} radius={0.03} />
+      <Pixel size={size} x={0.72} y={0.42} w={0.12} h={0.12} color={c.accent} radius={0.03} />
+      <Pixel size={size} x={0.42} y={0.72} w={0.16} h={0.16} color={c.warning} radius={0.04} />
+      {/* fish body */}
+      <Pixel size={size} x={0.28} y={0.36} w={0.44} h={0.32} color={c.primary} radius={0.12} />
+      {/* tail */}
+      <Pixel size={size} x={0.7} y={0.42} w={0.14} h={0.2} color={c.warning} radius={0.03} />
+      {/* eye */}
+      <Pixel size={size} x={0.38} y={0.46} w={0.08} h={0.08} color={c.surfaceWarm} radius={0.04} />
+    </PixelCanvas>
+  );
+}
+
+export function PixelRestLockedSilhouette({ size }: ArtAssetRenderProps) {
+  const theme = useTheme();
+  const c = theme.colors;
+  return (
+    <PixelCanvas size={size} aspectRatio={1}>
+      {/* shadow fish */}
+      <Pixel size={size} x={0.26} y={0.34} w={0.48} h={0.32} color={c.surfaceMuted} radius={0.14} />
+      {/* lock body */}
+      <Pixel size={size} x={0.38} y={0.52} w={0.24} h={0.2} color={c.text} radius={0.04} />
+      <Pixel size={size} x={0.42} y={0.44} w={0.16} h={0.12} color={c.text} radius={0.04} />
+    </PixelCanvas>
+  );
+}
+
 export function PixelRestEmptyStateGeneric({ size }: ArtAssetRenderProps) {
   const theme = useTheme();
   const c = theme.colors;

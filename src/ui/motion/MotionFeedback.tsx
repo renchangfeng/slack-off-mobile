@@ -49,6 +49,12 @@ const CONFIGS: Record<MotionFeedbackVariant, MotionConfig> = {
     final: { opacity: 1, scale: 1, translateY: 0 },
     duration: 260,
     spring: { damping: 14, stiffness: 190 }
+  },
+  "fish-hatch": {
+    initial: { opacity: 0, scale: 0.72, translateY: 20 },
+    final: { opacity: 1, scale: 1, translateY: 0 },
+    duration: 320,
+    spring: { damping: 12, stiffness: 180 }
   }
 };
 

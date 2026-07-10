@@ -666,6 +666,51 @@ const styles = StyleSheet.create({
   },
   beanTileOwned: { backgroundColor: colors.mintLight, borderColor: colors.mintMid },
   beanTileArt: { marginBottom: 8 },
+  fishCollectionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 10
+  },
+  fishCollectionCell: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexBasis: "22%",
+    flexGrow: 1,
+    minHeight: 76,
+    justifyContent: "center",
+    padding: 8
+  },
+  fishCollectionName: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    marginTop: 6,
+    textAlign: "center"
+  },
+  hatchRevealBackdrop: {
+    alignItems: "center",
+    backgroundColor: "rgba(20, 19, 17, 0.72)",
+    borderRadius: 8,
+    justifyContent: "center",
+    left: 0,
+    margin: -18,
+    minHeight: "100%",
+    padding: 18,
+    position: "absolute",
+    right: 0,
+    top: 0
+  },
+  hatchRevealPanel: {
+    borderRadius: 8,
+    borderWidth: 2,
+    maxWidth: 460,
+    padding: 18,
+    width: "100%"
+  },
   beanThemeRow: { flexDirection: "row", gap: 8, marginTop: 10 },
   beanThemeButton: {
     alignItems: "center",

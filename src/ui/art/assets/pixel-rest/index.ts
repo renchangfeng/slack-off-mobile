@@ -10,5 +10,8 @@ export {
   PixelRestEmptyStateGeneric,
   PixelRestEmptyStateProfile,
   PixelRestFish,
-  PixelRestHomeCharacter
+  PixelRestHatchEgg,
+  PixelRestHatchReveal,
+  PixelRestHomeCharacter,
+  PixelRestLockedSilhouette
 } from "./components";

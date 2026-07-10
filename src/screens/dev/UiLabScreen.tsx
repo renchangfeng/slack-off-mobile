@@ -24,7 +24,7 @@ import {
   ActivityHistoryDetail,
   ActivityHistorySection
 } from "../dashboard/ActivitiesTab";
-import type { FishTankSummary } from "../../api/fishTank";
+import type { FishTankSummary, HatchResult } from "../../api/fishTank";
 import type { components } from "../../api/generated";
 
 type FishTankResourceOutcome = components["schemas"]["FishTankResourceOutcome"];
@@ -1251,6 +1251,15 @@ function PlayLoopSpecimens() {
 function makeFishSummary(
   partial: Partial<FishTankSummary> & Pick<FishTankSummary, "initialized" | "fish" | "nextAction">
 ): FishTankSummary {
+  const defaultItems = partial.fish?.map((f) => ({
+    definitionId: f.definitionId,
+    name: f.name,
+    rarity: f.rarity,
+    personality: f.personality,
+    artKey: f.artKey,
+    sourceHint: f.acquiredSource,
+    owned: true as const
+  })) ?? [];
   return {
     moodCopy: "小鱼正在假装工作。",
     careAvailability: {
@@ -1259,6 +1268,20 @@ function makeFishSummary(
         nextAvailableAt: null,
         cooldownRemainingSeconds: 0
       }
+    },
+    hatchAvailability: {
+      available: partial.nextAction === "hatch",
+      reason: partial.nextAction === "hatch" ? "ready" : "insufficient_progress",
+      currentProgress: partial.nextAction === "hatch" ? 3 : 0,
+      cost: 3,
+      missingProgress: partial.nextAction === "hatch" ? 0 : 3
+    },
+    collection: {
+      owned: defaultItems.length,
+      total: Math.max(2, defaultItems.length + 1),
+      percent: Math.round((defaultItems.length / Math.max(2, defaultItems.length + 1)) * 100),
+      complete: false,
+      items: defaultItems
     },
     resourceSummary: {
       resources: [
@@ -1432,8 +1455,310 @@ function FishTankSpecimens() {
             summary={summary}
             error={error}
             resultCopy={resultCopy ?? null}
+            hatchResult={null}
+            hatchError={null}
+            hatchLoading={false}
             onInitialize={() => undefined}
             onFeed={() => undefined}
+            onHatch={() => undefined}
+            onDismissHatchResult={() => undefined}
+            onRetry={() => undefined}
+          />
+        </FramedCard>
+      ))}
+    </View>
+  );
+}
+
+function makeHatchResult(partial: Partial<HatchResult> & Pick<HatchResult, "success" | "outcomeCode">): HatchResult {
+  return {
+    replayed: false,
+    discoveredFish: null,
+    cost: 0,
+    resultTitle: "孵化结果",
+    resultCopy: "结果走丢了。",
+    nextHint: "返回鱼缸。",
+    tank: makeFishSummary({ initialized: true, fish: [], nextAction: "wait" }),
+    ...partial
+  };
+}
+
+const HATCH_SPECIMENS: Array<{
+  label: string;
+  summary: FishTankSummary;
+  hatchResult: HatchResult | null;
+  hatchError: string | null;
+  hatchLoading: boolean;
+}> = [
+  {
+    label: "Ready to hatch",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-1",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "hatch",
+      hatchAvailability: {
+        available: true,
+        reason: "ready",
+        currentProgress: 3,
+        cost: 3,
+        missingProgress: 0
+      }
+    }),
+    hatchResult: null,
+    hatchError: null,
+    hatchLoading: false
+  },
+  {
+    label: "Insufficient progress",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-1",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "wait",
+      hatchAvailability: {
+        available: false,
+        reason: "insufficient_progress",
+        currentProgress: 1,
+        cost: 3,
+        missingProgress: 2
+      }
+    }),
+    hatchResult: null,
+    hatchError: null,
+    hatchLoading: false
+  },
+  {
+    label: "Hatching loading",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-1",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "hatch",
+      hatchAvailability: {
+        available: true,
+        reason: "ready",
+        currentProgress: 3,
+        cost: 3,
+        missingProgress: 0
+      }
+    }),
+    hatchResult: null,
+    hatchError: null,
+    hatchLoading: true
+  },
+  {
+    label: "Successful reveal",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-1",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "feed",
+      hatchAvailability: {
+        available: false,
+        reason: "insufficient_progress",
+        currentProgress: 0,
+        cost: 3,
+        missingProgress: 3
+      }
+    }),
+    hatchResult: makeHatchResult({
+      success: true,
+      outcomeCode: "DISCOVERED",
+      replayed: false,
+      discoveredFish: {
+        id: "lab-fish-2",
+        definitionId: "lab-printer",
+        name: "打印机和平贝塔",
+        rarity: "common",
+        theme: "office",
+        personality: "宽容卡纸的",
+        artKey: "fish-tank-fish",
+        acquiredSource: "hatch",
+        createdAt: new Date().toISOString()
+      },
+      cost: 3,
+      resultTitle: "新鱼登场",
+      resultCopy: "打印机和平贝塔 从进度里游了出来，鱼缸又热闹了一点。",
+      nextHint: "返回鱼缸看看新邻居。"
+    }),
+    hatchError: null,
+    hatchLoading: false
+  },
+  {
+    label: "Replay result",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-1",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "feed",
+      hatchAvailability: {
+        available: true,
+        reason: "ready",
+        currentProgress: 3,
+        cost: 3,
+        missingProgress: 0
+      }
+    }),
+    hatchResult: makeHatchResult({
+      success: true,
+      outcomeCode: "DISCOVERED",
+      replayed: true,
+      discoveredFish: {
+        id: "lab-fish-2",
+        definitionId: "lab-printer",
+        name: "打印机和平贝塔",
+        rarity: "common",
+        theme: "office",
+        personality: "宽容卡纸的",
+        artKey: "fish-tank-fish",
+        acquiredSource: "hatch",
+        createdAt: new Date().toISOString()
+      },
+      cost: 3,
+      resultTitle: "孵化结果已保存",
+      resultCopy: "这条鱼已经在你缸里了，不用再花进度。",
+      nextHint: "看看鱼缸或者继续攒进度。"
+    }),
+    hatchError: null,
+    hatchLoading: false
+  },
+  {
+    label: "Catalog complete",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-1",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "wait",
+      hatchAvailability: {
+        available: false,
+        reason: "catalog_complete",
+        currentProgress: 3,
+        cost: 3,
+        missingProgress: 0
+      },
+      collection: { owned: 5, total: 5, percent: 100, complete: true, items: [] }
+    }),
+    hatchResult: null,
+    hatchError: null,
+    hatchLoading: false
+  },
+  {
+    label: "Hatch error",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-1",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "hatch",
+      hatchAvailability: {
+        available: true,
+        reason: "ready",
+        currentProgress: 3,
+        cost: 3,
+        missingProgress: 0
+      }
+    }),
+    hatchResult: null,
+    hatchError: "孵化请求失败了，请重试。",
+    hatchLoading: false
+  }
+];
+
+function HatchSpecimens() {
+  return (
+    <View style={styles.flowSpecimenGrid}>
+      {HATCH_SPECIMENS.map(({ label, summary, hatchResult, hatchError, hatchLoading }) => (
+        <FramedCard key={label} style={styles.flowSpecimenCard}>
+          <Text style={styles.miniSpecimenType}>{label}</Text>
+          <FishTankCard
+            loading={false}
+            summary={summary}
+            error={null}
+            resultCopy={null}
+            hatchResult={hatchResult}
+            hatchError={hatchError}
+            hatchLoading={hatchLoading}
+            onInitialize={() => undefined}
+            onFeed={() => undefined}
+            onHatch={() => undefined}
+            onDismissHatchResult={() => undefined}
             onRetry={() => undefined}
           />
         </FramedCard>
@@ -1872,6 +2197,14 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
             Loading, uninitialized, care-available, cooldown, success receipt, with resources, and error states.
           </Text>
           <FishTankSpecimens />
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Fish hatching" kicker="HATCH & REVEAL" />
+          <Text style={[styles.copy, { color: colors.inkMuted }]}>
+            Insufficient progress, ready, loading, successful reveal, replay-safe result, catalog complete, and API error states.
+          </Text>
+          <HatchSpecimens />
         </Surface>
 
         <Surface>

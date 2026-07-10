@@ -24,7 +24,10 @@ export type ArtSlotId =
   | "empty-state-profile"
   | "empty-state-generic"
   | "fish-tank-fish"
-  | "fish-tank-empty";
+  | "fish-tank-empty"
+  | "fish-hatch-egg"
+  | "fish-hatch-reveal"
+  | "fish-locked-silhouette";
 
 export type ArtAssetRenderProps = {
   size: number;

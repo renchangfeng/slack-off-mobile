@@ -34,7 +34,7 @@ import {
   type BeanTheme
 } from "../../api/beans";
 import { ApiClient } from "../../api/client";
-import { FishTankApi, type FishTankSummary } from "../../api/fishTank";
+import { FishTankApi, createFishTankIdempotencyKey, type FishTankSummary, type HatchResult } from "../../api/fishTank";
 import { CheckInApi, type CheckInFinishResult, type CheckInSession } from "../../api/checkins";
 import {
   LeaderboardApi,
@@ -108,6 +108,10 @@ export function DashboardScreen({
   const [fishTankLoading, setFishTankLoading] = useState(false);
   const [fishTankError, setFishTankError] = useState<string | null>(null);
   const [fishTankResultCopy, setFishTankResultCopy] = useState<string | null>(null);
+  const [hatchResult, setHatchResult] = useState<HatchResult | null>(null);
+  const [hatchError, setHatchError] = useState<string | null>(null);
+  const [hatchLoading, setHatchLoading] = useState(false);
+  const hatchIdempotencyKeyRef = useRef<string | null>(null);
   const [lastResult, setLastResult] = useState<CheckInFinishResult | null>(null);
   const [achievementList, setAchievementList] = useState<AchievementList | null>(null);
   const [achievementCategoryFilter, setAchievementCategoryFilter] =
@@ -418,6 +422,35 @@ export function DashboardScreen({
     }
     setFishTankResultCopy(response.data?.resultCopy ?? null);
     setFishTank(response.data?.tank ?? null);
+  }
+
+  function ensureHatchIdempotencyKey(): string {
+    if (!hatchIdempotencyKeyRef.current) {
+      hatchIdempotencyKeyRef.current = createFishTankIdempotencyKey("fish_tank_hatch");
+    }
+    return hatchIdempotencyKeyRef.current!;
+  }
+
+  async function hatchFish() {
+    setHatchLoading(true);
+    setHatchError(null);
+    const idempotencyKey = ensureHatchIdempotencyKey();
+    const response = await api.fishTank.hatch(idempotencyKey);
+    setHatchLoading(false);
+    if (response.error) {
+      setHatchError(response.error.message);
+      return;
+    }
+    setHatchResult(response.data);
+    if (response.data?.tank) {
+      setFishTank(response.data.tank);
+    }
+  }
+
+  function dismissHatchResult() {
+    setHatchResult(null);
+    setHatchError(null);
+    hatchIdempotencyKeyRef.current = null;
   }
 
   async function exchangeBeanFragments() {
@@ -860,6 +893,9 @@ export function DashboardScreen({
             fishTankLoading={fishTankLoading}
             fishTankError={fishTankError}
             fishTankResultCopy={fishTankResultCopy}
+            hatchResult={hatchResult}
+            hatchError={hatchError}
+            hatchLoading={hatchLoading}
             actions={{
               setTheme: setBeanTheme,
               setShowcasePosition,
@@ -869,6 +905,8 @@ export function DashboardScreen({
               runTodayLoopAction,
               initializeTank,
               feedFish,
+              hatchFish,
+              dismissHatchResult,
               refreshFishTank,
               inspectFishTank
             }}

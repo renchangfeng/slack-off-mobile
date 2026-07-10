@@ -10,7 +10,10 @@ import {
   PixelRestEmptyStateGeneric,
   PixelRestEmptyStateProfile,
   PixelRestFish,
-  PixelRestHomeCharacter
+  PixelRestHatchEgg,
+  PixelRestHatchReveal,
+  PixelRestHomeCharacter,
+  PixelRestLockedSilhouette
 } from "./assets/pixel-rest";
 import {
   calmOfficeTheme,
@@ -134,6 +137,30 @@ const artSlotDefinitions: Record<ArtSlotId, ArtSlotDefinition> = {
     defaultSize: 80,
     fallbackGlyph: "🫗",
     alt: "空鱼缸",
+    aspectRatio: 1
+  },
+  "fish-hatch-egg": {
+    id: "fish-hatch-egg",
+    kind: "scene-prop",
+    defaultSize: 80,
+    fallbackGlyph: "🥚",
+    alt: "孵化蛋",
+    aspectRatio: 1
+  },
+  "fish-hatch-reveal": {
+    id: "fish-hatch-reveal",
+    kind: "scene-prop",
+    defaultSize: 96,
+    fallbackGlyph: "✨",
+    alt: "孵化揭晓",
+    aspectRatio: 1
+  },
+  "fish-locked-silhouette": {
+    id: "fish-locked-silhouette",
+    kind: "fish",
+    defaultSize: 56,
+    fallbackGlyph: "🔒",
+    alt: "未解锁小鱼",
     aspectRatio: 1
   }
 };
@@ -388,6 +415,39 @@ const artAssets: ArtAsset[] = [
     fallbackGlyph: "🫗",
     alt: "像素休息风空鱼缸",
     aspectRatio: 1
+  },
+  {
+    id: "pixel-rest.fish-hatch-egg",
+    slotId: "fish-hatch-egg",
+    kind: "scene-prop",
+    themeId: pixelRestTheme.id,
+    component: PixelRestHatchEgg,
+    fallbackGlyph: "🥚",
+    alt: "像素休息风孵化蛋",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.surfaceMuted
+  },
+  {
+    id: "pixel-rest.fish-hatch-reveal",
+    slotId: "fish-hatch-reveal",
+    kind: "scene-prop",
+    themeId: pixelRestTheme.id,
+    component: PixelRestHatchReveal,
+    fallbackGlyph: "✨",
+    alt: "像素休息风孵化揭晓",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.primary
+  },
+  {
+    id: "pixel-rest.fish-locked-silhouette",
+    slotId: "fish-locked-silhouette",
+    kind: "fish",
+    themeId: pixelRestTheme.id,
+    component: PixelRestLockedSilhouette,
+    fallbackGlyph: "🔒",
+    alt: "像素休息风未解锁小鱼",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.text
   }
 ];
 
