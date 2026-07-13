@@ -123,6 +123,134 @@ const artSlotDefinitions: Record<ArtSlotId, ArtSlotDefinition> = {
     alt: "通用空状态",
     aspectRatio: 1
   },
+  "tank-bg-default": {
+    id: "tank-bg-default",
+    kind: "scene-prop",
+    defaultSize: 80,
+    fallbackGlyph: "🫗",
+    alt: "基础水缸背景",
+    aspectRatio: 1
+  },
+  "tank-bg-restroom-blue-tile": {
+    id: "tank-bg-restroom-blue-tile",
+    kind: "scene-prop",
+    defaultSize: 80,
+    fallbackGlyph: "🚿",
+    alt: "洗手台蓝砖背景",
+    aspectRatio: 1
+  },
+  "tank-bg-office-window": {
+    id: "tank-bg-office-window",
+    kind: "scene-prop",
+    defaultSize: 80,
+    fallbackGlyph: "🪟",
+    alt: "工位窗景背景",
+    aspectRatio: 1
+  },
+  "tank-bg-daydream-cloud": {
+    id: "tank-bg-daydream-cloud",
+    kind: "scene-prop",
+    defaultSize: 80,
+    fallbackGlyph: "☁️",
+    alt: "白日梦云层背景",
+    aspectRatio: 1
+  },
+  "tank-plant-default": {
+    id: "tank-plant-default",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "🌿",
+    alt: "基础水草",
+    aspectRatio: 1
+  },
+  "tank-plant-kelp-forest": {
+    id: "tank-plant-kelp-forest",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "🌾",
+    alt: "海藻丛",
+    aspectRatio: 1
+  },
+  "tank-plant-lotus-leaf": {
+    id: "tank-plant-lotus-leaf",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "🪷",
+    alt: "小荷叶",
+    aspectRatio: 1
+  },
+  "tank-prop-empty": {
+    id: "tank-prop-empty",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "🪨",
+    alt: "空石头",
+    aspectRatio: 1
+  },
+  "tank-prop-coral": {
+    id: "tank-prop-coral",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "🪸",
+    alt: "小珊瑚",
+    aspectRatio: 1
+  },
+  "tank-prop-sunken-keyboard": {
+    id: "tank-prop-sunken-keyboard",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "⌨️",
+    alt: "沉底键盘",
+    aspectRatio: 1
+  },
+  "tank-prop-paper-boat": {
+    id: "tank-prop-paper-boat",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "⛵",
+    alt: "纸船",
+    aspectRatio: 1
+  },
+  "tank-ambient-bubbles": {
+    id: "tank-ambient-bubbles",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "🫧",
+    alt: "基础泡泡",
+    aspectRatio: 1
+  },
+  "tank-ambient-neon-bubbles": {
+    id: "tank-ambient-neon-bubbles",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "💡",
+    alt: "霓虹泡泡",
+    aspectRatio: 1
+  },
+  "tank-ambient-starry-water": {
+    id: "tank-ambient-starry-water",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "✨",
+    alt: "星光水面",
+    aspectRatio: 1
+  },
+  "tank-ambient-coffee-steam": {
+    id: "tank-ambient-coffee-steam",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "☕",
+    alt: "咖啡蒸汽",
+    aspectRatio: 1
+  },
+  "tank-decor-locked-silhouette": {
+    id: "tank-decor-locked-silhouette",
+    kind: "scene-prop",
+    defaultSize: 40,
+    fallbackGlyph: "🔒",
+    alt: "未解锁装扮",
+    aspectRatio: 1
+  },
   "fish-tank-fish": {
     id: "fish-tank-fish",
     kind: "fish",

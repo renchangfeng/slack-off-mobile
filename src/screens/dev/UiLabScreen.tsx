@@ -24,7 +24,7 @@ import {
   ActivityHistoryDetail,
   ActivityHistorySection
 } from "../dashboard/ActivitiesTab";
-import type { FishTankSummary, HatchResult } from "../../api/fishTank";
+import type { DecorationInventoryItem, EquipDecorationResult, FishTankSummary, HatchResult } from "../../api/fishTank";
 import type { components } from "../../api/generated";
 
 type FishTankResourceOutcome = components["schemas"]["FishTankResourceOutcome"];
@@ -1261,7 +1261,17 @@ function makeFishSummary(
     owned: true as const
   })) ?? [];
   return {
-    moodCopy: "小鱼正在假装工作。",
+    moodCopy: partial.mood?.copy ?? "小鱼正在假装工作。",
+    mood: {
+      code: "idle",
+      title: "一起发呆",
+      copy: "小鱼正在假装工作。",
+      ambientArtKey: "tank-mood-idle"
+    },
+    decorations: {
+      equipped: [],
+      inventory: []
+    },
     careAvailability: {
       feed: {
         available: partial.nextAction === "feed",
@@ -1316,7 +1326,12 @@ const FISH_TANK_SPECIMENS: Array<{
       initialized: false,
       fish: [],
       nextAction: "initialize",
-      moodCopy: "这里还空着，放一条小鱼进来。"
+      mood: {
+        code: "idle",
+        title: "空缸待机",
+        copy: "这里还空着，放一条小鱼进来。",
+        ambientArtKey: "tank-mood-idle"
+      }
     }),
     loading: false,
     error: null
@@ -1361,7 +1376,12 @@ const FISH_TANK_SPECIMENS: Array<{
         }
       ],
       nextAction: "wait",
-      moodCopy: "小鱼吃饱了，正在发呆。",
+      mood: {
+        code: "cozy",
+        title: "吃饱发呆",
+        copy: "小鱼吃饱了，正在发呆。",
+        ambientArtKey: "tank-mood-cozy"
+      },
       careAvailability: {
         feed: {
           available: false,
@@ -1391,7 +1411,12 @@ const FISH_TANK_SPECIMENS: Array<{
         }
       ],
       nextAction: "wait",
-      moodCopy: "投喂成功，小鱼很开心。",
+      mood: {
+        code: "excited",
+        title: "刚吃饱",
+        copy: "投喂成功，小鱼很开心。",
+        ambientArtKey: "tank-mood-excited"
+      },
       careAvailability: {
         feed: {
           available: false,
@@ -1458,10 +1483,15 @@ function FishTankSpecimens() {
             hatchResult={null}
             hatchError={null}
             hatchLoading={false}
+            equipResult={null}
+            equipError={null}
+            equipLoading={false}
             onInitialize={() => undefined}
             onFeed={() => undefined}
             onHatch={() => undefined}
             onDismissHatchResult={() => undefined}
+            onEquipDecoration={() => undefined}
+            onDismissEquipResult={() => undefined}
             onRetry={() => undefined}
           />
         </FramedCard>
@@ -1755,10 +1785,265 @@ function HatchSpecimens() {
             hatchResult={hatchResult}
             hatchError={hatchError}
             hatchLoading={hatchLoading}
+            equipResult={null}
+            equipError={null}
+            equipLoading={false}
             onInitialize={() => undefined}
             onFeed={() => undefined}
             onHatch={() => undefined}
             onDismissHatchResult={() => undefined}
+            onEquipDecoration={() => undefined}
+            onDismissEquipResult={() => undefined}
+            onRetry={() => undefined}
+          />
+        </FramedCard>
+      ))}
+    </View>
+  );
+}
+
+function makeDecorItem(
+  partial: Partial<DecorationInventoryItem> & Pick<DecorationInventoryItem, "definitionId" | "slot">
+): DecorationInventoryItem {
+  return {
+    code: partial.definitionId,
+    name: "装饰",
+    type: partial.slot,
+    rarity: "common",
+    artKey: "tank-prop-empty",
+    unlockHint: "解锁提示",
+    owned: true,
+    equipped: false,
+    ...partial
+  } as DecorationInventoryItem;
+}
+
+function makeDecorSummary(partial: Partial<FishTankSummary> & { decorations: FishTankSummary["decorations"] }): FishTankSummary {
+  return makeFishSummary({
+    initialized: true,
+    fish: [
+      {
+        id: "lab-fish-1",
+        definitionId: "lab-goldfish",
+        name: "摸摸",
+        rarity: "common",
+        theme: "office",
+        personality: "在键盘上吐泡泡",
+        artKey: "fish-tank-fish",
+        acquiredSource: "starter",
+        createdAt: new Date().toISOString()
+      }
+    ],
+    nextAction: "wait",
+    ...partial,
+    decorations: partial.decorations
+  });
+}
+
+const DECOR_SPECIMENS: Array<{
+  label: string;
+  summary: FishTankSummary;
+  equipResult?: EquipDecorationResult | null;
+  equipError?: string | null;
+}> = [
+  {
+    label: "Default decor",
+    summary: makeDecorSummary({
+      decorations: {
+        equipped: [
+          {
+            slot: "background",
+            definitionId: "def-bg-default",
+            code: "default_tank_background",
+            name: "基础水缸",
+            type: "background",
+            rarity: "common",
+            artKey: "tank-bg-default"
+          }
+        ],
+        inventory: [
+          makeDecorItem({ definitionId: "def-bg-default", slot: "background", name: "基础水缸", artKey: "tank-bg-default" }),
+          makeDecorItem({ definitionId: "def-plant-default", slot: "plant", name: "基础水草", artKey: "tank-plant-default" }),
+          makeDecorItem({ definitionId: "def-prop-empty", slot: "prop", name: "空石头", artKey: "tank-prop-empty" }),
+          makeDecorItem({ definitionId: "def-ambient-bubbles", slot: "ambient", name: "基础泡泡", artKey: "tank-ambient-bubbles" })
+        ]
+      }
+    })
+  },
+  {
+    label: "Equipped set",
+    summary: makeDecorSummary({
+      decorations: {
+        equipped: [
+          { slot: "background", definitionId: "bg-office", code: "office_window_background", name: "工位窗景", type: "background", rarity: "rare", artKey: "tank-bg-office-window" },
+          { slot: "plant", definitionId: "plant-kelp", code: "kelp_forest_plant", name: "海藻丛", type: "plant", rarity: "uncommon", artKey: "tank-plant-kelp-forest" },
+          { slot: "prop", definitionId: "prop-coral", code: "coral_prop", name: "小珊瑚", type: "prop", rarity: "uncommon", artKey: "tank-prop-coral" },
+          { slot: "ambient", definitionId: "ambient-neon", code: "neon_bubbles_ambient", name: "霓虹泡泡", type: "ambient", rarity: "uncommon", artKey: "tank-ambient-neon-bubbles" }
+        ],
+        inventory: []
+      }
+    })
+  },
+  {
+    label: "Owned unequipped",
+    summary: makeDecorSummary({
+      decorations: {
+        equipped: [],
+        inventory: [
+          makeDecorItem({ definitionId: "bg-office", slot: "background", name: "工位窗景", rarity: "rare", artKey: "tank-bg-office-window" }),
+          makeDecorItem({ definitionId: "plant-kelp", slot: "plant", name: "海藻丛", rarity: "uncommon", artKey: "tank-plant-kelp-forest" })
+        ]
+      }
+    })
+  },
+  {
+    label: "Locked decor",
+    summary: makeDecorSummary({
+      decorations: {
+        equipped: [],
+        inventory: [
+          makeDecorItem({ definitionId: "bg-daydream", slot: "background", name: "白日梦云层", rarity: "epic", artKey: "tank-bg-daydream-cloud", owned: false }),
+          makeDecorItem({ definitionId: "prop-paper-boat", slot: "prop", name: "纸船", rarity: "epic", artKey: "tank-prop-paper-boat", owned: false })
+        ]
+      }
+    })
+  },
+  {
+    label: "Equip error",
+    summary: makeDecorSummary({
+      decorations: {
+        equipped: [],
+        inventory: [
+          makeDecorItem({ definitionId: "bg-office", slot: "background", name: "工位窗景", rarity: "rare", artKey: "tank-bg-office-window" })
+        ]
+      }
+    }),
+    equipError: "这件装扮不能装备到这个位置。"
+  },
+  {
+    label: "Equip result",
+    summary: makeDecorSummary({
+      decorations: {
+        equipped: [
+          { slot: "background", definitionId: "bg-office", code: "office_window_background", name: "工位窗景", type: "background", rarity: "rare", artKey: "tank-bg-office-window" }
+        ],
+        inventory: []
+      }
+    }),
+    equipResult: {
+      success: true,
+      replayed: false,
+      outcomeCode: "EQUIPPED",
+      resultTitle: "装扮已更换",
+      resultCopy: "工位窗景 已经放进鱼缸的 背景 位置。",
+      equipped: {
+        slot: "background",
+        definitionId: "bg-office",
+        code: "office_window_background",
+        name: "工位窗景",
+        type: "background",
+        rarity: "rare",
+        artKey: "tank-bg-office-window"
+      },
+      tank: null as never
+    }
+  }
+];
+
+function DecorSpecimens() {
+  return (
+    <View style={styles.flowSpecimenGrid}>
+      {DECOR_SPECIMENS.map(({ label, summary, equipResult, equipError }) => (
+        <FramedCard key={label} style={styles.flowSpecimenCard}>
+          <Text style={styles.miniSpecimenType}>{label}</Text>
+          <FishTankCard
+            loading={false}
+            summary={summary}
+            error={null}
+            resultCopy={null}
+            hatchResult={null}
+            hatchError={null}
+            hatchLoading={false}
+            equipResult={equipResult ?? null}
+            equipError={equipError ?? null}
+            equipLoading={false}
+            onInitialize={() => undefined}
+            onFeed={() => undefined}
+            onHatch={() => undefined}
+            onDismissHatchResult={() => undefined}
+            onEquipDecoration={() => undefined}
+            onDismissEquipResult={() => undefined}
+            onRetry={() => undefined}
+          />
+        </FramedCard>
+      ))}
+    </View>
+  );
+}
+
+const MOOD_SPECIMENS: Array<{ label: string; mood: FishTankSummary["mood"] }> = [
+  {
+    label: "Idle",
+    mood: { code: "idle", title: "一起发呆", copy: "小鱼游得很慢。", ambientArtKey: "tank-mood-idle" }
+  },
+  {
+    label: "Cozy",
+    mood: { code: "cozy", title: "吃饱发呆", copy: "刚刚投喂过。", ambientArtKey: "tank-mood-cozy" }
+  },
+  {
+    label: "Excited",
+    mood: { code: "excited", title: "游得很快", copy: "鱼缸里有新鲜事。", ambientArtKey: "tank-mood-excited" }
+  },
+  {
+    label: "Sleepy",
+    mood: { code: "sleepy", title: "困了", copy: "小鱼在角落里 slows down。", ambientArtKey: "tank-mood-sleepy" }
+  },
+  {
+    label: "Sparkly",
+    mood: { code: "sparkly", title: "新鱼光临", copy: "刚孵化出新邻居。", ambientArtKey: "tank-mood-sparkly" }
+  }
+];
+
+function MoodSpecimens() {
+  return (
+    <View style={styles.flowSpecimenGrid}>
+      {MOOD_SPECIMENS.map(({ label, mood }) => (
+        <FramedCard key={label} style={styles.flowSpecimenCard}>
+          <Text style={styles.miniSpecimenType}>{label}</Text>
+          <FishTankCard
+            loading={false}
+            summary={makeFishSummary({
+              initialized: true,
+              fish: [
+                {
+                  id: "lab-fish-1",
+                  definitionId: "lab-goldfish",
+                  name: "摸摸",
+                  rarity: "common",
+                  theme: "office",
+                  personality: "在键盘上吐泡泡",
+                  artKey: "fish-tank-fish",
+                  acquiredSource: "starter",
+                  createdAt: new Date().toISOString()
+                }
+              ],
+              nextAction: "wait",
+              mood
+            })}
+            error={null}
+            resultCopy={null}
+            hatchResult={null}
+            hatchError={null}
+            hatchLoading={false}
+            equipResult={null}
+            equipError={null}
+            equipLoading={false}
+            onInitialize={() => undefined}
+            onFeed={() => undefined}
+            onHatch={() => undefined}
+            onDismissHatchResult={() => undefined}
+            onEquipDecoration={() => undefined}
+            onDismissEquipResult={() => undefined}
             onRetry={() => undefined}
           />
         </FramedCard>
@@ -2205,6 +2490,22 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
             Insufficient progress, ready, loading, successful reveal, replay-safe result, catalog complete, and API error states.
           </Text>
           <HatchSpecimens />
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Tank decor" kicker="DECORATIONS & EQUIP" />
+          <Text style={[styles.copy, { color: colors.inkMuted }]}>
+            Default layout, equipped set, owned unequipped, locked silhouettes, wrong-slot error, and equip result overlay.
+          </Text>
+          <DecorSpecimens />
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Tank mood" kicker="MOOD VARIANTS" />
+          <Text style={[styles.copy, { color: colors.inkMuted }]}>
+            Idle, cozy, excited, sleepy, and sparkly mood states.
+          </Text>
+          <MoodSpecimens />
         </Surface>
 
         <Surface>

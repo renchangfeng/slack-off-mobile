@@ -6,6 +6,7 @@ export type MotionFeedbackVariant =
   | "achievement-unlock"
   | "theme-switch"
   | "fish-feed"
-  | "fish-hatch";
+  | "fish-hatch"
+  | "decor-equip";
 
 export type MotionIntensity = "normal" | "reduced";

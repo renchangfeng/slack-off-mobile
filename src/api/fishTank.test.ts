@@ -43,8 +43,12 @@ describe("FishTankApi", () => {
       careAvailability: {
         feed: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 }
       },
-      moodCopy: "小鱼正在假装工作。",
-      nextAction: "feed"
+      mood: { code: "idle", title: "一起发呆", copy: "小鱼正在假装工作。", ambientArtKey: "tank-mood-idle" },
+      nextAction: "feed",
+      decorations: {
+        equipped: [],
+        inventory: []
+      }
     };
     mockFetch({ data: summary, error: null });
 
@@ -64,8 +68,12 @@ describe("FishTankApi", () => {
       careAvailability: {
         feed: { available: false, nextAvailableAt: null, cooldownRemainingSeconds: 0 }
       },
-      moodCopy: "小鱼入缸。",
-      nextAction: "wait"
+      mood: { code: "idle", title: "空缸待机", copy: "小鱼入缸。", ambientArtKey: "tank-mood-idle" },
+      nextAction: "wait",
+      decorations: {
+        equipped: [],
+        inventory: []
+      }
     };
     mockFetch({ data: summary, error: null });
 
@@ -90,8 +98,12 @@ describe("FishTankApi", () => {
         careAvailability: {
           feed: { available: false, nextAvailableAt: null, cooldownRemainingSeconds: 0 }
         },
-        moodCopy: "吃饱了。",
-        nextAction: "wait"
+        mood: { code: "cozy", title: "吃饱发呆", copy: "吃饱了。", ambientArtKey: "tank-mood-cozy" },
+        nextAction: "wait",
+        decorations: {
+          equipped: [],
+          inventory: []
+        }
       }
     };
     mockFetch({ data: result, error: null });
@@ -135,8 +147,12 @@ describe("FishTankApi", () => {
         careAvailability: {
           feed: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 }
         },
-        moodCopy: "鱼缸又热闹了一点。",
-        nextAction: "feed"
+        mood: { code: "sparkly", title: "新鱼光临", copy: "鱼缸又热闹了一点。", ambientArtKey: "tank-mood-sparkly" },
+        nextAction: "feed",
+        decorations: {
+          equipped: [],
+          inventory: []
+        }
       }
     };
     mockFetch({ data: result, error: null });
@@ -151,6 +167,62 @@ describe("FishTankApi", () => {
     expect(init.method).toBe("POST");
     const body = JSON.parse(init.body);
     expect(body.idempotencyKey).toBe("fish_tank_hatch_abc123");
+  });
+
+  it("POST /v1/fish-tank/decorations/equip sends slot, decoration id and idempotency key", async () => {
+    const result = {
+      success: true,
+      replayed: false,
+      outcomeCode: "EQUIPPED",
+      resultTitle: "装扮已更换",
+      resultCopy: "工位窗景 已经放进鱼缸的 背景 位置。",
+      equipped: {
+        slot: "background",
+        definitionId: "def-decor-1",
+        code: "office_window_background",
+        name: "工位窗景",
+        type: "background",
+        rarity: "rare",
+        artKey: "tank-bg-office-window"
+      },
+      tank: {
+        initialized: true,
+        fish: [],
+        careAvailability: {
+          feed: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 }
+        },
+        mood: { code: "idle", title: "一起发呆", copy: "小鱼游得很慢。", ambientArtKey: "tank-mood-idle" },
+        nextAction: "feed",
+        decorations: {
+          equipped: [
+            {
+              slot: "background",
+              definitionId: "def-decor-1",
+              code: "office_window_background",
+              name: "工位窗景",
+              type: "background",
+              rarity: "rare",
+              artKey: "tank-bg-office-window"
+            }
+          ],
+          inventory: []
+        }
+      }
+    };
+    mockFetch({ data: result, error: null });
+
+    const api = createApi();
+    const response = await api.equipDecoration("background", "def-decor-1", "equip-bg-1");
+
+    expect(response.data).toEqual(result);
+    expect(response.error).toBeNull();
+    const [url, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe("http://api.test/v1/fish-tank/decorations/equip");
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body);
+    expect(body.slot).toBe("background");
+    expect(body.decorationDefinitionId).toBe("def-decor-1");
+    expect(body.idempotencyKey).toBe("equip-bg-1");
   });
 
   it("returns a network envelope when fetch fails", async () => {

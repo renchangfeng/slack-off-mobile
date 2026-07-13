@@ -18,7 +18,7 @@ import type {
   ActivitySkipReason
 } from "../../api/activities";
 import type { BeanCollection, BeanDrawResult, BeanTheme } from "../../api/beans";
-import type { FishTankSummary, HatchResult } from "../../api/fishTank";
+import type { DecorationInventoryItem, EquipDecorationResult, FishTankSummary, HatchResult } from "../../api/fishTank";
 import type { CheckInFinishResult, CheckInSession } from "../../api/checkins";
 import type { Dispatch, SetStateAction } from "react";
 import type { LeaderboardResponse, LeaderboardScope, LeaderboardWindow } from "../../api/leaderboards";
@@ -118,6 +118,9 @@ export type BeansTabProps = {
   hatchResult: HatchResult | null;
   hatchError: string | null;
   hatchLoading: boolean;
+  equipResult: EquipDecorationResult | null;
+  equipError: string | null;
+  equipLoading: boolean;
   actions: {
     setTheme(theme: BeanTheme): void;
     setShowcasePosition(position: number): void;
@@ -131,6 +134,8 @@ export type BeansTabProps = {
     dismissHatchResult(): void;
     refreshFishTank(): void | Promise<void>;
     inspectFishTank(): void;
+    equipDecoration(item: DecorationInventoryItem): void | Promise<void>;
+    dismissEquipResult(): void;
   };
 };
 

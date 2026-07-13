@@ -1,18 +1,32 @@
 import { describe, expect, it } from "vitest";
 import {
   deriveCollectionPreview,
+  deriveDecorItemAction,
+  deriveDecorSlotGroups,
+  deriveEquipResultPresentation,
   deriveHatchButtonLabel,
   deriveHatchProgressLabel,
   deriveHatchResultPresentation,
-  deriveHatchUiState
+  deriveHatchUiState,
+  deriveMoodPresentation
 } from "../fishTankHelpers";
-import type { FishTankSummary, HatchResult } from "../../../../api/fishTank";
+import type { DecorationInventoryItem, EquipDecorationResult, FishTankSummary, HatchResult } from "../../../../api/fishTank";
 
 function makeSummary(
   partial: Partial<FishTankSummary> & Pick<FishTankSummary, "initialized" | "fish" | "nextAction">
 ): FishTankSummary {
   return {
     moodCopy: "小鱼正在假装工作。",
+    mood: {
+      code: "idle",
+      title: "一起发呆",
+      copy: "小鱼正在假装工作。",
+      ambientArtKey: "tank-mood-idle"
+    },
+    decorations: {
+      equipped: [],
+      inventory: []
+    },
     careAvailability: {
       feed: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 }
     },
@@ -243,5 +257,200 @@ describe("deriveCollectionPreview", () => {
         sourceHint: "hatch"
       }
     ]);
+  });
+});
+
+describe("deriveMoodPresentation", () => {
+  it("returns idle fallback when mood is missing", () => {
+    expect(deriveMoodPresentation(null)).toMatchObject({
+      code: "idle",
+      title: "一起发呆"
+    });
+  });
+
+  it("passes through mood fields", () => {
+    expect(
+      deriveMoodPresentation({
+        code: "cozy",
+        title: "吃饱发呆",
+        copy: "吃饱了。",
+        ambientArtKey: "tank-mood-cozy"
+      })
+    ).toEqual({
+      code: "cozy",
+      title: "吃饱发呆",
+      copy: "吃饱了。",
+      ambientArtKey: "tank-mood-cozy"
+    });
+  });
+});
+
+function makeDecorItem(
+  partial: Partial<DecorationInventoryItem> & Pick<DecorationInventoryItem, "definitionId" | "slot">
+): DecorationInventoryItem {
+  return {
+    code: "decor",
+    name: "装饰",
+    type: partial.slot,
+    rarity: "common",
+    artKey: "tank-prop-empty",
+    unlockHint: "解锁提示",
+    owned: true,
+    equipped: false,
+    ...partial
+  } as DecorationInventoryItem;
+}
+
+describe("deriveDecorSlotGroups", () => {
+  it("returns empty array when summary has no inventory", () => {
+    expect(deriveDecorSlotGroups(null)).toEqual([]);
+  });
+
+  it("groups owned and locked items by slot", () => {
+    const summary = makeSummary({
+      initialized: true,
+      fish: [],
+      nextAction: "wait",
+      decorations: {
+        equipped: [],
+        inventory: [
+          makeDecorItem({ definitionId: "bg-1", slot: "background", owned: true, equipped: false }),
+          makeDecorItem({ definitionId: "bg-2", slot: "background", owned: false, equipped: false }),
+          makeDecorItem({ definitionId: "plant-1", slot: "plant", owned: true, equipped: false })
+        ]
+      }
+    });
+    const groups = deriveDecorSlotGroups(summary);
+    expect(groups.map((g) => g.slot)).toEqual(["background", "plant", "prop", "ambient"]);
+    const bg = groups.find((g) => g.slot === "background")!;
+    expect(bg.items).toHaveLength(2);
+    expect(bg.items[0].owned).toBe(true);
+  });
+
+  it("marks equipped item and derives default for missing slot", () => {
+    const summary = makeSummary({
+      initialized: true,
+      fish: [],
+      nextAction: "wait",
+      decorations: {
+        equipped: [
+          {
+            slot: "background",
+            definitionId: "bg-1",
+            code: "bg_1",
+            name: "背景",
+            type: "background",
+            rarity: "common",
+            artKey: "tank-bg-default"
+          }
+        ],
+        inventory: [
+          makeDecorItem({
+            definitionId: "bg-1",
+            slot: "background",
+            owned: true,
+            equipped: true,
+            code: "bg_1",
+            name: "背景",
+            type: "background",
+            rarity: "common",
+            artKey: "tank-bg-default"
+          })
+        ]
+      }
+    });
+    const groups = deriveDecorSlotGroups(summary);
+    const bg = groups.find((g) => g.slot === "background")!;
+    expect(bg.equipped?.definitionId).toBe("bg-1");
+  });
+
+  it("preserves a historical equipped item that is absent from active inventory", () => {
+    const groups = deriveDecorSlotGroups(
+      makeSummary({
+        initialized: true,
+        fish: [],
+        nextAction: "wait",
+        decorations: {
+          inventory: [],
+          equipped: [
+            {
+              slot: "background",
+              definitionId: "inactive-bg",
+              code: "retired_background",
+              name: "旧日窗景",
+              type: "background",
+              rarity: "rare",
+              artKey: "tank-bg-office-window"
+            }
+          ]
+        }
+      })
+    );
+
+    expect(groups.find((group) => group.slot === "background")?.equipped).toMatchObject({
+      definitionId: "inactive-bg",
+      equipped: true,
+      owned: true
+    });
+  });
+});
+
+describe("deriveDecorItemAction", () => {
+  it("returns equipped state", () => {
+    expect(deriveDecorItemAction(makeDecorItem({ definitionId: "d1", slot: "plant", equipped: true }))).toEqual({
+      actionable: false,
+      actionLabel: "已装备",
+      state: "equipped"
+    });
+  });
+
+  it("returns owned actionable state", () => {
+    expect(deriveDecorItemAction(makeDecorItem({ definitionId: "d1", slot: "plant", owned: true }))).toEqual({
+      actionable: true,
+      actionLabel: "装备",
+      state: "owned"
+    });
+  });
+
+  it("returns locked state", () => {
+    expect(deriveDecorItemAction(makeDecorItem({ definitionId: "d1", slot: "plant", owned: false }))).toEqual({
+      actionable: false,
+      actionLabel: "未解锁",
+      state: "locked"
+    });
+  });
+});
+
+describe("deriveEquipResultPresentation", () => {
+  it("returns null when result is null", () => {
+    expect(deriveEquipResultPresentation(null)).toBeNull();
+  });
+
+  it("maps equip result fields", () => {
+    const result: EquipDecorationResult = {
+      success: true,
+      replayed: false,
+      outcomeCode: "EQUIPPED",
+      resultTitle: "装扮已更换",
+      resultCopy: "已经放进鱼缸。",
+      equipped: {
+        slot: "background",
+        definitionId: "def-bg",
+        code: "bg",
+        name: "背景",
+        type: "background",
+        rarity: "rare",
+        artKey: "tank-bg-office-window"
+      },
+      tank: null as never
+    };
+    expect(deriveEquipResultPresentation(result)).toMatchObject({
+      title: "装扮已更换",
+      copy: "已经放进鱼缸。",
+      replayed: false,
+      equippedName: "背景",
+      equippedSlot: "background",
+      equippedArtKey: "tank-bg-office-window"
+    });
   });
 });

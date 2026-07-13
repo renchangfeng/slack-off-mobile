@@ -1046,6 +1046,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12
   },
   inlineEquipText: { color: "#ffffff", fontSize: 13, fontWeight: "900" },
+  decorItemRow: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    padding: 10
+  },
+  decorItemRowLocked: {
+    backgroundColor: colors.surfaceMuted,
+    opacity: 0.82
+  },
+  decorPreviewCell: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexBasis: "22%",
+    flexGrow: 1,
+    justifyContent: "center",
+    minHeight: 76,
+    padding: 8
+  },
+  decorPreviewLabel: {
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    marginTop: 6,
+    textAlign: "center"
+  },
   unlockRemaining: {
     color: "#746b60",
     fontSize: 12,

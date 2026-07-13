@@ -1,4 +1,10 @@
-import type { FishTankSummary, HatchResult } from "../../../api/fishTank";
+import type {
+  DecorationInventoryItem,
+  EquipDecorationResult,
+  FishTankSummary,
+  HatchResult,
+  TankMood
+} from "../../../api/fishTank";
 
 export type HatchUiState =
   | { kind: "uninitialized" }
@@ -99,4 +105,105 @@ export function deriveCollectionPreview(summary: FishTankSummary | null): Array<
     name: item.name ?? null,
     sourceHint: item.sourceHint
   }));
+}
+
+export type DecorSlotGroup = {
+  slot: string;
+  label: string;
+  equipped: DecorationInventoryItem | null;
+  items: DecorationInventoryItem[];
+};
+
+export const SLOT_LABELS: Record<string, string> = {
+  background: "背景",
+  plant: "水草",
+  prop: "小景",
+  ambient: "水景"
+};
+
+export function deriveDecorSlotGroups(summary: FishTankSummary | null): DecorSlotGroup[] {
+  if (!summary?.decorations?.inventory) {
+    return [];
+  }
+
+  const bySlot = new Map<string, DecorationInventoryItem[]>();
+  for (const item of summary.decorations.inventory) {
+    const list = bySlot.get(item.type) ?? [];
+    list.push(item);
+    bySlot.set(item.type, list);
+  }
+
+  const equippedBySlot = new Map<string, DecorationInventoryItem>();
+  for (const item of summary.decorations.equipped) {
+    const inventoryItem = summary.decorations.inventory.find((i) => i.definitionId === item.definitionId) ?? null;
+    if (inventoryItem) {
+      equippedBySlot.set(item.slot, { ...inventoryItem, equipped: true, slot: item.slot });
+    } else {
+      equippedBySlot.set(item.slot, {
+        definitionId: item.definitionId,
+        code: item.code,
+        name: item.name,
+        type: item.type,
+        rarity: item.rarity,
+        artKey: item.artKey,
+        unlockHint: "",
+        owned: true,
+        equipped: true,
+        slot: item.slot
+      });
+    }
+  }
+
+  return ["background", "plant", "prop", "ambient"].map((slot) => ({
+    slot,
+    label: SLOT_LABELS[slot] ?? slot,
+    equipped: equippedBySlot.get(slot) ?? null,
+    items: (bySlot.get(slot) ?? []).sort((a, b) => Number(b.owned) - Number(a.owned) || a.code.localeCompare(b.code))
+  }));
+}
+
+export function deriveDecorItemAction(item: DecorationInventoryItem): {
+  actionable: boolean;
+  actionLabel: string;
+  state: "equipped" | "owned" | "locked";
+} {
+  if (item.equipped) {
+    return { actionable: false, actionLabel: "已装备", state: "equipped" };
+  }
+  if (item.owned) {
+    return { actionable: true, actionLabel: "装备", state: "owned" };
+  }
+  return { actionable: false, actionLabel: "未解锁", state: "locked" };
+}
+
+export function deriveMoodPresentation(mood: TankMood | null | undefined) {
+  if (!mood) {
+    return {
+      code: "idle",
+      title: "一起发呆",
+      copy: "小鱼游得很慢，看起来对 KPI 没有意见。",
+      ambientArtKey: "tank-mood-idle"
+    };
+  }
+  return {
+    code: mood.code,
+    title: mood.title,
+    copy: mood.copy,
+    ambientArtKey: mood.ambientArtKey
+  };
+}
+
+export function deriveEquipResultPresentation(result: EquipDecorationResult | null) {
+  if (!result) {
+    return null;
+  }
+  return {
+    title: result.resultTitle,
+    copy: result.resultCopy,
+    replayed: result.replayed,
+    outcomeCode: result.outcomeCode,
+    equippedName: result.equipped.name,
+    equippedSlot: result.equipped.slot,
+    equippedArtKey: result.equipped.artKey
+  };
 }

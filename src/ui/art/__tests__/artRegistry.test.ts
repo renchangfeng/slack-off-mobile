@@ -149,6 +149,29 @@ describe("art registry", () => {
     expect(emptySlot.fallbackGlyph).toBeTruthy();
   });
 
+  it("registers tank decoration slots with fallback glyphs", () => {
+    const decorSlots: ArtSlotId[] = [
+      "tank-bg-default",
+      "tank-bg-office-window",
+      "tank-plant-default",
+      "tank-prop-empty",
+      "tank-ambient-bubbles",
+      "tank-decor-locked-silhouette"
+    ];
+    for (const slotId of decorSlots) {
+      const slot = getArtSlotDefinition(slotId);
+      expect(slot.kind).toBeTruthy();
+      expect(slot.fallbackGlyph).toBeTruthy();
+      expect(slot.aspectRatio).toBeGreaterThan(0);
+    }
+  });
+
+  it("resolves a safe fallback for tank decoration art keys", () => {
+    const asset = resolveArtAsset(pixelRestTheme.id, "tank-decor-locked-silhouette");
+    expect(asset.slotId).toBe("tank-decor-locked-silhouette");
+    expect(asset.fallbackGlyph).toBeTruthy();
+  });
+
   it("resolves component-backed fish assets for pixel-rest", () => {
     const fishAsset = resolveArtAsset(pixelRestTheme.id, "fish-tank-fish");
     expect(fishAsset.themeId).toBe(pixelRestTheme.id);

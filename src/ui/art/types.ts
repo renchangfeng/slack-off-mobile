@@ -27,7 +27,23 @@ export type ArtSlotId =
   | "fish-tank-empty"
   | "fish-hatch-egg"
   | "fish-hatch-reveal"
-  | "fish-locked-silhouette";
+  | "fish-locked-silhouette"
+  | "tank-bg-default"
+  | "tank-bg-restroom-blue-tile"
+  | "tank-bg-office-window"
+  | "tank-bg-daydream-cloud"
+  | "tank-plant-default"
+  | "tank-plant-kelp-forest"
+  | "tank-plant-lotus-leaf"
+  | "tank-prop-empty"
+  | "tank-prop-coral"
+  | "tank-prop-sunken-keyboard"
+  | "tank-prop-paper-boat"
+  | "tank-ambient-bubbles"
+  | "tank-ambient-neon-bubbles"
+  | "tank-ambient-starry-water"
+  | "tank-ambient-coffee-steam"
+  | "tank-decor-locked-silhouette";
 
 export type ArtAssetRenderProps = {
   size: number;

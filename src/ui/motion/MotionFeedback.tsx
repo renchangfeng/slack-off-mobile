@@ -10,7 +10,7 @@ type MotionConfig = {
   spring?: { damping: number; stiffness: number };
 };
 
-const CONFIGS: Record<MotionFeedbackVariant, MotionConfig> = {
+export const MOTION_CONFIGS: Record<MotionFeedbackVariant, MotionConfig> = {
   "check-in": {
     initial: { opacity: 0, scale: 1, translateY: 0 },
     final: { opacity: 1, scale: 1, translateY: 0 },
@@ -55,6 +55,12 @@ const CONFIGS: Record<MotionFeedbackVariant, MotionConfig> = {
     final: { opacity: 1, scale: 1, translateY: 0 },
     duration: 320,
     spring: { damping: 12, stiffness: 180 }
+  },
+  "decor-equip": {
+    initial: { opacity: 0, scale: 0.86, translateY: 12 },
+    final: { opacity: 1, scale: 1, translateY: 0 },
+    duration: 260,
+    spring: { damping: 14, stiffness: 190 }
   }
 };
 
@@ -76,7 +82,7 @@ export function MotionFeedback({
   animateOnMount = false
 }: MotionFeedbackProps) {
   const reducedMotion = useReducedMotion();
-  const config = CONFIGS[variant];
+  const config = MOTION_CONFIGS[variant];
   const opacity = useRef(new Animated.Value(config.final.opacity)).current;
   const scale = useRef(new Animated.Value(config.final.scale)).current;
   const translateY = useRef(new Animated.Value(config.final.translateY)).current;

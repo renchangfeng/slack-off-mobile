@@ -34,7 +34,14 @@ import {
   type BeanTheme
 } from "../../api/beans";
 import { ApiClient } from "../../api/client";
-import { FishTankApi, createFishTankIdempotencyKey, type FishTankSummary, type HatchResult } from "../../api/fishTank";
+import {
+  FishTankApi,
+  createFishTankIdempotencyKey,
+  type DecorationInventoryItem,
+  type EquipDecorationResult,
+  type FishTankSummary,
+  type HatchResult
+} from "../../api/fishTank";
 import { CheckInApi, type CheckInFinishResult, type CheckInSession } from "../../api/checkins";
 import {
   LeaderboardApi,
@@ -112,6 +119,10 @@ export function DashboardScreen({
   const [hatchError, setHatchError] = useState<string | null>(null);
   const [hatchLoading, setHatchLoading] = useState(false);
   const hatchIdempotencyKeyRef = useRef<string | null>(null);
+  const [equipResult, setEquipResult] = useState<EquipDecorationResult | null>(null);
+  const [equipError, setEquipError] = useState<string | null>(null);
+  const [equipLoading, setEquipLoading] = useState(false);
+  const equipIdempotencyKeyRef = useRef<Record<string, string | null>>({});
   const [lastResult, setLastResult] = useState<CheckInFinishResult | null>(null);
   const [achievementList, setAchievementList] = useState<AchievementList | null>(null);
   const [achievementCategoryFilter, setAchievementCategoryFilter] =
@@ -451,6 +462,39 @@ export function DashboardScreen({
     setHatchResult(null);
     setHatchError(null);
     hatchIdempotencyKeyRef.current = null;
+  }
+
+  function ensureEquipIdempotencyKey(definitionId: string): string {
+    if (!equipIdempotencyKeyRef.current[definitionId]) {
+      equipIdempotencyKeyRef.current[definitionId] = createFishTankIdempotencyKey("fish_tank_equip");
+    }
+    return equipIdempotencyKeyRef.current[definitionId]!;
+  }
+
+  async function equipFishTankDecoration(item: DecorationInventoryItem) {
+    setEquipLoading(true);
+    setEquipError(null);
+    const idempotencyKey = ensureEquipIdempotencyKey(item.definitionId);
+    const response = await api.fishTank.equipDecoration(
+      item.slot,
+      item.definitionId,
+      idempotencyKey
+    );
+    setEquipLoading(false);
+    if (response.error) {
+      setEquipError(response.error.message);
+      return;
+    }
+    setEquipResult(response.data);
+    if (response.data?.tank) {
+      setFishTank(response.data.tank);
+    }
+  }
+
+  function dismissEquipResult() {
+    setEquipResult(null);
+    setEquipError(null);
+    equipIdempotencyKeyRef.current = {};
   }
 
   async function exchangeBeanFragments() {
@@ -896,6 +940,9 @@ export function DashboardScreen({
             hatchResult={hatchResult}
             hatchError={hatchError}
             hatchLoading={hatchLoading}
+            equipResult={equipResult}
+            equipError={equipError}
+            equipLoading={equipLoading}
             actions={{
               setTheme: setBeanTheme,
               setShowcasePosition,
@@ -908,7 +955,9 @@ export function DashboardScreen({
               hatchFish,
               dismissHatchResult,
               refreshFishTank,
-              inspectFishTank
+              inspectFishTank,
+              equipDecoration: equipFishTankDecoration,
+              dismissEquipResult
             }}
           />
         ) : null}
