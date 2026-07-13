@@ -12,6 +12,7 @@ export type GameplayStep = {
   title: string;
   description: string;
   actionLabel: string;
+  execution: "mutate";
   targetSection: "home" | "activities" | "beans" | "rankings" | "profile";
   rewardPreview?: {
     score: number;
@@ -50,6 +51,7 @@ export function deriveGameplayStep(state: GameplayState): GameplayStep {
       title: "先把这次休息坐实",
       description: "计时正在进行。休息够了以后结束打卡，系统会结算分数和抽豆进度。",
       actionLabel: "结束并结算",
+      execution: "mutate",
       targetSection: "home",
       rewardPreview: { score: 1, drawProgress: 1, drawChances: 0 }
     };
@@ -60,7 +62,8 @@ export function deriveGameplayStep(state: GameplayState): GameplayStep {
       kind: "draw-bean",
       title: `你有 ${state.drawChances} 次抽豆机会`,
       description: "机会已经到账，不花掉它就像把调休留到过期。",
-      actionLabel: "立即抽豆",
+      actionLabel: "立即抽取 1 次",
+      execution: "mutate",
       targetSection: "beans",
       rewardPreview: { score: 0, drawProgress: 0, drawChances: state.drawChances }
     };
@@ -72,6 +75,7 @@ export function deriveGameplayStep(state: GameplayState): GameplayStep {
       title: "当前摸鱼任务等你交差",
       description: "先按任务描述完成它，再回来领取分数和抽豆进度。",
       actionLabel: "我做完了，领取奖励",
+      execution: "mutate",
       targetSection: "activities",
       rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
     };
@@ -88,6 +92,7 @@ export function deriveGameplayStep(state: GameplayState): GameplayStep {
       title: "任务池暂时休息了",
       description: "当前没有可领取的随机活动。可以开始下一次打卡，继续积累分数和抽豆进度。",
       actionLabel: "开始下一次打卡",
+      execution: "mutate",
       targetSection: "home",
       rewardPreview: { score: 1, drawProgress: 1, drawChances: 0 }
     };
@@ -99,6 +104,7 @@ export function deriveGameplayStep(state: GameplayState): GameplayStep {
       title: "继续攒抽豆进度",
       description: "完成随机摸鱼活动也能增加进度。每累计 3 点进度可获得 1 次抽豆机会。",
       actionLabel: "领取摸鱼任务",
+      execution: "mutate",
       targetSection: "activities",
       rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
     };
@@ -109,6 +115,7 @@ export function deriveGameplayStep(state: GameplayState): GameplayStep {
     title: "从一次带薪休息开始",
     description: "开始计时，结束后获得排行榜分数和抽豆进度，然后再去做随机摸鱼活动。",
     actionLabel: "开始打卡",
+    execution: "mutate",
     targetSection: "home",
     rewardPreview: { score: 1, drawProgress: 1, drawChances: 0 }
   };
@@ -117,14 +124,26 @@ export function deriveGameplayStep(state: GameplayState): GameplayStep {
 function deriveServerStep(actions: ServerNextAction[]): GameplayStep | null {
   const action = [...actions].sort((left, right) => left.priority - right.priority)[0];
   if (!action) return null;
+  const kind = mapServerActionKind(action.code);
   return {
-    kind: mapServerActionKind(action.code),
+    kind,
     title: action.title,
     description: action.description,
-    actionLabel: action.actionLabel,
+    actionLabel: mutationActionLabel(kind),
+    execution: "mutate",
     targetSection: action.targetSection,
     rewardPreview: action.rewardPreview ?? null
   };
+}
+
+function mutationActionLabel(kind: GameplayStepKind): string {
+  if (kind === "draw-bean") return "立即抽取 1 次";
+  if (kind === "complete-activity") return "我做完了，领取奖励";
+  if (kind === "get-activity") return "领取摸鱼任务";
+  if (kind === "claim-daily-reward") return "领取今日奖励";
+  if (kind === "claim-weekly-reward") return "领取本周奖励";
+  if (kind === "finish-checkin") return "结束并结算";
+  return "开始打卡";
 }
 
 function mapServerActionKind(code: string): GameplayStepKind {

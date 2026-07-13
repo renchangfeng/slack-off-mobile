@@ -14,6 +14,7 @@ import { CheckInResult, RewardPreview } from "./parts/ResultPanels";
 import styles from "./styles";
 import type { HomeTabProps } from "./types";
 import type { TodayLoopAction, TodayLoopStep } from "../../gameplay/todayLoop";
+import { localizedGoalUnit } from "./dashboardCoherence";
 
 export function HomeTab({
   loading,
@@ -170,7 +171,9 @@ function TodayPlayRoute({
           {todayLoop.secondaryActions.map((action) => (
             <Pressable
               key={`${action.kind}-${action.title}`}
+              accessibilityLabel={action.actionLabel}
               accessibilityRole="button"
+              accessibilityState={{ disabled: loading }}
               disabled={loading}
               onPress={() => void onAction(action)}
               style={({ pressed }) => [
@@ -196,7 +199,7 @@ function TodayPlayRoute({
               <Text style={styles.kicker}>{objective.completed ? "已完成" : "进行中"}</Text>
               <Text style={styles.rowTitle}>{objective.title}</Text>
               <Text style={styles.rowMeta}>
-                {objective.current}/{objective.target} {objective.unit}
+                {objective.current}/{objective.target} {localizedGoalUnit(objective.unit)}
               </Text>
             </View>
           ))}

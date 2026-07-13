@@ -27,6 +27,7 @@ import type { SocialReactionType, SocialSummary } from "../../api/social";
 import type { DashboardTab } from "../../gameplay/dashboardTabs";
 import type { deriveGameplayStep } from "../../gameplay/nextStep";
 import type { TodayLoopAction, TodayLoopViewModel } from "../../gameplay/todayLoop";
+import type { DashboardLandingTarget } from "./dashboardCoherence";
 
 export type HomeScreenProps = {
   authLabel?: string;
@@ -71,6 +72,7 @@ export type HomeTabProps = {
 };
 
 export type ActivitiesTabProps = {
+  onLandingLayout(target: DashboardLandingTarget, y: number): void;
   loading: boolean;
   goal: ProgressionSummary["dailyGoals"]["goals"][number] | null;
   assignment: ActivityAssignment | null;
@@ -103,6 +105,7 @@ export type ActivitiesTabProps = {
 };
 
 export type BeansTabProps = {
+  onLandingLayout(target: DashboardLandingTarget, y: number): void;
   loading: boolean;
   goal: ProgressionSummary["dailyGoals"]["goals"][number] | null;
   collection: BeanCollection | null;
@@ -132,8 +135,8 @@ export type BeansTabProps = {
     feedFish(): void | Promise<void>;
     hatchFish(): void | Promise<void>;
     dismissHatchResult(): void;
-    refreshFishTank(): void | Promise<void>;
-    inspectFishTank(): void;
+    refreshFishTank(): void | Promise<boolean>;
+    inspectFishTank(): void | Promise<void>;
     equipDecoration(item: DecorationInventoryItem): void | Promise<void>;
     dismissEquipResult(): void;
   };

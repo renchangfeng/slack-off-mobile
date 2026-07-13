@@ -89,7 +89,8 @@ export class ApiClient {
         traceId: envelope.error.traceId ?? traceId,
         route: path,
         statusCode: response.status,
-        errorCode: envelope.error.code
+        errorCode: envelope.error.code,
+        errorMessage: envelope.error.message
       });
     }
 

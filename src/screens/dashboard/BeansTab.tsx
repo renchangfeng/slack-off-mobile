@@ -17,6 +17,7 @@ import styles from "./styles";
 import type { BeansTabProps } from "./types";
 
 export function BeansTab({
+  onLandingLayout,
   loading,
   goal,
   collection,
@@ -42,6 +43,11 @@ export function BeansTab({
   return (
     <>
       <GoalBanner goal={goal} />
+      <View
+        onLayout={(event) =>
+          onLandingLayout("fish-tank", event.nativeEvent.layout.y)
+        }
+      >
       <FishTankCard
         loading={fishTankLoading}
         summary={fishTank}
@@ -59,8 +65,16 @@ export function BeansTab({
         onDismissHatchResult={actions.dismissHatchResult}
         onEquipDecoration={actions.equipDecoration}
         onDismissEquipResult={actions.dismissEquipResult}
-        onRetry={actions.refreshFishTank}
+        onRetry={() => void actions.refreshFishTank()}
       />
+      </View>
+      <View
+        onLayout={
+          drawResult
+            ? (event) => onLandingLayout("draw-result", event.nativeEvent.layout.y)
+            : undefined
+        }
+      >
       <DashboardCard>
         <SectionHeader kicker="抽豆账户" title={`${collection?.drawChances ?? 0} 次机会`} />
         <Text style={styles.copy}>
@@ -266,6 +280,7 @@ export function BeansTab({
           </MotionFeedback>
         ) : null}
       </DashboardCard>
+      </View>
       <DashboardCard>
         <SectionHeader kicker="展示柜" title="选一个槽位，再点一颗已拥有的豆" />
         <View style={styles.showcaseRow}>

@@ -45,6 +45,7 @@ const activityFeedbackOptions: Array<{
 ];
 
 export function ActivitiesTab({
+  onLandingLayout,
   loading,
   goal,
   assignment,
@@ -96,6 +97,11 @@ export function ActivitiesTab({
           ))}
         </ScrollView>
       </DashboardCard>
+      <View
+        onLayout={(event) =>
+          onLandingLayout("current-activity", event.nativeEvent.layout.y)
+        }
+      >
       <DashboardCard>
         {displayState.kind === "empty" || displayState.kind === "unavailable" ? (
           <View style={{ alignItems: "center" }}>
@@ -310,6 +316,7 @@ export function ActivitiesTab({
           />
         ) : null}
       </DashboardCard>
+      </View>
       <DashboardCard>
         <View style={styles.rowBetween}>
           <View style={styles.flex}>

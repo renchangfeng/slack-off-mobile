@@ -19,6 +19,11 @@ import {
 } from "../dashboard/parts/activity-interactions";
 import { ActivityInteractionRunner } from "../dashboard/parts/ActivityInteractionRunner";
 import { FishTankCard } from "../dashboard/parts/FishTankCard";
+import { DashboardFeedbackBanner } from "../dashboard/parts/DashboardFeedbackBanner";
+import {
+  createDashboardFeedback,
+  localizedGoalUnit
+} from "../dashboard/dashboardCoherence";
 import {
   ActivityHistoryCard,
   ActivityHistoryDetail,
@@ -2111,6 +2116,67 @@ function BeanDrawOutcomeSpecimens() {
   );
 }
 
+function DashboardCoherenceSpecimens() {
+  const [showError, setShowError] = useState(true);
+  const success = createDashboardFeedback({
+    id: "ui_lab_expiring_success",
+    kind: "success",
+    scope: "home",
+    message: "打卡已结算；这条短反馈会在 4.5 秒后自动收起。"
+  });
+  const error = createDashboardFeedback({
+    id: "ui_lab_dismissible_error",
+    kind: "error",
+    scope: "rankings",
+    message: "没有找到这个好友码。"
+  });
+
+  return (
+    <Surface>
+      <SectionHeader kicker="DASHBOARD COHERENCE" title="导航、反馈与跨系统同步" />
+      <View style={styles.stack}>
+        <Text style={styles.miniSpecimenType}>expiring success</Text>
+        <DashboardFeedbackBanner feedback={success} onDismiss={() => undefined} />
+        <Text style={styles.miniSpecimenType}>dismissible error</Text>
+        {showError ? (
+          <DashboardFeedbackBanner feedback={error} onDismiss={() => setShowError(false)} />
+        ) : (
+          <PrimaryButton label="重新显示错误标本" onPress={() => setShowError(true)} />
+        )}
+        <FramedCard>
+          <Text style={styles.miniSpecimenType}>localized units</Text>
+          <Text style={styles.miniSpecimenTitle}>
+            今日打卡 1/3 {localizedGoalUnit("times")} · 休息 10/15 {localizedGoalUnit("minutes")}
+          </Text>
+        </FramedCard>
+        <FramedCard>
+          <Text style={styles.miniSpecimenType}>pending direct mutation</Text>
+          <PrimaryButton label="正在抽取 1 次…" disabled onPress={() => undefined} />
+        </FramedCard>
+        <FramedCard>
+          <Text style={styles.miniSpecimenType}>synchronized fish-tank outcome</Text>
+          <RewardRow label="鱼食库存" value="2 → 4" icon="🍘" positive />
+          <RewardRow label="气泡库存" value="1 → 2" icon="🫧" positive />
+          <Text style={styles.copy}>抽豆回执保留，鱼缸权威库存已刷新。</Text>
+        </FramedCard>
+        <FramedCard>
+          <Text style={styles.miniSpecimenType}>refresh failure</Text>
+          <DashboardFeedbackBanner
+            feedback={createDashboardFeedback({
+              id: "ui_lab_sync_error",
+              kind: "error",
+              scope: "beans",
+              message: "奖励已经到账，但鱼缸库存同步失败。请在鱼缸卡片中重试。"
+            })}
+            onDismiss={() => undefined}
+          />
+          <Text style={styles.copy}>抽豆结果仍然有效；旧库存不会被描述为最新状态。</Text>
+        </FramedCard>
+      </View>
+    </Surface>
+  );
+}
+
 export function UiLabScreen({ onClose }: UiLabScreenProps) {
   const theme = useTheme();
   const reducedMotion = useReducedMotion();
@@ -2171,6 +2237,8 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
             <PrimaryButton label="不可点击状态" disabled onPress={() => undefined} />
           </View>
         </Surface>
+
+        <DashboardCoherenceSpecimens />
 
         <Surface>
           <SectionHeader title="Pills" />

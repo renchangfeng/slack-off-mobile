@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#18232b",
     borderRadius: 8,
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: 48,
     minWidth: 74,
     paddingHorizontal: 12
   },
@@ -965,16 +965,55 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     opacity: 0.82
   },
+  feedbackBanner: {
+    alignItems: "center",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  feedbackBannerError: {
+    backgroundColor: "#fff0ed",
+    borderColor: "#c87066"
+  },
+  feedbackBannerNotice: {
+    backgroundColor: colors.mintLight,
+    borderColor: colors.mintMid
+  },
+  feedbackBannerErrorText: {
+    color: "#8c3028",
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19
+  },
+  feedbackBannerNoticeText: {
+    color: "#1f6f4f",
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 19
+  },
+  feedbackDismiss: {
+    alignItems: "center",
+    borderColor: "#a23b3b",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 36,
+    minWidth: 52,
+    paddingHorizontal: spacing.sm
+  },
+  feedbackDismissPressed: { opacity: 0.62 },
+  feedbackDismissText: { color: "#8c3028", fontSize: 12, fontWeight: "900" },
   message: {
     color: "#a23b3b",
     fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 12
-  },
-  notice: {
-    color: "#1f6f4f",
-    fontSize: 13,
-    fontWeight: "800",
     lineHeight: 19,
     marginBottom: 12
   },

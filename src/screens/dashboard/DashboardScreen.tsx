@@ -68,6 +68,7 @@ import { logEvent } from "../../observability/logger";
 import { useBrandName } from "../../ui/useBrandName";
 import { BottomNav } from "../../ui/BottomNav";
 import { AchievementUnlockOverlay } from "./parts/AchievementUnlockOverlay";
+import { DashboardFeedbackBanner } from "./parts/DashboardFeedbackBanner";
 import { HomeTab } from "./HomeTab";
 import { ActivitiesTab } from "./ActivitiesTab";
 import { BeansTab } from "./BeansTab";
@@ -79,6 +80,24 @@ import type {
   AchievementUnlockFeedback,
   HomeScreenProps
 } from "./types";
+import {
+  clearFeedbackListForScope,
+  createDashboardFeedback,
+  DASHBOARD_FEEDBACK_TIMEOUT_MS,
+  expireDashboardFeedbackFromList,
+  fishTankInventoryFollowUp,
+  localizedApiError,
+  planDashboardNavigation,
+  replaceFeedbackForScope,
+  resolveLandingOffset,
+  runSingleFlight,
+  selectLatestLoopResults,
+  synchronizeFishTankAfterBeanDraw,
+  visibleDashboardFeedbackFromList,
+  type DashboardApiError,
+  type DashboardFeedback,
+  type DashboardLandingTarget
+} from "./dashboardCoherence";
 
 export function DashboardScreen({
   authLabel,
@@ -102,6 +121,12 @@ export function DashboardScreen({
 
   const brand = useBrandName();
   const scrollViewRef = useRef<ScrollView>(null);
+  const selectedTabRef = useRef<DashboardTab>("home");
+  const feedbackSequenceRef = useRef(0);
+  const feedbackTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const landingOffsetsRef = useRef<Partial<Record<DashboardLandingTarget, number>>>({});
+  const pendingLandingRef = useRef<{ tab: DashboardTab; target: DashboardLandingTarget } | null>(null);
+  const routeActionPendingRef = useRef(false);
 
   const [selectedTab, setSelectedTab] = useState<DashboardTab>("home");
   const [activeSession, setActiveSession] = useState<CheckInSession | null>(null);
@@ -124,6 +149,9 @@ export function DashboardScreen({
   const [equipLoading, setEquipLoading] = useState(false);
   const equipIdempotencyKeyRef = useRef<Record<string, string | null>>({});
   const [lastResult, setLastResult] = useState<CheckInFinishResult | null>(null);
+  const [latestLoopResult, setLatestLoopResult] = useState<
+    "check-in" | "activity" | "bean-draw" | null
+  >(null);
   const [achievementList, setAchievementList] = useState<AchievementList | null>(null);
   const [achievementCategoryFilter, setAchievementCategoryFilter] =
     useState<Achievement["category"] | "all">("all");
@@ -151,15 +179,141 @@ export function DashboardScreen({
   const [social, setSocial] = useState<SocialSummary | null>(null);
   const [socialInput, setSocialInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<DashboardFeedback[]>([]);
   const [clockNow, setClockNow] = useState(() => Date.now());
   const leaderboardRequestId = useRef(0);
+
+  const showFeedback = useCallback(
+    (kind: DashboardFeedback["kind"], message: string, scope = selectedTabRef.current) => {
+      feedbackSequenceRef.current += 1;
+      const next = createDashboardFeedback({
+          id: `dashboard_feedback_${feedbackSequenceRef.current}`,
+          kind,
+          scope,
+          message
+        });
+      setFeedback((current) => replaceFeedbackForScope(current, next));
+    },
+    []
+  );
+
+  const clearCurrentFeedback = useCallback(() => {
+    const scope = selectedTabRef.current;
+    setFeedback((current) => clearFeedbackListForScope(current, scope));
+  }, []);
+
+  const setMessage = useCallback(
+    (message: string | null) => {
+      if (message === null) {
+        clearCurrentFeedback();
+        return;
+      }
+      showFeedback("error", message);
+    },
+    [clearCurrentFeedback, showFeedback]
+  );
+
+  const setNotice = useCallback(
+    (message: string | null) => {
+      if (message === null) {
+        clearCurrentFeedback();
+        return;
+      }
+      showFeedback("success", message);
+    },
+    [clearCurrentFeedback, showFeedback]
+  );
+
+  const showApiError = useCallback(
+    (
+      error: DashboardApiError | null | undefined,
+      scope: DashboardTab,
+      fallback?: string
+    ) => showFeedback("error", localizedApiError(error, fallback), scope),
+    [showFeedback]
+  );
+
+  const scrollToLanding = useCallback((target: DashboardLandingTarget) => {
+    scrollViewRef.current?.scrollTo({
+      y: resolveLandingOffset(target, landingOffsetsRef.current),
+      animated: true
+    });
+  }, []);
+
+  const navigateDashboard = useCallback(
+    (tab: DashboardTab, target: DashboardLandingTarget = "top") => {
+      const plan = planDashboardNavigation({
+        currentTab: selectedTabRef.current,
+        destinationTab: tab,
+        target,
+        offsets: landingOffsetsRef.current
+      });
+      setFeedback((current) => clearFeedbackListForScope(current, plan.clearScope));
+      selectedTabRef.current = plan.destinationTab;
+      pendingLandingRef.current = { tab: plan.destinationTab, target: plan.target };
+      setSelectedTab(plan.destinationTab);
+      if (plan.reselect) {
+        setTimeout(() => scrollToLanding(target), 0);
+      }
+    },
+    [scrollToLanding]
+  );
+
+  const registerLandingOffset = useCallback(
+    (target: DashboardLandingTarget, y: number) => {
+      landingOffsetsRef.current[target] = y;
+      const pending = pendingLandingRef.current;
+      if (pending?.tab === selectedTabRef.current && pending.target === target) {
+        pendingLandingRef.current = null;
+        setTimeout(() => scrollToLanding(target), 0);
+      }
+    },
+    [scrollToLanding]
+  );
+
+  useEffect(() => {
+    const pending = pendingLandingRef.current;
+    if (!pending || pending.tab !== selectedTab) return;
+    const timer = setTimeout(() => {
+      scrollToLanding(pending.target);
+      if (pending.target === "top" || landingOffsetsRef.current[pending.target] !== undefined) {
+        pendingLandingRef.current = null;
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [scrollToLanding, selectedTab]);
+
+  useEffect(() => {
+    const activeIds = new Set(feedback.map((item) => item.id));
+    feedbackTimersRef.current.forEach((timer, id) => {
+      if (!activeIds.has(id)) {
+        clearTimeout(timer);
+        feedbackTimersRef.current.delete(id);
+      }
+    });
+    feedback
+      .filter((item) => item.autoDismiss && !feedbackTimersRef.current.has(item.id))
+      .forEach((item) => {
+        const timer = setTimeout(() => {
+          feedbackTimersRef.current.delete(item.id);
+          setFeedback((current) => expireDashboardFeedbackFromList(current, item.id));
+        }, DASHBOARD_FEEDBACK_TIMEOUT_MS);
+        feedbackTimersRef.current.set(item.id, timer);
+      });
+  }, [feedback]);
+
+  useEffect(
+    () => () => {
+      feedbackTimersRef.current.forEach(clearTimeout);
+      feedbackTimersRef.current.clear();
+    },
+    []
+  );
 
   const refreshProgression = useCallback(async () => {
     const response = await api.progression.getSummary();
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "home");
       return;
     }
     setProgression(response.data);
@@ -168,22 +322,23 @@ export function DashboardScreen({
   const refreshBeans = useCallback(async () => {
     const response = await api.beans.getCollection();
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "beans");
       return;
     }
     setBeanCollection(response.data);
   }, [api.beans]);
 
-  const refreshFishTank = useCallback(async () => {
+  const refreshFishTank = useCallback(async (): Promise<boolean> => {
     setFishTankLoading(true);
     setFishTankError(null);
     const response = await api.fishTank.getSummary();
     setFishTankLoading(false);
     if (response.error) {
-      setFishTankError(response.error.message);
-      return;
+      setFishTankError(localizedApiError(response.error, "鱼缸库存同步失败，请重试。"));
+      return false;
     }
     setFishTank(response.data);
+    return true;
   }, [api.fishTank]);
 
   const refreshAchievements = useCallback(async () => {
@@ -192,10 +347,10 @@ export function DashboardScreen({
       api.achievements.getCosmetics()
     ]);
     if (achievementResponse.error || cosmeticResponse.error) {
-      setMessage(
-        achievementResponse.error?.message ??
-          cosmeticResponse.error?.message ??
-          "个人档案加载失败"
+      showApiError(
+        achievementResponse.error ?? cosmeticResponse.error,
+        "profile",
+        "个人档案加载失败，请重试。"
       );
       return;
     }
@@ -214,7 +369,7 @@ export function DashboardScreen({
       }
       setLeaderboardLoading(false);
       if (response.error) {
-        setMessage(response.error.message);
+        showApiError(response.error, "rankings");
         return;
       }
       setLeaderboard(response.data);
@@ -225,7 +380,7 @@ export function DashboardScreen({
   const refreshSocial = useCallback(async () => {
     const response = await api.social.getSummary();
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "rankings");
       return;
     }
     setSocial(response.data);
@@ -236,7 +391,7 @@ export function DashboardScreen({
     setMessage(null);
     const activeResponse = await api.checkIns.getActive();
     if (activeResponse.error) {
-      setMessage(activeResponse.error.message);
+      showApiError(activeResponse.error, "home");
     } else {
       setActiveSession(activeResponse.data);
     }
@@ -294,14 +449,12 @@ export function DashboardScreen({
     ]);
     setActivityHistoryLoading(false);
     if (catalogResponse.error || historyResponse.error) {
-      setActivityHistoryError(
-        historyResponse.error?.message ?? catalogResponse.error?.message ?? "活动资料加载失败"
+      const localizedError = localizedApiError(
+        historyResponse.error ?? catalogResponse.error,
+        "活动资料加载失败，请重试。"
       );
-      setActivityMessage(
-        catalogResponse.error?.message ??
-          historyResponse.error?.message ??
-          "活动资料加载失败"
-      );
+      setActivityHistoryError(localizedError);
+      setActivityMessage(localizedError);
       return;
     }
     setActivityCatalog(catalogResponse.data);
@@ -309,13 +462,15 @@ export function DashboardScreen({
     setActivityHistoryCursor(historyResponse.data?.nextCursor ?? null);
   }
 
-  async function refreshAfterReward() {
-    await Promise.all([
+  async function refreshAfterReward(options: { fishTank?: boolean } = {}): Promise<boolean> {
+    const [, , , , fishTankCurrent] = await Promise.all([
       refreshProgression(),
       refreshBeans(),
       refreshAchievements(),
-      refreshLeaderboard(leaderboardWindow, leaderboardScope)
+      refreshLeaderboard(leaderboardWindow, leaderboardScope),
+      options.fishTank ? refreshFishTank() : Promise.resolve(true)
     ]);
+    return fishTankCurrent;
   }
 
   function enqueueAchievementUnlocks(unlocks: AchievementUnlockFeedback[]) {
@@ -338,7 +493,7 @@ export function DashboardScreen({
     const response = await api.progression.claim(period);
     setLoading(false);
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "home");
       return;
     }
     if (!response.data) {
@@ -362,7 +517,7 @@ export function DashboardScreen({
     const response = await api.checkIns.start();
     setLoading(false);
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "home");
       return;
     }
     setActiveSession(response.data);
@@ -381,11 +536,12 @@ export function DashboardScreen({
     const response = await api.checkIns.finish(activeSession.id);
     setLoading(false);
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "home");
       return;
     }
     setActiveSession(null);
     setLastResult(response.data);
+    setLatestLoopResult("check-in");
     setNotice("打卡已结算，今日进度也同步更新了。");
     enqueueAchievementUnlocks(response.data?.reward.achievementsUnlocked ?? []);
     await refreshAfterReward();
@@ -398,15 +554,23 @@ export function DashboardScreen({
     const response = await api.beans.draw(beanTheme);
     setLoading(false);
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "beans");
       return;
     }
     setBeanDrawResult(response.data);
+    setLatestLoopResult("bean-draw");
     setNotice(
       `抽到了${response.data?.bean.name ?? "一颗豆"}，还剩 ${response.data?.remainingDrawChances ?? 0} 次机会。`
     );
     enqueueAchievementUnlocks(response.data?.achievementsUnlocked ?? []);
-    await refreshAfterReward();
+    const syncState = await synchronizeFishTankAfterBeanDraw(response.data, () =>
+      refreshAfterReward({ fishTank: true })
+    );
+    if (syncState === "not-required") {
+      await refreshAfterReward();
+    } else if (syncState === "stale") {
+      setMessage("奖励已经到账，但鱼缸库存同步失败。请在鱼缸卡片中重试。");
+    }
   }
 
   async function initializeTank() {
@@ -415,7 +579,7 @@ export function DashboardScreen({
     const response = await api.fishTank.initializeTank();
     setFishTankLoading(false);
     if (response.error) {
-      setFishTankError(response.error.message);
+      setFishTankError(localizedApiError(response.error, "鱼缸开启失败，请重试。"));
       return;
     }
     setFishTank(response.data);
@@ -428,7 +592,7 @@ export function DashboardScreen({
     const response = await api.fishTank.interact("feed");
     setFishTankLoading(false);
     if (response.error) {
-      setFishTankError(response.error.message);
+      setFishTankError(localizedApiError(response.error, "鱼缸互动失败，请重试。"));
       return;
     }
     setFishTankResultCopy(response.data?.resultCopy ?? null);
@@ -449,7 +613,7 @@ export function DashboardScreen({
     const response = await api.fishTank.hatch(idempotencyKey);
     setHatchLoading(false);
     if (response.error) {
-      setHatchError(response.error.message);
+      setHatchError(localizedApiError(response.error, "孵化没有成功，请重试。"));
       return;
     }
     setHatchResult(response.data);
@@ -482,7 +646,7 @@ export function DashboardScreen({
     );
     setEquipLoading(false);
     if (response.error) {
-      setEquipError(response.error.message);
+      setEquipError(localizedApiError(response.error, "装扮没有装备成功，请重试。"));
       return;
     }
     setEquipResult(response.data);
@@ -504,7 +668,7 @@ export function DashboardScreen({
     const response = await api.beans.exchangeFragments();
     setLoading(false);
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "beans");
       return;
     }
     setNotice("豆子碎片已兑换为 1 次抽取机会。");
@@ -518,7 +682,7 @@ export function DashboardScreen({
     const response = await api.beans.setShowcase(showcasePosition, beanId);
     setLoading(false);
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "beans");
       return;
     }
     setNotice(`已放入展示柜第 ${showcasePosition} 格。`);
@@ -542,7 +706,7 @@ export function DashboardScreen({
         setActivityUnavailable(true);
         setActivityMessage("当前任务都在冷却中，晚一点再来领取。");
       } else {
-        setActivityMessage(response.error.message);
+        setActivityMessage(localizedApiError(response.error, "任务领取失败，请重试。"));
       }
       return;
     }
@@ -569,7 +733,7 @@ export function DashboardScreen({
     });
     setActivityHistoryLoading(false);
     if (response.error) {
-      setActivityHistoryError(response.error.message);
+      setActivityHistoryError(localizedApiError(response.error, "更多活动记录加载失败，请重试。"));
       return;
     }
     setActivityHistory((current) => [...current, ...(response.data?.items ?? [])]);
@@ -598,7 +762,7 @@ export function DashboardScreen({
     const response = await api.activities.complete(activityAssignment.assignmentId, activityProgress);
     setLoading(false);
     if (response.error) {
-      setActivityMessage(response.error.message);
+      setActivityMessage(localizedApiError(response.error, "活动结算失败，请重试。"));
       return;
     }
     if (!response.data) {
@@ -606,6 +770,7 @@ export function DashboardScreen({
       return;
     }
     setActivityResult(response.data);
+    setLatestLoopResult("activity");
     setActivityAssignment(response.data.assignment);
     setActivityProgress({});
     setNotice(
@@ -629,7 +794,7 @@ export function DashboardScreen({
     });
     setLoading(false);
     if (response.error) {
-      setActivityMessage(response.error.message);
+      setActivityMessage(localizedApiError(response.error, "反馈提交失败，请重试。"));
       return;
     }
     setActivityFeedbackAck(response.data);
@@ -646,7 +811,7 @@ export function DashboardScreen({
     const response = await api.activities.skip(activityAssignment.assignmentId, activitySkipReason);
     setLoading(false);
     if (response.error) {
-      setActivityMessage(response.error.message);
+      setActivityMessage(localizedApiError(response.error, "任务放弃失败，请重试。"));
       return;
     }
     setActivityAssignment(response.data);
@@ -661,7 +826,7 @@ export function DashboardScreen({
     const response = await api.achievements.equipCosmetic(id);
     setLoading(false);
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "profile");
       return;
     }
     await Promise.all([
@@ -698,7 +863,7 @@ export function DashboardScreen({
             : await api.social.createGroup(action, value);
     setLoading(false);
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "rankings");
       return;
     }
     setSocial(response.data);
@@ -709,7 +874,7 @@ export function DashboardScreen({
   async function sendReaction(userId: string, reactionType: SocialReactionType) {
     const response = await api.social.react(userId, reactionType);
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "rankings");
       return;
     }
     setNotice(response.data?.resultCopy ?? (response.data?.created ? "心意已送达。" : "今天已经送过这份心意了。"));
@@ -720,7 +885,7 @@ export function DashboardScreen({
   async function leaveSocialGroup(kind: "squad" | "company") {
     const response = await api.social.leaveGroup(kind);
     if (response.error) {
-      setMessage(response.error.message);
+      showApiError(response.error, "rankings");
       return;
     }
     setSocial(response.data);
@@ -747,100 +912,83 @@ export function DashboardScreen({
         activityAssignment
     )
   });
+  const latestLoopResults = selectLatestLoopResults(latestLoopResult, {
+    lastResult,
+    activityResult,
+    beanDrawResult
+  });
   const todayLoop = deriveTodayPlayLoop({
     activeSession,
-    lastResult,
+    lastResult: latestLoopResults.lastResult,
     activityAssignment,
-    activityResult,
+    activityResult: latestLoopResults.activityResult,
     beanCollection,
-    beanDrawResult,
+    beanDrawResult: latestLoopResults.beanDrawResult,
     progression,
     achievementList,
     activityUnavailable
   });
   const tabMeta = getDashboardTab(selectedTab);
+  const visibleFeedback = visibleDashboardFeedbackFromList(feedback, selectedTab);
 
   function jumpToAchievementTarget(achievement: AchievementRecommendation) {
     if (achievement.targetSection === "leaderboards") {
-      setSelectedTab("rankings");
+      navigateDashboard("rankings");
     } else {
-      setSelectedTab(achievement.targetSection);
+      navigateDashboard(achievement.targetSection);
     }
   }
 
   async function runNextStep() {
-    if (nextStep.kind === "start-checkin") {
-      setSelectedTab("home");
-      await startSession();
-      return;
-    }
-    if (nextStep.kind === "finish-checkin") {
-      setSelectedTab("home");
-      await finishSession();
-      return;
-    }
-    if (nextStep.kind === "draw-bean") {
-      setSelectedTab("beans");
-      await drawBean();
-      return;
-    }
-    if (nextStep.kind === "complete-activity") {
-      setSelectedTab("activities");
-      await completeActivity();
-      return;
-    }
-    if (nextStep.kind === "claim-daily-reward") {
-      setSelectedTab("home");
-      await claimProgressionReward("daily");
-      return;
-    }
-    if (nextStep.kind === "claim-weekly-reward") {
-      setSelectedTab("home");
-      await claimProgressionReward("weekly");
-      return;
-    }
-    setSelectedTab("activities");
-    await randomActivity();
+    await runSingleFlight(routeActionPendingRef, async () => {
+      const landingTarget: DashboardLandingTarget =
+        nextStep.kind === "draw-bean"
+          ? "draw-result"
+          : nextStep.kind === "complete-activity"
+            ? "current-activity"
+            : "top";
+      navigateDashboard(nextStep.targetSection, landingTarget);
+      if (nextStep.kind === "start-checkin") await startSession();
+      else if (nextStep.kind === "finish-checkin") await finishSession();
+      else if (nextStep.kind === "draw-bean") await drawBean();
+      else if (nextStep.kind === "complete-activity") await completeActivity();
+      else if (nextStep.kind === "claim-daily-reward") await claimProgressionReward("daily");
+      else if (nextStep.kind === "claim-weekly-reward") await claimProgressionReward("weekly");
+      else await randomActivity();
+    });
   }
 
   async function runTodayLoopAction(action: TodayLoopAction) {
-    if (action.kind === "check-in") {
-      setSelectedTab("home");
-      if (activeSession) {
-        await finishSession();
-      } else {
-        await startSession();
+    await runSingleFlight(routeActionPendingRef, async () => {
+      const landingTarget: DashboardLandingTarget =
+        action.kind === "activity"
+          ? "current-activity"
+          : action.kind === "bean-draw" && action.execution === "mutate"
+            ? "draw-result"
+            : "top";
+      navigateDashboard(action.targetSection, landingTarget);
+      if (action.execution === "navigate") return;
+      if (action.kind === "check-in") {
+        if (activeSession) await finishSession();
+        else await startSession();
+      } else if (action.kind === "activity") {
+        await randomActivity();
+      } else if (action.kind === "bean-draw") {
+        if ((beanCollection?.drawChances ?? 0) > 0) await drawBean();
+      } else if (action.kind === "goal-reward") {
+        await claimProgressionReward(action.meta?.period === "weekly" ? "weekly" : "daily");
       }
-      return;
-    }
-    if (action.kind === "activity") {
-      setSelectedTab("activities");
-      if (activityAssignment?.status === "active") {
-        return;
-      }
-      await randomActivity();
-      return;
-    }
-    if (action.kind === "bean-draw") {
-      setSelectedTab("beans");
-      if ((beanCollection?.drawChances ?? 0) > 0) {
-        await drawBean();
-      }
-      return;
-    }
-    if (action.kind === "goal-reward") {
-      setSelectedTab("home");
-      await claimProgressionReward(action.meta?.period === "weekly" ? "weekly" : "daily");
-      return;
-    }
-    setSelectedTab(action.targetSection);
+    });
   }
 
-  function inspectFishTank() {
-    setSelectedTab("beans");
-    setTimeout(() => {
-      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    }, 0);
+  async function inspectFishTank() {
+    navigateDashboard(fishTankInventoryFollowUp.tab, fishTankInventoryFollowUp.target);
+    if (fishTankError) {
+      const current = await refreshFishTank();
+      if (!current) {
+        setMessage("鱼缸库存还没有同步成功，请在鱼缸卡片中重试。");
+      }
+    }
   }
 
   return (
@@ -864,8 +1012,16 @@ export function DashboardScreen({
         </View>
 
         {loading ? <ActivityIndicator color="#232323" style={styles.topLoader} /> : null}
-        {message ? <Text style={styles.message}>{message}</Text> : null}
-        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+        {visibleFeedback ? (
+          <DashboardFeedbackBanner
+            feedback={visibleFeedback}
+            onDismiss={() =>
+              setFeedback((current) =>
+                current.filter((item) => item.id !== visibleFeedback.id)
+              )
+            }
+          />
+        ) : null}
 
         {selectedTab === "home" ? (
           <HomeTab
@@ -891,6 +1047,7 @@ export function DashboardScreen({
 
         {selectedTab === "activities" ? (
           <ActivitiesTab
+            onLandingLayout={(target, y) => registerLandingOffset(target, y)}
             loading={loading}
             goal={findGoal(progression, "activity")}
             assignment={activityAssignment}
@@ -925,6 +1082,7 @@ export function DashboardScreen({
 
         {selectedTab === "beans" ? (
           <BeansTab
+            onLandingLayout={(target, y) => registerLandingOffset(target, y)}
             loading={loading}
             goal={findGoal(progression, "bean_draw")}
             collection={beanCollection}
@@ -1004,7 +1162,7 @@ export function DashboardScreen({
       <BottomNav
         tabs={dashboardTabs}
         selected={selectedTab}
-        onSelect={setSelectedTab}
+        onSelect={(tab) => navigateDashboard(tab, "top")}
       />
       <AchievementUnlockOverlay
         unlock={achievementUnlockQueue[0] ?? null}

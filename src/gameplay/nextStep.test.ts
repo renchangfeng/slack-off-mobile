@@ -107,6 +107,8 @@ describe("deriveGameplayStep", () => {
 
     expect(step).toMatchObject({
       kind: "get-activity",
+      actionLabel: "领取摸鱼任务",
+      execution: "mutate",
       targetSection: "activities",
       rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
     });
@@ -132,7 +134,11 @@ describe("deriveGameplayStep", () => {
       ]
     });
 
-    expect(step.kind).toBe("claim-daily-reward");
+    expect(step).toMatchObject({
+      kind: "claim-daily-reward",
+      actionLabel: "领取今日奖励",
+      execution: "mutate"
+    });
   });
 
   it("stops promoting activities when the eligible pool is empty", () => {

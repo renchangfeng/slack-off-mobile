@@ -33,6 +33,7 @@ export function BottomNav<T extends string>({ tabs, selected, onSelect }: Bottom
         return (
           <Pressable
             key={tab.value}
+            accessibilityLabel={tab.label}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             onPress={() => onSelect(tab.value)}

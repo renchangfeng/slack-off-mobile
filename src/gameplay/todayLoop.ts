@@ -43,6 +43,7 @@ export type TodayLoopAction = {
   title: string;
   description: string;
   actionLabel: string;
+  execution: "navigate" | "mutate";
   targetSection: DashboardTab;
   rewardPreview: TodayLoopRewardPreview | null;
   meta?: Record<string, unknown>;
@@ -458,6 +459,7 @@ function pickPrimaryNextAction(state: {
       title: "先把这次休息坐实",
       description: "计时正在进行。休息够了以后结束打卡，系统会结算分数和抽豆进度。",
       actionLabel: "结束并结算",
+      execution: "mutate",
       targetSection: "home",
       rewardPreview: { score: 1, drawProgress: 1, drawChances: 0 }
     };
@@ -469,6 +471,7 @@ function pickPrimaryNextAction(state: {
       title: "从一次带薪休息开始",
       description: "开始计时，结束后获得排行榜分数和抽豆进度，然后再去做随机摸鱼活动。",
       actionLabel: "开始打卡",
+      execution: "mutate",
       targetSection: "home",
       rewardPreview: { score: 1, drawProgress: 1, drawChances: 0 }
     };
@@ -480,6 +483,7 @@ function pickPrimaryNextAction(state: {
       title: "当前摸鱼任务等你交差",
       description: "先按任务描述完成它，再回来领取分数和抽豆进度。",
       actionLabel: "去做任务",
+      execution: "navigate",
       targetSection: "activities",
       rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
     };
@@ -490,7 +494,8 @@ function pickPrimaryNextAction(state: {
       kind: "bean-draw",
       title: `你有 ${drawChances} 次抽豆机会`,
       description: "机会已经到账，不花掉它就像把调休留到过期。",
-      actionLabel: "立即抽豆",
+      actionLabel: "立即抽取 1 次",
+      execution: "mutate",
       targetSection: "beans",
       rewardPreview: { score: 0, drawProgress: 0, drawChances }
     };
@@ -501,7 +506,8 @@ function pickPrimaryNextAction(state: {
       kind: "goal-reward",
       title: claimableGoalPeriod === "daily" ? "今日目标已达成" : "本周目标已达成",
       description: `小目标凑齐了，领取${claimableGoalPeriod === "daily" ? "今日" : "本周"}成长奖励。`,
-      actionLabel: "领取奖励",
+      actionLabel: claimableGoalPeriod === "daily" ? "领取今日奖励" : "领取本周奖励",
+      execution: "mutate",
       targetSection: "home",
       rewardPreview: goalRewardPreview(claimableGoalPeriod, progression),
       meta: { period: claimableGoalPeriod }
@@ -529,7 +535,8 @@ function pickSecondaryActions(state: {
       kind: "goal-reward",
       title: claimableGoalPeriod === "daily" ? "今日奖励待领" : "本周奖励待领",
       description: "目标已经达成，顺手把奖励领了。",
-      actionLabel: "领奖励",
+      actionLabel: claimableGoalPeriod === "daily" ? "领取今日奖励" : "领取本周奖励",
+      execution: "mutate",
       targetSection: "home",
       rewardPreview: goalRewardPreview(claimableGoalPeriod, progression),
       meta: { period: claimableGoalPeriod }
@@ -542,6 +549,7 @@ function pickSecondaryActions(state: {
       title: `${drawChances} 次抽豆机会`,
       description: "机会还在，随时可以抽。",
       actionLabel: "去抽豆",
+      execution: "navigate",
       targetSection: "beans",
       rewardPreview: { score: 0, drawProgress: 0, drawChances }
     });
@@ -555,6 +563,7 @@ function pickSecondaryActions(state: {
       title: secondaryAchievement.name,
       description: `${secondaryAchievement.recommendationReason} · ${secondaryAchievement.remainingEffortLabel}`,
       actionLabel: secondaryAchievement.actionHint.label,
+      execution: "navigate",
       targetSection: mapRecommendationTarget(secondaryAchievement.targetSection),
       rewardPreview: null,
       meta: { achievementId: secondaryAchievement.id }
@@ -567,6 +576,7 @@ function pickSecondaryActions(state: {
       title: "看看榜",
       description: "给朋友递张纸巾，或者看看今天的喘气排名。",
       actionLabel: "看榜",
+      execution: "navigate",
       targetSection: "rankings",
       rewardPreview: null
     });
@@ -892,7 +902,8 @@ function secondaryFollowUps(ctx: FollowUpContext): TodayLoopAction[] {
       kind: "goal-reward",
       title: ctx.claimableGoalPeriod === "daily" ? "领今日奖励" : "领本周奖励",
       description: "目标已经达成，顺手把奖励领了。",
-      actionLabel: "领奖励",
+      actionLabel: ctx.claimableGoalPeriod === "daily" ? "领取今日奖励" : "领取本周奖励",
+      execution: "mutate",
       targetSection: "home",
       rewardPreview: goalRewardPreview(ctx.claimableGoalPeriod, ctx.progression),
       meta: { period: ctx.claimableGoalPeriod }
@@ -906,6 +917,7 @@ function secondaryFollowUps(ctx: FollowUpContext): TodayLoopAction[] {
       title: achievement.name,
       description: `${achievement.recommendationReason} · ${achievement.remainingEffortLabel}`,
       actionLabel: achievement.actionHint.label,
+      execution: "navigate",
       targetSection: mapRecommendationTarget(achievement.targetSection),
       rewardPreview: null,
       meta: { achievementId: achievement.id }
@@ -927,7 +939,8 @@ function followUpsAfterActivity(
         kind: "bean-draw",
         title: "去抽豆",
         description: `活动刚贡献了 ${result.reward.drawChancesGranted} 次抽豆机会。`,
-        actionLabel: "立即抽豆",
+        actionLabel: "立即抽取 1 次",
+        execution: "mutate",
         targetSection: "beans",
         rewardPreview: { score: 0, drawProgress: 0, drawChances: result.reward.drawChancesGranted }
       },
@@ -942,6 +955,7 @@ function followUpsAfterActivity(
         title: "继续当前任务",
         description: "还有一个活动等你完成。",
         actionLabel: "去做任务",
+        execution: "navigate",
         targetSection: "activities",
         rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
       },
@@ -956,6 +970,7 @@ function followUpsAfterActivity(
         title: "先完成一次打卡",
         description: "今天的休息路线还没开始。",
         actionLabel: "开始打卡",
+        execution: "mutate",
         targetSection: "home",
         rewardPreview: { score: 1, drawProgress: 1, drawChances: 0 }
       },
@@ -970,6 +985,7 @@ function followUpsAfterActivity(
         title: "再来一个",
         description: "再完成一个摸鱼任务，继续攒抽豆进度。",
         actionLabel: "领任务",
+        execution: "mutate",
         targetSection: "activities",
         rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
       },
@@ -992,7 +1008,8 @@ function followUpsAfterCheckIn(
         kind: "bean-draw",
         title: "去抽豆",
         description: `打卡贡献了 ${result.reward.drawChancesGranted} 次抽豆机会。`,
-        actionLabel: "立即抽豆",
+        actionLabel: "立即抽取 1 次",
+        execution: "mutate",
         targetSection: "beans",
         rewardPreview: {
           score: 0,
@@ -1011,6 +1028,7 @@ function followUpsAfterCheckIn(
         title: "当前任务等你",
         description: "还有一个活动没完成。",
         actionLabel: "去做任务",
+        execution: "navigate",
         targetSection: "activities",
         rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
       },
@@ -1025,6 +1043,7 @@ function followUpsAfterCheckIn(
         title: "去做个摸鱼任务",
         description: "完成随机摸鱼任务也能增加抽豆进度。",
         actionLabel: "领任务",
+        execution: "mutate",
         targetSection: "activities",
         rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
       },
@@ -1047,7 +1066,8 @@ function followUpsAfterBeanDraw(
         kind: "bean-draw",
         title: "继续抽豆",
         description: `还有 ${result.remainingDrawChances} 次机会。`,
-        actionLabel: "再抽一颗",
+        actionLabel: "再抽取 1 次",
+        execution: "mutate",
         targetSection: "beans",
         rewardPreview: { score: 0, drawProgress: 0, drawChances: result.remainingDrawChances }
       },
@@ -1062,6 +1082,7 @@ function followUpsAfterBeanDraw(
         title: "当前任务等你",
         description: "还有一个活动没完成。",
         actionLabel: "去做任务",
+        execution: "navigate",
         targetSection: "activities",
         rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
       },
@@ -1076,6 +1097,7 @@ function followUpsAfterBeanDraw(
         title: "再做个任务",
         description: "继续攒抽豆进度。",
         actionLabel: "领任务",
+        execution: "mutate",
         targetSection: "activities",
         rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
       },
