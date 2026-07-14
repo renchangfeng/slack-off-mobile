@@ -28,6 +28,7 @@ import type { DashboardTab } from "../../gameplay/dashboardTabs";
 import type { deriveGameplayStep } from "../../gameplay/nextStep";
 import type { TodayLoopAction, TodayLoopViewModel } from "../../gameplay/todayLoop";
 import type { DashboardLandingTarget } from "./dashboardCoherence";
+import type { AnyDashboardMode } from "./coreSurface";
 
 export type HomeScreenProps = {
   authLabel?: string;
@@ -72,6 +73,7 @@ export type HomeTabProps = {
 };
 
 export type ActivitiesTabProps = {
+  mode: Extract<AnyDashboardMode, "play" | "history">;
   onLandingLayout(target: DashboardLandingTarget, y: number): void;
   loading: boolean;
   goal: ProgressionSummary["dailyGoals"]["goals"][number] | null;
@@ -105,6 +107,7 @@ export type ActivitiesTabProps = {
 };
 
 export type BeansTabProps = {
+  mode: Extract<AnyDashboardMode, "tank" | "draw" | "collection">;
   onLandingLayout(target: DashboardLandingTarget, y: number): void;
   loading: boolean;
   goal: ProgressionSummary["dailyGoals"]["goals"][number] | null;
@@ -143,6 +146,8 @@ export type BeansTabProps = {
 };
 
 export type LeaderboardsTabProps = {
+  mode: Extract<AnyDashboardMode, "ranking" | "social">;
+  onLandingLayout(target: DashboardLandingTarget, y: number): void;
   loading: boolean;
   leaderboardLoading: boolean;
   leaderboard: LeaderboardResponse | null;
@@ -161,6 +166,8 @@ export type LeaderboardsTabProps = {
 };
 
 export type ProfileTabProps = {
+  mode: Extract<AnyDashboardMode, "overview" | "achievements" | "rewards">;
+  onLandingLayout(target: DashboardLandingTarget, y: number): void;
   authLabel?: string;
   progression: ProgressionSummary | null;
   achievementList: AchievementList | null;

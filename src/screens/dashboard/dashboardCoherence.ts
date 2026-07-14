@@ -2,19 +2,24 @@ import type { BeanDrawResult } from "../../api/beans";
 import type { ActivityCompleteResult } from "../../api/activities";
 import type { CheckInFinishResult } from "../../api/checkins";
 import type { DashboardTab } from "../../gameplay/dashboardTabs";
+import type {
+  AnyDashboardMode,
+  DashboardFeedbackScope,
+  DashboardSemanticAnchor
+} from "./coreSurface";
+import {
+  parseDashboardFeedbackScope,
+  scopeMatchesTabAndMode
+} from "./coreSurface";
 
-export type DashboardLandingTarget =
-  | "top"
-  | "fish-tank"
-  | "draw-result"
-  | "current-activity";
+export type DashboardLandingTarget = DashboardSemanticAnchor;
 
 export type DashboardFeedbackKind = "success" | "error" | "info";
 
 export type DashboardFeedback = {
   id: string;
   kind: DashboardFeedbackKind;
-  scope: DashboardTab | "global";
+  scope: DashboardFeedbackScope;
   message: string;
   autoDismiss: boolean;
 };
@@ -77,17 +82,25 @@ export function createDashboardFeedback(input: {
 
 export function visibleDashboardFeedback(
   feedback: DashboardFeedback | null,
-  tab: DashboardTab
+  tab: DashboardTab,
+  mode?: AnyDashboardMode
 ): DashboardFeedback | null {
   if (!feedback) return null;
-  return feedback.scope === "global" || feedback.scope === tab ? feedback : null;
+  return scopeMatchesTabAndMode(feedback.scope, tab, mode) ? feedback : null;
 }
 
 export function clearFeedbackForScope(
   feedback: DashboardFeedback | null,
-  scope: DashboardTab
+  scope: DashboardTab,
+  mode?: AnyDashboardMode
 ): DashboardFeedback | null {
-  if (!feedback || feedback.scope !== scope) return feedback;
+  if (!feedback) return null;
+  const parsed = parseDashboardFeedbackScope(feedback.scope);
+  if (parsed.tab !== scope) return feedback;
+  if (mode) {
+    if (parsed.mode && parsed.mode !== mode) return feedback;
+    if (!parsed.mode) return feedback;
+  }
   return null;
 }
 
@@ -100,18 +113,30 @@ export function replaceFeedbackForScope(
 
 export function clearFeedbackListForScope(
   feedback: DashboardFeedback[],
-  scope: DashboardTab
+  scope: DashboardTab,
+  mode?: AnyDashboardMode
 ): DashboardFeedback[] {
-  return feedback.filter((item) => item.scope !== scope);
+  return feedback.filter((item) => {
+    const parsed = parseDashboardFeedbackScope(item.scope);
+    if (parsed.tab !== scope) return true;
+    if (mode) {
+      if (parsed.mode && parsed.mode !== mode) return true;
+      if (!parsed.mode) return true;
+    }
+    return false;
+  });
 }
 
 export function visibleDashboardFeedbackFromList(
   feedback: DashboardFeedback[],
-  tab: DashboardTab
+  tab: DashboardTab,
+  mode?: AnyDashboardMode
 ): DashboardFeedback | null {
-  const scoped = feedback.find((item) => item.scope === tab);
-  if (scoped) return scoped;
-  return feedback.find((item) => item.scope === "global") ?? null;
+  for (let index = feedback.length - 1; index >= 0; index -= 1) {
+    const item = feedback[index];
+    if (scopeMatchesTabAndMode(item.scope, tab, mode)) return item;
+  }
+  return null;
 }
 
 export function localizedGoalUnit(unit: string): string {

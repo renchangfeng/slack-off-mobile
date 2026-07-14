@@ -44,27 +44,119 @@ const activityFeedbackOptions: Array<{
   { label: "短一点", value: "shorter" }
 ];
 
-export function ActivitiesTab({
-  onLandingLayout,
-  loading,
-  goal,
-  assignment,
-  result,
-  catalog,
-  history,
-  historyLoading,
-  historyError,
-  historyCursor,
-  feedbackAck,
-  message,
-  unavailable,
+function ActivityPreferenceFilter({
   category,
-  progress,
-  skipReason,
-  nextStep,
-  todayLoop,
-  actions
-}: ActivitiesTabProps) {
+  onChange
+}: {
+  category: ActivitiesTabProps["category"];
+  onChange: ActivitiesTabProps["actions"]["setCategory"];
+}) {
+  return (
+    <DashboardCard>
+      <SectionHeader kicker="这次想怎么休息" title="选一个偏好，推荐会更懂你" />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryRow}
+      >
+        <CategoryChip
+          label="全部"
+          selected={category === null}
+          onPress={() => onChange(null)}
+        />
+        {activityCategories.map((activityCategory) => (
+          <CategoryChip
+            key={activityCategory}
+            label={activityCategoryLabel(activityCategory)}
+            selected={category === activityCategory}
+            onPress={() => onChange(activityCategory)}
+          />
+        ))}
+      </ScrollView>
+    </DashboardCard>
+  );
+}
+
+function CompactActivityCatalog({
+  catalog,
+  category
+}: {
+  catalog: ActivitiesTabProps["catalog"];
+  category: ActivitiesTabProps["category"];
+}) {
+  return (
+    <DashboardCard>
+      <View style={styles.rowBetween}>
+        <View style={styles.flex}>
+          <SectionHeader
+            kicker="活动目录"
+            title={category ? activityCategoryLabel(category) : "全部活动"}
+          />
+        </View>
+        <Text style={styles.goalCount}>{catalog?.items.length ?? 0}</Text>
+      </View>
+      {catalog?.items.length ? (
+        catalog.items.map((item) => {
+          const itemPresentation = resolveActivityPresentation(item);
+          return (
+            <View key={item.templateId} style={styles.activityCatalogRow}>
+              <View style={styles.flex}>
+                <Text style={styles.rowTitle}>{item.title}</Text>
+                <Text style={styles.rowMeta}>
+                  {activityCategoryLabel(item.category)} ·{" "}
+                  {difficultyLabel(item.difficulty)} · 完成 {item.completedCount} 次
+                </Text>
+                <Text style={styles.rowMeta}>
+                  {itemPresentation.badge} ·{" "}
+                  {activityInteractionSummaryLabel(item.interactionSummary)}
+                </Text>
+                <Text style={styles.smallCopy}>{item.description}</Text>
+              </View>
+              <Text style={item.eligible ? styles.readyMark : styles.cooldownMark}>
+                {item.eligible
+                  ? "可推荐"
+                  : formatCooldown(item.cooldownRemainingSeconds)}
+              </Text>
+            </View>
+          );
+        })
+      ) : (
+        <View style={{ alignItems: "center" }}>
+          <ArtSlot
+            slotId="empty-state-generic"
+            size={64}
+            style={{ marginBottom: 12 }}
+          />
+          <EmptyState
+            title="这个分类暂时没有活动"
+            body="换个分类，或者抽一个随机的"
+            icon="🌫️"
+          />
+        </View>
+      )}
+    </DashboardCard>
+  );
+}
+
+function PlayMode(props: ActivitiesTabProps) {
+  const {
+    onLandingLayout,
+    loading,
+    goal,
+    assignment,
+    result,
+    catalog,
+    category,
+    progress,
+    skipReason,
+    nextStep,
+    todayLoop,
+    feedbackAck,
+    message,
+    unavailable,
+    actions
+  } = props;
+
   const activityPresentation = assignment ? resolveActivityPresentation(assignment) : null;
   const activityResultPresentation = result ? resolveActivityPresentation(result.assignment) : null;
   const activityAccentColor = activityPresentation?.accentColor ?? "#2f6f8f";
@@ -75,298 +167,236 @@ export function ActivitiesTab({
   return (
     <>
       <GoalBanner goal={goal} />
-      <DashboardCard>
-        <SectionHeader kicker="这次想怎么休息" title="选一个偏好，推荐会更懂你" />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryRow}
-        >
-          <CategoryChip
-            label="全部"
-            selected={category === null}
-            onPress={() => actions.setCategory(null)}
-          />
-          {activityCategories.map((activityCategory) => (
-            <CategoryChip
-              key={activityCategory}
-              label={activityCategoryLabel(activityCategory)}
-              selected={category === activityCategory}
-              onPress={() => actions.setCategory(activityCategory)}
-            />
-          ))}
-        </ScrollView>
-      </DashboardCard>
+      <ActivityPreferenceFilter category={category} onChange={actions.setCategory} />
       <View
         onLayout={(event) =>
           onLandingLayout("current-activity", event.nativeEvent.layout.y)
         }
       >
-      <DashboardCard>
-        {displayState.kind === "empty" || displayState.kind === "unavailable" ? (
-          <View style={{ alignItems: "center" }}>
-            <ArtSlot
-              slotId={displayState.kind === "unavailable" ? "empty-state-generic" : "empty-state-activities"}
-              size={80}
-              style={{ marginBottom: 12 }}
-            />
-            <EmptyState
-              title={displayState.kind === "unavailable" ? "暂无可推荐任务" : "还没有任务"}
-              body={
-                displayState.kind === "unavailable"
-                  ? "当前任务都在冷却中，晚一点再来领取。"
-                  : "给自己找个合理的离线理由，点下面的按钮抽一个"
-              }
-              icon={displayState.kind === "unavailable" ? "🌫️" : "🪣"}
-            />
-          </View>
-        ) : (
-          <>
-            <View
-              style={[
-                styles.activityHeroCard,
-                { borderColor: activityAccentColor }
-              ]}
-            >
-              <View style={{ alignItems: "center", marginBottom: 8 }}>
-                <ArtSlot slotId="activities-card-illustration" size={80} />
+        <DashboardCard>
+          {displayState.kind === "empty" || displayState.kind === "unavailable" ? (
+            <View style={{ alignItems: "center" }}>
+              <ArtSlot
+                slotId={displayState.kind === "unavailable" ? "empty-state-generic" : "empty-state-activities"}
+                size={80}
+                style={{ marginBottom: 12 }}
+              />
+              <EmptyState
+                title={displayState.kind === "unavailable" ? "暂无可推荐任务" : "还没有任务"}
+                body={
+                  displayState.kind === "unavailable"
+                    ? "当前任务都在冷却中，晚一点再来领取。"
+                    : "给自己找个合理的离线理由，点下面的按钮抽一个"
+                }
+                icon={displayState.kind === "unavailable" ? "🌫️" : "🪣"}
+              />
+            </View>
+          ) : (
+            <>
+              <View
+                style={[
+                  styles.activityHeroCard,
+                  { borderColor: activityAccentColor }
+                ]}
+              >
+                <View style={{ alignItems: "center", marginBottom: 8 }}>
+                  <ArtSlot slotId="activities-card-illustration" size={80} />
+                </View>
+                <View style={styles.activityCardTopRow}>
+                  <Text
+                    style={[
+                      styles.activityBadge,
+                      { backgroundColor: activityAccentColor }
+                    ]}
+                  >
+                    {activityPresentation?.badge ?? "当前任务"}
+                  </Text>
+                  <Text style={styles.activityStat}>
+                    {activityPresentation?.statLabel ?? "摸鱼指数"}{" "}
+                    {activityPresentation?.statValue ?? "--"}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+                  <StatusBadge
+                    tone={displayState.kind === "completed" ? "completed" : "active"}
+                    label={activityCategoryLabel(assignment!.category)}
+                  />
+                  <StatusBadge tone="default" label={difficultyLabel(assignment!.difficulty)} />
+                </View>
+                <Text style={styles.activityHeadline}>
+                  {activityPresentation?.headline ?? assignment!.title}
+                </Text>
+                <Text style={styles.activityScene}>
+                  {activityPresentation?.scene ?? assignment!.description}
+                </Text>
+                <View style={styles.activityPromptBox}>
+                  <Text style={styles.activityPrompt}>
+                    {activityPresentation?.prompt ?? assignment!.description}
+                  </Text>
+                </View>
+                <View style={{ marginTop: 8 }}>
+                  <RewardRow
+                    icon="⭐"
+                    label="预计奖励"
+                    value={`+${assignment!.rewardPreview.score} 分 · 进度 +${assignment!.rewardPreview.drawProgress}`}
+                    positive
+                  />
+                  <RewardRow
+                    icon="🫘"
+                    label="交互方式"
+                    value={assignment!.interactionSummary.flavorLabel}
+                  />
+                </View>
               </View>
-              <View style={styles.activityCardTopRow}>
+              {assignment!.recommendationExplanation ? (
+                <Text style={styles.helperText}>
+                  推荐理由：{assignment!.recommendationExplanation}
+                </Text>
+              ) : null}
+              {displayState.kind === "completed" ? (
+                <ActivityAssignmentStatusPanel
+                  title="本次活动已完成"
+                  body="互动记录和奖励回执已经归档在下面，不用再重复操作。"
+                />
+              ) : displayState.kind === "skipped" ? (
+                <ActivityAssignmentStatusPanel
+                  title="任务已放弃"
+                  body="这次没有发放奖励，可以换一个更顺眼的任务。"
+                />
+              ) : (
+                <>
+                  <ActivityInteractionRunner
+                    assignment={assignment!}
+                    progress={progress}
+                    onChange={actions.setProgress}
+                  />
+                  <ActionButton
+                    label={
+                      displayState.kind === "active-ready"
+                        ? "领取互动奖励"
+                        : "先完成互动步骤"
+                    }
+                    disabled={loading || displayState.kind !== "active-ready"}
+                    onPress={actions.completeActivity}
+                  />
+                </>
+              )}
+              {displayState.kind === "active-incomplete" || displayState.kind === "active-ready" ? (
+                <>
+                  <View style={styles.skipReasonBox}>
+                    <Text style={styles.kicker}>不想做的原因</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.categoryRow}
+                    >
+                      {[
+                        { value: "not_interested", label: "没兴趣" },
+                        { value: "too_much_work", label: "太麻烦" },
+                        { value: "not_convenient", label: "不方便" },
+                        { value: "want_weirder", label: "来点怪的" },
+                        { value: "other", label: "换个口味" }
+                      ].map((option) => (
+                        <CategoryChip
+                          key={option.value}
+                          label={option.label}
+                          selected={skipReason === option.value}
+                          onPress={() => actions.setSkipReason(option.value as typeof skipReason)}
+                        />
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <ActionButton
+                    label="按原因换一个"
+                    dark
+                    disabled={loading}
+                    onPress={actions.skipActivity}
+                  />
+                </>
+              ) : null}
+            </>
+          )}
+          {result ? (
+            <MotionFeedback
+              variant="activity-complete"
+              trigger={result.assignment.assignmentId}
+              animateOnMount
+            >
+              <View
+                style={[
+                  styles.activityResultCertificate,
+                  { borderColor: activityResultPresentation?.accentColor ?? "#17a36b" }
+                ]}
+              >
+                <View style={{ alignItems: "center", marginBottom: 8 }}>
+                  <ArtSlot slotId="activities-card-illustration" size={72} />
+                </View>
                 <Text
                   style={[
                     styles.activityBadge,
-                    { backgroundColor: activityAccentColor }
+                    { backgroundColor: activityResultPresentation?.accentColor ?? "#17a36b" }
                   ]}
                 >
-                  {activityPresentation?.badge ?? "当前任务"}
+                  {activityResultPresentation?.badge ?? "活动完成"}
                 </Text>
-                <Text style={styles.activityStat}>
-                  {activityPresentation?.statLabel ?? "摸鱼指数"}{" "}
-                  {activityPresentation?.statValue ?? "--"}
+                <Text style={styles.activityResultTitle}>
+                  {activityDelight?.title ?? result.resultTitle ?? "活动奖励已结算"}
                 </Text>
-              </View>
-              <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
-                <StatusBadge
-                  tone={displayState.kind === "completed" ? "completed" : "active"}
-                  label={activityCategoryLabel(assignment!.category)}
-                />
-                <StatusBadge tone="default" label={difficultyLabel(assignment!.difficulty)} />
-              </View>
-              <Text style={styles.activityHeadline}>
-                {activityPresentation?.headline ?? assignment!.title}
-              </Text>
-              <Text style={styles.activityScene}>
-                {activityPresentation?.scene ?? assignment!.description}
-              </Text>
-              <View style={styles.activityPromptBox}>
-                <Text style={styles.activityPrompt}>
-                  {activityPresentation?.prompt ?? assignment!.description}
+                <Text style={styles.helperText}>
+                  {activityDelight?.copy ?? result.resultCopy ?? "这次摸鱼记录已经归档。"}
                 </Text>
-              </View>
-              <View style={{ marginTop: 8 }}>
-                <RewardRow
-                  icon="⭐"
-                  label="预计奖励"
-                  value={`+${assignment!.rewardPreview.score} 分 · 进度 +${assignment!.rewardPreview.drawProgress}`}
-                  positive
-                />
-                <RewardRow
-                  icon="🫘"
-                  label="交互方式"
-                  value={assignment!.interactionSummary.flavorLabel}
-                />
-              </View>
-            </View>
-            {assignment!.recommendationExplanation ? (
-              <Text style={styles.helperText}>
-                推荐理由：{assignment!.recommendationExplanation}
-              </Text>
-            ) : null}
-            {displayState.kind === "completed" ? (
-              <ActivityAssignmentStatusPanel
-                title="本次活动已完成"
-                body="互动记录和奖励回执已经归档在下面，不用再重复操作。"
-              />
-            ) : displayState.kind === "skipped" ? (
-              <ActivityAssignmentStatusPanel
-                title="任务已放弃"
-                body="这次没有发放奖励，可以换一个更顺眼的任务。"
-              />
-            ) : (
-              <>
-                <ActivityInteractionRunner
-                  assignment={assignment!}
-                  progress={progress}
-                  onChange={actions.setProgress}
-                />
-                <ActionButton
-                  label={
-                    displayState.kind === "active-ready"
-                      ? "领取互动奖励"
-                      : "先完成互动步骤"
-                  }
-                  disabled={loading || displayState.kind !== "active-ready"}
-                  onPress={actions.completeActivity}
-                />
-              </>
-            )}
-            {displayState.kind === "active-incomplete" || displayState.kind === "active-ready" ? (
-              <>
-                <View style={styles.skipReasonBox}>
-                  <Text style={styles.kicker}>不想做的原因</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoryRow}
-                  >
-                    {[
-                      { value: "not_interested", label: "没兴趣" },
-                      { value: "too_much_work", label: "太麻烦" },
-                      { value: "not_convenient", label: "不方便" },
-                      { value: "want_weirder", label: "来点怪的" },
-                      { value: "other", label: "换个口味" }
-                    ].map((option) => (
-                      <CategoryChip
-                        key={option.value}
-                        label={option.label}
-                        selected={skipReason === option.value}
-                        onPress={() => actions.setSkipReason(option.value as typeof skipReason)}
-                      />
-                    ))}
-                  </ScrollView>
+                <View style={styles.resultReceiptBox}>
+                  <Text style={styles.kicker}>奖励回执</Text>
+                  <Text style={styles.rowTitle}>
+                    {activityDelight?.rewardLabel ??
+                      `+${result.reward.score} 分 · 进度 +${result.reward.drawProgress} · 抽豆机会 +${result.reward.drawChancesGranted}`}
+                  </Text>
                 </View>
-                <ActionButton
-                  label="按原因换一个"
-                  dark
-                  disabled={loading}
-                  onPress={actions.skipActivity}
+                {result.stepSummaries?.length ? (
+                  <StepReceipt summaries={result.stepSummaries} />
+                ) : null}
+                <Text style={styles.helperText}>{result.feedback}</Text>
+                <ActivityFeedbackPrompt
+                  loading={loading}
+                  acknowledgement={feedbackAck?.acknowledgement ?? null}
+                  onSubmit={actions.submitFeedback}
                 />
-              </>
-            ) : null}
-          </>
-        )}
-        {result ? (
-          <MotionFeedback
-            variant="activity-complete"
-            trigger={result.assignment.assignmentId}
-            animateOnMount
-          >
-            <View
-              style={[
-                styles.activityResultCertificate,
-                { borderColor: activityResultPresentation?.accentColor ?? "#17a36b" }
-              ]}
-            >
-              <View style={{ alignItems: "center", marginBottom: 8 }}>
-                <ArtSlot slotId="activities-card-illustration" size={72} />
-              </View>
-              <Text
-                style={[
-                  styles.activityBadge,
-                  { backgroundColor: activityResultPresentation?.accentColor ?? "#17a36b" }
-                ]}
-              >
-                {activityResultPresentation?.badge ?? "活动完成"}
-              </Text>
-              <Text style={styles.activityResultTitle}>
-                {activityDelight?.title ?? result.resultTitle ?? "活动奖励已结算"}
-              </Text>
-              <Text style={styles.helperText}>
-                {activityDelight?.copy ?? result.resultCopy ?? "这次摸鱼记录已经归档。"}
-              </Text>
-              <View style={styles.resultReceiptBox}>
-                <Text style={styles.kicker}>奖励回执</Text>
-                <Text style={styles.rowTitle}>
-                  {activityDelight?.rewardLabel ??
-                    `+${result.reward.score} 分 · 进度 +${result.reward.drawProgress} · 抽豆机会 +${result.reward.drawChancesGranted}`}
+                <Text style={styles.helperText}>
+                  下一步：{todayLoop.resultFollowUps.primary?.title ?? nextStep.title}
                 </Text>
+                <ResultFollowUps
+                  loading={loading}
+                  todayLoop={todayLoop}
+                  onAction={actions.runTodayLoopAction}
+                />
               </View>
-              {result.stepSummaries?.length ? (
-                <StepReceipt summaries={result.stepSummaries} />
-              ) : null}
-              <Text style={styles.helperText}>{result.feedback}</Text>
-              <ActivityFeedbackPrompt
-                loading={loading}
-                acknowledgement={feedbackAck?.acknowledgement ?? null}
-                onSubmit={actions.submitFeedback}
-              />
-              <Text style={styles.helperText}>
-                下一步：{todayLoop.resultFollowUps.primary?.title ?? nextStep.title}
-              </Text>
-              <ResultFollowUps
-                loading={loading}
-                todayLoop={todayLoop}
-                onAction={actions.runTodayLoopAction}
-              />
-            </View>
-          </MotionFeedback>
-        ) : null}
-        {message ? <Text style={styles.message}>{message}</Text> : null}
-        {displayState.kind !== "active-incomplete" && displayState.kind !== "active-ready" ? (
-          <ActionButton
-            label={
-              unavailable
-                ? "暂无可领取任务"
-                : assignment
-                  ? "按偏好再推荐一个"
-                  : "推荐一个摸鱼任务"
-            }
-            disabled={loading || unavailable}
-            onPress={actions.randomActivity}
-          />
-        ) : null}
-      </DashboardCard>
+            </MotionFeedback>
+          ) : null}
+          {message ? <Text style={styles.message}>{message}</Text> : null}
+          {displayState.kind !== "active-incomplete" && displayState.kind !== "active-ready" ? (
+            <ActionButton
+              label={
+                unavailable
+                  ? "暂无可领取任务"
+                  : assignment
+                    ? "按偏好再推荐一个"
+                    : "推荐一个摸鱼任务"
+              }
+              disabled={loading || unavailable}
+              onPress={actions.randomActivity}
+            />
+          ) : null}
+        </DashboardCard>
       </View>
-      <DashboardCard>
-        <View style={styles.rowBetween}>
-          <View style={styles.flex}>
-            <SectionHeader
-              kicker="活动目录"
-              title={category ? activityCategoryLabel(category) : "全部活动"}
-            />
-          </View>
-          <Text style={styles.goalCount}>{catalog?.items.length ?? 0}</Text>
-        </View>
-        {catalog?.items.length ? (
-          catalog.items.map((item) => {
-            const itemPresentation = resolveActivityPresentation(item);
-            return (
-              <View key={item.templateId} style={styles.activityCatalogRow}>
-                <View style={styles.flex}>
-                  <Text style={styles.rowTitle}>{item.title}</Text>
-                  <Text style={styles.rowMeta}>
-                    {activityCategoryLabel(item.category)} ·{" "}
-                    {difficultyLabel(item.difficulty)} · 完成 {item.completedCount} 次
-                  </Text>
-                  <Text style={styles.rowMeta}>
-                    {itemPresentation.badge} ·{" "}
-                    {activityInteractionSummaryLabel(item.interactionSummary)}
-                  </Text>
-                  <Text style={styles.smallCopy}>{item.description}</Text>
-                </View>
-                <Text style={item.eligible ? styles.readyMark : styles.cooldownMark}>
-                  {item.eligible
-                    ? "可推荐"
-                    : formatCooldown(item.cooldownRemainingSeconds)}
-                </Text>
-              </View>
-            );
-          })
-        ) : (
-          <View style={{ alignItems: "center" }}>
-            <ArtSlot
-              slotId="empty-state-generic"
-              size={64}
-              style={{ marginBottom: 12 }}
-            />
-            <EmptyState
-              title="这个分类暂时没有活动"
-              body="换个分类，或者抽一个随机的"
-              icon="🌫️"
-            />
-          </View>
-        )}
-      </DashboardCard>
+      <CompactActivityCatalog catalog={catalog} category={category} />
+    </>
+  );
+}
+
+function HistoryMode(props: ActivitiesTabProps) {
+  const { history, historyLoading, historyError, historyCursor, actions, onLandingLayout } = props;
+  return (
+    <View onLayout={(event) => onLandingLayout("activity-history", event.nativeEvent.layout.y)}>
       <DashboardCard>
         <ActivityHistorySection
           loading={historyLoading}
@@ -377,8 +407,12 @@ export function ActivitiesTab({
           onLoadMore={actions.loadMoreHistory}
         />
       </DashboardCard>
-    </>
+    </View>
   );
+}
+
+export function ActivitiesTab(props: ActivitiesTabProps) {
+  return props.mode === "history" ? <HistoryMode {...props} /> : <PlayMode {...props} />;
 }
 
 export function ActivityHistorySection({
@@ -410,7 +444,8 @@ export function ActivityHistorySection({
         <ActivityHistoryInsightsPanel insights={insights} />
       ) : null}
       {error ? <Text style={styles.message}>{error}</Text> : null}
-      {!hasAny && !loading ? (
+      {!hasAny && loading ? <Text style={styles.message}>正在整理活动历史...</Text> : null}
+      {!hasAny && !loading && !error ? (
         <View style={{ alignItems: "center" }}>
           <ArtSlot slotId="empty-state-activities" size={64} style={{ marginBottom: 12 }} />
           <EmptyState

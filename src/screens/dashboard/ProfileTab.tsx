@@ -19,54 +19,53 @@ import { achievementCategories, achievementCategoryLabel, pickAchievementFocus }
 import styles from "./styles";
 import type { ProfileTabProps } from "./types";
 
-export function ProfileTab({
+function IdentityCard({
   authLabel,
   progression,
-  achievementList,
-  cosmeticInventory,
-  categoryFilter,
-  actions
-}: ProfileTabProps) {
+  equippedTitle,
+  equippedBadge
+}: {
+  authLabel?: string;
+  progression: ProfileTabProps["progression"];
+  equippedTitle: string | null;
+  equippedBadge: string | null;
+}) {
+  return (
+    <DashboardCard>
+      <IconTile size={64} accent={colors.gold} style={styles.profileLevelTile}>
+        <Text style={styles.profileLevelText}>LV {progression?.level ?? 1}</Text>
+      </IconTile>
+      <View style={styles.flex}>
+        <Text style={styles.profileName}>{authLabel ?? "摸鱼同学"}</Text>
+        <Text style={styles.rowMeta}>
+          连续休息 {progression?.currentStreakDays ?? 0} 天 · 最长{" "}
+          {progression?.longestStreakDays ?? 0} 天
+        </Text>
+        <Text style={styles.accentMeta}>
+          {equippedTitle ? `称号：${equippedTitle}` : "称号：还没装备"} ·{" "}
+          {equippedBadge ? `徽章：${equippedBadge}` : "徽章：还没装备"}
+        </Text>
+      </View>
+    </DashboardCard>
+  );
+}
+
+function OverviewMode(props: ProfileTabProps) {
+  const { authLabel, progression, achievementList, cosmeticInventory, actions } = props;
+  const achievementFocus = pickAchievementFocus(achievementList);
   const unlockedAchievements =
     achievementList?.achievements.filter((achievement) => achievement.unlockedAt) ?? [];
-  const sortedAchievements = [...(achievementList?.achievements ?? [])].sort((left, right) => {
-    if (Boolean(left.unlockedAt) !== Boolean(right.unlockedAt)) {
-      return left.unlockedAt ? 1 : -1;
-    }
-    return right.progress.percent - left.progress.percent;
-  });
-  const filteredAchievements = sortedAchievements.filter(
-    (achievement) => categoryFilter === "all" || achievement.category === categoryFilter
-  );
-  const achievementFocus = pickAchievementFocus(achievementList);
-  const secondaryAchievementRecommendations = achievementList
-    ? [
-        ...achievementList.recommendations.nearest,
-        ...achievementList.recommendations.today,
-        ...achievementList.recommendations.long_term
-      ].filter((achievement) => achievement.id !== achievementFocus?.id)
-    : [];
   const equippedTitle = cosmeticInventory?.equippedTitle?.name ?? null;
   const equippedBadge = cosmeticInventory?.equippedBadge?.name ?? null;
 
   return (
     <>
-      <DashboardCard>
-        <IconTile size={64} accent={colors.gold} style={styles.profileLevelTile}>
-          <Text style={styles.profileLevelText}>LV {progression?.level ?? 1}</Text>
-        </IconTile>
-        <View style={styles.flex}>
-          <Text style={styles.profileName}>{authLabel ?? "摸鱼同学"}</Text>
-          <Text style={styles.rowMeta}>
-            连续休息 {progression?.currentStreakDays ?? 0} 天 · 最长{" "}
-            {progression?.longestStreakDays ?? 0} 天
-          </Text>
-          <Text style={styles.accentMeta}>
-            {equippedTitle ? `称号：${equippedTitle}` : "称号：还没装备"} ·{" "}
-            {equippedBadge ? `徽章：${equippedBadge}` : "徽章：还没装备"}
-          </Text>
-        </View>
-      </DashboardCard>
+      <IdentityCard
+        authLabel={authLabel}
+        progression={progression}
+        equippedTitle={equippedTitle}
+        equippedBadge={equippedBadge}
+      />
       <LifetimeStats progression={progression} />
       <DashboardCard>
         <SectionHeader kicker="休息连续性" title={`已连续 ${progression?.currentStreakDays ?? 0} 天`} />
@@ -90,6 +89,43 @@ export function ProfileTab({
           {progression?.weeklyGoals.total ?? 3} · 成就解锁{" "}
           {unlockedAchievements.length}/{achievementList?.achievements.length ?? 0}
         </Text>
+      </DashboardCard>
+    </>
+  );
+}
+
+function AchievementsMode(props: ProfileTabProps) {
+  const { achievementList, categoryFilter, actions } = props;
+  const achievementFocus = pickAchievementFocus(achievementList);
+  const unlockedAchievements =
+    achievementList?.achievements.filter((achievement) => achievement.unlockedAt) ?? [];
+  const sortedAchievements = [...(achievementList?.achievements ?? [])].sort((left, right) => {
+    if (Boolean(left.unlockedAt) !== Boolean(right.unlockedAt)) {
+      return left.unlockedAt ? 1 : -1;
+    }
+    return right.progress.percent - left.progress.percent;
+  });
+  const filteredAchievements = sortedAchievements.filter(
+    (achievement) => categoryFilter === "all" || achievement.category === categoryFilter
+  );
+  const secondaryAchievementRecommendations = achievementList
+    ? [
+        ...achievementList.recommendations.nearest,
+        ...achievementList.recommendations.today,
+        ...achievementList.recommendations.long_term
+      ].filter((achievement) => achievement.id !== achievementFocus?.id)
+    : [];
+
+  return (
+    <>
+      <DashboardCard>
+        <SectionHeader kicker="目标板" title="今天别乱卷，挑一个顺手的" />
+        <AchievementFocusCard
+          achievement={achievementFocus}
+          unlockedCount={unlockedAchievements.length}
+          totalCount={achievementList?.achievements.length ?? 0}
+          onPress={actions.jumpToAchievementTarget}
+        />
         <Text style={styles.kickerSection}>推荐追逐目标</Text>
         <AchievementRecommendationSection
           title="离你最近"
@@ -111,11 +147,7 @@ export function ProfileTab({
         />
         {!achievementFocus && !secondaryAchievementRecommendations.length ? (
           <View style={{ alignItems: "center" }}>
-            <ArtSlot
-              slotId="empty-state-generic"
-              size={72}
-              style={{ marginBottom: 12 }}
-            />
+            <ArtSlot slotId="empty-state-generic" size={72} style={{ marginBottom: 12 }} />
             <EmptyState
               title="今天没有催你的目标"
               body="成就板很安静，你已经把休息做得挺像回事了。"
@@ -150,18 +182,11 @@ export function ProfileTab({
         </ScrollView>
         {filteredAchievements.length ? (
           filteredAchievements.map((achievement) => (
-            <AchievementWallRow
-              key={achievement.id}
-              achievement={achievement}
-            />
+            <AchievementWallRow key={achievement.id} achievement={achievement} />
           ))
         ) : (
           <View style={{ alignItems: "center" }}>
-            <ArtSlot
-              slotId="achievement-badge"
-              size={64}
-              style={{ marginBottom: 12 }}
-            />
+            <ArtSlot slotId="achievement-badge" size={64} style={{ marginBottom: 12 }} />
             <EmptyState
               title="这个分类还没有成就"
               body="完成任意一个活动来解锁第一枚徽章"
@@ -170,6 +195,14 @@ export function ProfileTab({
           </View>
         )}
       </DashboardCard>
+    </>
+  );
+}
+
+function RewardsMode(props: ProfileTabProps) {
+  const { cosmeticInventory, actions } = props;
+  return (
+    <>
       <DashboardCard>
         <SectionHeader kicker="徽章与称号" title="奖励墙" />
         {cosmeticInventory?.cosmetics.length ? (
@@ -183,11 +216,7 @@ export function ProfileTab({
           ))
         ) : (
           <View style={{ alignItems: "center" }}>
-            <ArtSlot
-              slotId="empty-state-profile"
-              size={72}
-              style={{ marginBottom: 12 }}
-            />
+            <ArtSlot slotId="empty-state-profile" size={72} style={{ marginBottom: 12 }} />
             <EmptyState
               title="还没有装扮"
               body="先认真完成几次休息，再来挑一个喜欢的称号"
@@ -196,11 +225,25 @@ export function ProfileTab({
           </View>
         )}
       </DashboardCard>
-      <PrimaryButton
-        label="退出当前账号"
-        dark
-        onPress={() => void actions.signOut()}
-      />
+      <PrimaryButton label="退出当前账号" dark onPress={() => void actions.signOut()} />
     </>
   );
+}
+
+export function ProfileTab(props: ProfileTabProps) {
+  if (props.mode === "achievements") {
+    return (
+      <View onLayout={(event) => props.onLandingLayout("achievement", event.nativeEvent.layout.y)}>
+        <AchievementsMode {...props} />
+      </View>
+    );
+  }
+  if (props.mode === "rewards") {
+    return (
+      <View onLayout={(event) => props.onLandingLayout("cosmetic", event.nativeEvent.layout.y)}>
+        <RewardsMode {...props} />
+      </View>
+    );
+  }
+  return <OverviewMode {...props} />;
 }

@@ -58,6 +58,7 @@ import { useTheme, useThemeSwitcher } from "../../ui/theme/useTheme";
 import { colors, radius, spacing, typography } from "../../ui/tokens";
 import { deriveTodayPlayLoop, type TodayLoopViewModel } from "../../gameplay/todayLoop";
 import { resourceIcon, resolveHistoryPresentation } from "../dashboard/helpers";
+import { CoreSurfaceSpecimens } from "./CoreSurfaceSpecimens";
 
 function groupSlotsByKind(
   slots: ReturnType<typeof listArtSlotDefinitions>
@@ -2582,6 +2583,11 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
             Outcomes rendered inside the bean draw result for new and duplicate rare draws.
           </Text>
           <BeanDrawOutcomeSpecimens />
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Core surface" kicker="INFORMATION ARCHITECTURE" />
+          <CoreSurfaceSpecimens />
         </Surface>
 
         <PrimaryButton label="返回 App" dark onPress={onClose} />

@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 10, marginTop: 18 },
   actionButton: {
     alignItems: "center",
-    backgroundColor: "#17a36b",
+    backgroundColor: "#116548",
     borderRadius: 8,
     flex: 1,
     justifyContent: "center",
@@ -1123,7 +1123,76 @@ const styles = StyleSheet.create({
     marginTop: 14,
     textAlign: "center"
   },
-  emptyText: { color: "#746b60", fontSize: 14, lineHeight: 21, marginTop: 12 }
+  emptyText: { color: "#746b60", fontSize: 14, lineHeight: 21, marginTop: 12 },
+  homeStatusPanel: { gap: 10 },
+  homeStatusTopRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  homeLevelText: { color: "#18232b", fontSize: 28, fontWeight: "900", marginTop: 4 },
+  homeStreakBox: {
+    alignItems: "center",
+    backgroundColor: "#fffdf8",
+    borderColor: "#d8d0c4",
+    borderRadius: 8,
+    borderWidth: 1,
+    minWidth: 64,
+    padding: 8
+  },
+  homeStreakValue: { color: "#18232b", fontSize: 22, fontWeight: "900" },
+  homeStreakLabel: { color: "#746b60", fontSize: 11, fontWeight: "900", marginTop: 2 },
+  homeXpText: { color: "#625b52", fontSize: 12, fontWeight: "800", marginTop: 2 },
+  homeCheckInRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 10
+  },
+  homeCheckInActions: { flexDirection: "row", gap: 8 },
+  homeCheckInButton: {
+    alignItems: "center",
+    backgroundColor: "#116548",
+    borderRadius: 8,
+    justifyContent: "center",
+    minHeight: 44,
+    minWidth: 56,
+    paddingHorizontal: 12
+  },
+  homeCheckInButtonDark: { backgroundColor: "#18232b" },
+  homeCheckInButtonText: { color: "#ffffff", fontSize: 13, fontWeight: "900" },
+  homePrimaryCard: { borderLeftWidth: 6, borderLeftColor: "#1f8f62" },
+  homePrimaryHeader: { gap: 4 },
+  homeRouteProgressRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 8
+  },
+  homeRouteProgressLabel: {
+    color: "#1f8f62",
+    fontSize: 13,
+    fontWeight: "900",
+    minWidth: 36,
+    textAlign: "right"
+  },
+  homeRouteStepList: { gap: 8, marginTop: 12 },
+  homeGoalSummary: { flex: 1, minWidth: 140 },
+  homeSecondaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10
+  },
+  homeSecondaryButton: {
+    alignItems: "center",
+    backgroundColor: "#18232b",
+    borderRadius: 8,
+    flexGrow: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: 12
+  }
 });
 
 export default styles;

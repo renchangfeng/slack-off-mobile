@@ -74,7 +74,7 @@ describe("theme registry", () => {
 
   it("keeps the pixel-rest visual identity", () => {
     expect(pixelRestTheme.colors.background).toBe("#f4efe4");
-    expect(pixelRestTheme.colors.primary).toBe("#17a36b");
+    expect(pixelRestTheme.colors.primary).toBe("#116548");
     expect(pixelRestTheme.colors.accent).toBe("#b7f05a");
     expect(pixelRestTheme.art.iconStyle).toBe("pseudo-pixel");
   });

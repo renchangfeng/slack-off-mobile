@@ -24,7 +24,7 @@ export const pixelRestTheme: MobileTheme = {
     surfaceWarm: colors.surfaceWarm,
     text: colors.ink,
     textMuted: colors.inkMuted,
-    primary: colors.primary,
+    primary: colors.primaryDeep,
     accent: colors.acid,
     border: colors.border,
     danger: colors.danger,
@@ -89,8 +89,8 @@ export const calmOfficeTheme: MobileTheme = {
     surfaceMuted: "#e8edeb",
     surfaceWarm: "#f2f5f3",
     text: "#2d3430",
-    textMuted: "#6e7a74",
-    primary: "#3d8f7f",
+    textMuted: "#5d6963",
+    primary: "#2f7568",
     accent: "#c9a96e",
     border: "#d4dad7",
     danger: "#b86b6b",
@@ -135,9 +135,9 @@ export const calmOfficeTheme: MobileTheme = {
   status: {
     active: { bg: "#c9e5df", fg: "#1f5e52", border: "#3d8f7f" },
     completed: { bg: "#d8ebe7", fg: "#1f5e52", border: "#3d8f7f" },
-    locked: { bg: "#e8edeb", fg: "#6e7a74", border: "#d4dad7" },
+    locked: { bg: "#e8edeb", fg: "#5d6963", border: "#d4dad7" },
     warning: { bg: "#f2ead9", fg: "#7a5f2a", border: "#c9a96e" },
-    default: { bg: "#f7f9f8", fg: "#6e7a74", border: "#d4dad7" }
+    default: { bg: "#f7f9f8", fg: "#5d6963", border: "#d4dad7" }
   },
   art: {
     iconStyle: "soft-office",

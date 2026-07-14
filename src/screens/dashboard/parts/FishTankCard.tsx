@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ArtSlot } from "../../../ui/art/ArtSlot";
 import {
   RewardRow,
@@ -339,14 +339,18 @@ export function FishTankCard({
       ) : null}
 
       {equipPresentation ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onDismissEquipResult}
+        <View
           style={[
             styles.hatchRevealBackdrop,
             { backgroundColor: "rgba(20, 19, 17, 0.72)" }
           ]}
         >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="关闭装备结果"
+            onPress={onDismissEquipResult}
+            style={StyleSheet.absoluteFill}
+          />
           <View
             style={[
               styles.hatchRevealPanel,
@@ -389,18 +393,22 @@ export function FishTankCard({
               <ActionButton label="返回鱼缸" onPress={onDismissEquipResult} />
             </MotionFeedback>
           </View>
-        </Pressable>
+        </View>
       ) : null}
 
       {presentation ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onDismissHatchResult}
+        <View
           style={[
             styles.hatchRevealBackdrop,
             { backgroundColor: "rgba(20, 19, 17, 0.72)" }
           ]}
         >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="关闭孵化结果"
+            onPress={onDismissHatchResult}
+            style={StyleSheet.absoluteFill}
+          />
           <View
             style={[
               styles.hatchRevealPanel,
@@ -451,7 +459,7 @@ export function FishTankCard({
               <ActionButton label="返回鱼缸" onPress={onDismissHatchResult} />
             </MotionFeedback>
           </View>
-        </Pressable>
+        </View>
       ) : null}
     </DashboardCard>
   );

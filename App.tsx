@@ -11,7 +11,7 @@ import { env } from "./src/config/env";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { UiLabScreen } from "./src/screens/dev/UiLabScreen";
-import { colors, targetViewport } from "./src/ui/tokens";
+import { colors } from "./src/ui/tokens";
 import { useBrandName } from "./src/ui/useBrandName";
 import { ThemeProvider } from "./src/ui/theme/ThemeProvider";
 
@@ -77,7 +77,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
     height: ROOT_HEIGHT,
-    maxWidth: targetViewport.maxContentWidth,
     overflow: "hidden",
     width: "100%"
   },

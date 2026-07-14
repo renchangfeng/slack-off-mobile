@@ -109,6 +109,54 @@ describe("scoped dashboard feedback", () => {
     expect(clearFeedbackListForScope(feedback, "home")).toEqual([rankingError]);
     expect(expireDashboardFeedbackFromList(feedback, "ranking")).toEqual([homeError]);
   });
+
+  it("shows the newest relevant feedback when tab and mode scopes overlap", () => {
+    const backgroundError = createDashboardFeedback({
+      id: "background",
+      kind: "error",
+      scope: "beans",
+      message: "background failed"
+    });
+    const actionError = createDashboardFeedback({
+      id: "action",
+      kind: "error",
+      scope: "beans:draw",
+      message: "draw failed"
+    });
+    expect(
+      visibleDashboardFeedbackFromList([backgroundError, actionError], "beans", "draw")
+    ).toBe(actionError);
+    expect(
+      visibleDashboardFeedbackFromList([backgroundError, actionError], "beans", "tank")
+    ).toBe(backgroundError);
+  });
+
+  it("scopes feedback to a specific tab mode when requested", () => {
+    const playError = createDashboardFeedback({
+      id: "play",
+      kind: "error",
+      scope: "activities:play",
+      message: "play failed"
+    });
+    expect(visibleDashboardFeedback(playError, "activities", "play")).toBe(playError);
+    expect(visibleDashboardFeedback(playError, "activities", "history")).toBeNull();
+    expect(visibleDashboardFeedback(playError, "activities")).toBeNull();
+    expect(visibleDashboardFeedbackFromList([playError], "activities", "history")).toBeNull();
+  });
+
+  it("clears only the matching mode scope while preserving other modes", () => {
+    const playError = createDashboardFeedback({ id: "play", kind: "error", scope: "activities:play", message: "play failed" });
+    const historyError = createDashboardFeedback({ id: "history", kind: "error", scope: "activities:history", message: "history failed" });
+    const feedback = [playError, historyError];
+    expect(clearFeedbackListForScope(feedback, "activities", "play")).toEqual([historyError]);
+    expect(clearFeedbackListForScope(feedback, "activities", "history")).toEqual([playError]);
+  });
+
+  it("clears all feedback for a tab when mode is omitted", () => {
+    const playError = createDashboardFeedback({ id: "play", kind: "error", scope: "activities:play", message: "play failed" });
+    const historyError = createDashboardFeedback({ id: "history", kind: "error", scope: "activities:history", message: "history failed" });
+    expect(clearFeedbackListForScope([playError, historyError], "activities")).toEqual([]);
+  });
 });
 
 describe("localized presentation", () => {

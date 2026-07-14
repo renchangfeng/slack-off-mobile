@@ -1,211 +1,272 @@
 import { Pressable, Text, View } from "react-native";
 import { ArtSlot } from "../../ui/art/ArtSlot";
-import { SectionHeader } from "../../ui/components";
+import { EmptyState, SectionHeader } from "../../ui/components";
+import {
+  CoreSurfaceGrid,
+  PrimaryActionPanel,
+  SummaryCard
+} from "../../ui/CoreSurface";
 import { MotionFeedback } from "../../ui/motion/MotionFeedback";
 import { DashboardCard } from "./parts/DashboardCard";
-import {
-  DailyGoals,
-  ProgressionClaimResultPanel,
-  ProgressionOverview,
-  WeeklyGoals
-} from "./parts/GoalPanels";
-import { ActionButton } from "./parts/SharedControls";
+import { ActionButton, ProgressBar } from "./parts/SharedControls";
+import { ProgressionClaimResultPanel } from "./parts/GoalPanels";
 import { CheckInResult, RewardPreview } from "./parts/ResultPanels";
+import { deriveHomeSurface, type HomeGoalSummary } from "./homeSurface";
 import styles from "./styles";
 import type { HomeTabProps } from "./types";
 import type { TodayLoopAction, TodayLoopStep } from "../../gameplay/todayLoop";
-import { localizedGoalUnit } from "./dashboardCoherence";
 
-export function HomeTab({
-  loading,
-  progression,
-  activeSession,
-  elapsedLabel,
-  activeSessionOverLimit,
-  lastResult,
-  progressionClaim,
-  nextStep,
-  todayLoop,
-  actions
-}: HomeTabProps) {
-  const hasRoutePrimaryAction = Boolean(todayLoop.primaryNextAction);
-  const shouldShowFallback =
-    !hasRoutePrimaryAction &&
-    !todayLoop.routeDelight.doneForToday &&
-    todayLoop.routeDelight.mood !== "optional-follow-up";
+export function HomeTab(props: HomeTabProps) {
+  const { loading, actions } = props;
+  const surface = deriveHomeSurface(props);
 
   return (
     <>
-      <ProgressionOverview progression={progression} />
-      <DashboardCard>
-        <SectionHeader kicker="当前打卡" title={elapsedLabel} />
-        <MotionFeedback
-          variant="check-in"
-          trigger={activeSession ? "active" : "idle"}
-          style={{ alignItems: "center", marginVertical: 8 }}
-        >
-          <ArtSlot slotId="home-check-in-character" size={48} />
-        </MotionFeedback>
-        <Text style={styles.copy}>
-          {activeSession
-            ? activeSessionOverLimit
-              ? "奖励时长已按 45 分钟封顶，但本次打卡仍会正常完成并获得奖励。"
-              : "正在认真休息。时间会自动更新，结束后统一结算。"
-            : "现在没有进行中的打卡。先给自己留一点空白。"}
-        </Text>
-        <View style={styles.actions}>
-          <ActionButton
-            label="开始"
-            disabled={loading || Boolean(activeSession)}
-            onPress={actions.startSession}
-          />
-          <ActionButton
-            label="结束"
-            dark
-            disabled={loading || !activeSession}
-            onPress={actions.finishSession}
-          />
-        </View>
-      </DashboardCard>
-      <TodayPlayRoute
-        loading={loading}
-        todayLoop={todayLoop}
-        onAction={actions.runTodayLoopAction}
-      />
-      {shouldShowFallback ? (
-        <View style={styles.nextStepFallbackPanel}>
-          <Text style={styles.darkKicker}>备用下一步</Text>
-          <Text style={styles.nextStepTitle}>{nextStep.title}</Text>
-          <Text style={styles.nextStepCopy}>{nextStep.description}</Text>
-          <RewardPreview preview={nextStep.rewardPreview ?? null} dark />
-          <ActionButton
-            label={nextStep.actionLabel}
-            onPress={actions.runNextStep}
-            disabled={loading}
-          />
-        </View>
-      ) : null}
-      {lastResult ? (
-        <CheckInResult
-          result={lastResult}
-          nextStep={nextStep}
-          delight={todayLoop.resultDelight?.kind === "check-in" ? todayLoop.resultDelight : null}
+      <HomeStatusPanel surface={surface} loading={loading} actions={actions} />
+      {surface.primaryAction ? (
+        <HomePrimaryActionPanel
+          action={surface.primaryAction}
+          loading={loading}
+          onAction={actions.runTodayLoopAction}
+        />
+      ) : surface.fallbackStep ? (
+        <HomeFallbackPanel
+          step={surface.fallbackStep}
+          loading={loading}
+          onAction={actions.runNextStep}
         />
       ) : null}
-      {progressionClaim ? (
-        <ProgressionClaimResultPanel result={progressionClaim} nextStep={nextStep} />
+      {surface.durableResults.map((result, index) =>
+        result.kind === "check-in" ? (
+          <CheckInResult
+            key={`check-in-result-${index}`}
+            result={result.result}
+            nextStep={props.nextStep}
+            delight={
+              props.todayLoop.resultDelight?.kind === "check-in"
+                ? props.todayLoop.resultDelight
+                : null
+            }
+          />
+        ) : (
+          <ProgressionClaimResultPanel
+            key={`progression-claim-${index}`}
+            result={result.result}
+            nextStep={props.nextStep}
+          />
+        )
+      )}
+      <HomeProgressPanel surface={surface} loading={loading} actions={actions} />
+      {surface.secondaryActions.length ? (
+        <HomeSecondaryActions
+          actions={surface.secondaryActions}
+          loading={loading}
+          onAction={actions.runTodayLoopAction}
+        />
       ) : null}
-      <DailyGoals
-        progression={progression}
-        loading={loading}
-        onClaim={actions.claimDailyReward}
-      />
-      <WeeklyGoals
-        progression={progression}
-        loading={loading}
-        onClaim={actions.claimWeeklyReward}
-      />
     </>
   );
 }
 
-function TodayPlayRoute({
+function HomeStatusPanel({
+  surface,
   loading,
-  todayLoop,
+  actions
+}: {
+  surface: ReturnType<typeof deriveHomeSurface>;
+  loading: boolean;
+  actions: HomeTabProps["actions"];
+}) {
+  const { identity, activeCheckIn } = surface;
+  return (
+    <PrimaryActionPanel style={styles.homeStatusPanel}>
+      <View style={styles.homeStatusTopRow}>
+        <View>
+          <Text style={styles.kicker}>摸鱼同学</Text>
+          <Text style={styles.homeLevelText}>LV {identity.level}</Text>
+        </View>
+        <View style={styles.homeStreakBox}>
+          <Text style={styles.homeStreakValue}>{identity.currentStreak}</Text>
+          <Text style={styles.homeStreakLabel}>连续休息天</Text>
+        </View>
+      </View>
+      <Text style={styles.homeXpText}>
+        {identity.xp} XP · 距下一级还差 {identity.xpToNext} XP
+      </Text>
+      <ProgressBar
+        value={identity.levelXp}
+        max={identity.nextLevelXp}
+        color="#f0c95a"
+        trackColor="#e2dbd0"
+      />
+      <View style={styles.homeCheckInRow}>
+        <View style={styles.flex}>
+          <MotionFeedback
+            variant="check-in"
+            trigger={activeCheckIn.isActive ? "active" : "idle"}
+          >
+            <ArtSlot slotId="home-check-in-character" size={40} />
+          </MotionFeedback>
+          <Text style={styles.timerMini}>{activeCheckIn.elapsedLabel}</Text>
+          <Text style={styles.smallCopy}>
+            {activeCheckIn.isActive
+              ? activeCheckIn.overLimit
+                ? "奖励时长已封顶，仍可正常结算。"
+                : "正在认真休息，结束后统一结算。"
+              : "没有进行中的打卡。"}
+          </Text>
+        </View>
+        <View style={styles.homeCheckInActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="开始打卡"
+            accessibilityState={{ disabled: activeCheckIn.canStart === false }}
+            disabled={activeCheckIn.canStart === false}
+            onPress={() => void actions.startSession()}
+            style={({ pressed }) => [
+              styles.homeCheckInButton,
+              (pressed || loading || activeCheckIn.isActive) && styles.buttonMuted
+            ]}
+          >
+            <Text style={styles.homeCheckInButtonText}>开始</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="结束打卡"
+            accessibilityState={{ disabled: activeCheckIn.canFinish === false }}
+            disabled={activeCheckIn.canFinish === false}
+            onPress={() => void actions.finishSession()}
+            style={({ pressed }) => [
+              styles.homeCheckInButton,
+              styles.homeCheckInButtonDark,
+              (pressed || loading || !activeCheckIn.isActive) && styles.buttonMuted
+            ]}
+          >
+            <Text style={styles.homeCheckInButtonText}>结束</Text>
+          </Pressable>
+        </View>
+      </View>
+    </PrimaryActionPanel>
+  );
+}
+
+function HomePrimaryActionPanel({
+  action,
+  loading,
   onAction
 }: {
+  action: TodayLoopAction;
   loading: boolean;
-  todayLoop: HomeTabProps["todayLoop"];
-  onAction: (action: TodayLoopAction) => void | Promise<void>;
+  onAction(action: TodayLoopAction): void | Promise<void>;
 }) {
-  const primary = todayLoop.primaryNextAction;
+  return (
+    <DashboardCard style={styles.homePrimaryCard}>
+      <View style={styles.homePrimaryHeader}>
+        <SectionHeader kicker="当前最该做" title={action.title} />
+        <RewardPreview preview={action.rewardPreview} />
+      </View>
+      <Text style={styles.copy}>{action.description}</Text>
+      <ActionButton
+        label={action.actionLabel}
+        disabled={loading}
+        onPress={() => void onAction(action)}
+      />
+    </DashboardCard>
+  );
+}
+
+function HomeFallbackPanel({
+  step,
+  loading,
+  onAction
+}: {
+  step: NonNullable<ReturnType<typeof deriveHomeSurface>["fallbackStep"]>;
+  loading: boolean;
+  onAction(): void | Promise<void>;
+}) {
+  return (
+    <DashboardCard style={styles.nextStepFallbackPanel}>
+      <Text style={styles.darkKicker}>备用下一步</Text>
+      <Text style={styles.nextStepTitle}>{step.title}</Text>
+      <Text style={styles.nextStepCopy}>{step.description}</Text>
+      <RewardPreview preview={step.rewardPreview ?? null} dark />
+      <ActionButton label={step.actionLabel} onPress={onAction} disabled={loading} />
+    </DashboardCard>
+  );
+}
+
+function HomeProgressPanel({
+  surface,
+  loading,
+  actions
+}: {
+  surface: ReturnType<typeof deriveHomeSurface>;
+  loading: boolean;
+  actions: HomeTabProps["actions"];
+}) {
   return (
     <DashboardCard>
-      <View style={styles.todayRouteHeader}>
+      <SectionHeader kicker="今日路线" title={surface.routeProgress.stageLabel} />
+      <View style={styles.homeRouteProgressRow}>
         <View style={styles.flex}>
-          <SectionHeader kicker="今日摸鱼路线" title={todayLoop.routeDelight.title} />
-        </View>
-        <View style={styles.todayRouteProgressPill}>
-          <Text style={styles.todayRouteProgressText}>{todayLoop.routeProgress.progressLabel}</Text>
-        </View>
-      </View>
-      <View style={styles.todayRouteProgressTrack}>
-        <View
-          style={[
-            styles.todayRouteProgressFill,
-            { width: `${todayLoop.routeProgress.percent}%` }
-          ]}
-        />
-      </View>
-      <Text style={styles.kickerSection}>{todayLoop.routeProgress.stageLabel}</Text>
-      <Text style={styles.copy}>{todayLoop.loopMessage}</Text>
-      <View
-        style={[
-          styles.todayRouteDelightBox,
-          todayLoop.routeDelight.doneForToday && styles.todayRouteDelightBoxDone
-        ]}
-      >
-        <Text style={styles.rowTitle}>{todayLoop.routeDelight.title}</Text>
-        <Text style={styles.rowMeta}>{todayLoop.routeDelight.copy}</Text>
-      </View>
-      <View style={styles.todayRouteList}>
-        {todayLoop.routeSteps.slice(0, 5).map((step) => (
-          <RouteStep key={step.id} step={step} />
-        ))}
-      </View>
-      {primary ? (
-        <View style={styles.todayRoutePrimary}>
-          <Text style={styles.kicker}>当前最该做</Text>
-          <Text style={styles.rowTitle}>{primary.title}</Text>
-          <Text style={styles.rowMeta}>{primary.description}</Text>
-          <RewardPreview preview={primary.rewardPreview} />
-          <ActionButton
-            label={primary.actionLabel}
-            disabled={loading}
-            onPress={() => onAction(primary)}
+          <ProgressBar
+            value={surface.routeProgress.percent}
+            max={100}
+            color="#1f8f62"
+            trackColor="#d5e9dc"
           />
         </View>
-      ) : null}
-      {todayLoop.secondaryActions.length ? (
-        <View style={styles.todayRouteSecondaryRow}>
-          {todayLoop.secondaryActions.map((action) => (
-            <Pressable
-              key={`${action.kind}-${action.title}`}
-              accessibilityLabel={action.actionLabel}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: loading }}
-              disabled={loading}
-              onPress={() => void onAction(action)}
-              style={({ pressed }) => [
-                styles.todayRouteSecondaryButton,
-                (pressed || loading) && styles.buttonMuted
-              ]}
-            >
-              <Text style={styles.inlineActionText}>{action.actionLabel}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-      {todayLoop.todayObjectives.length ? (
-        <View style={styles.todayObjectiveGrid}>
-          {todayLoop.todayObjectives.slice(0, 4).map((objective) => (
-            <View
-              key={objective.code}
-              style={[
-                styles.todayObjectiveCell,
-                objective.completed && styles.todayObjectiveCellDone
-              ]}
-            >
-              <Text style={styles.kicker}>{objective.completed ? "已完成" : "进行中"}</Text>
-              <Text style={styles.rowTitle}>{objective.title}</Text>
-              <Text style={styles.rowMeta}>
-                {objective.current}/{objective.target} {localizedGoalUnit(objective.unit)}
-              </Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
+        <Text style={styles.homeRouteProgressLabel}>
+          {surface.routeProgress.progressLabel}
+        </Text>
+      </View>
+      <View style={styles.homeRouteStepList}>
+        {surface.doneForToday ? (
+          <EmptyState
+            title="今日路线已收工"
+            body="该做的做了，该领的领了，剩下的可以交给明天。"
+            icon="🌿"
+          />
+        ) : (
+          <RouteStepList surface={surface} />
+        )}
+      </View>
+      <Text style={styles.kickerSection}>目标进度</Text>
+      <CoreSurfaceGrid>
+        {surface.goalSummaries.map((summary) => (
+          <GoalPeriodSummary
+            key={summary.period}
+            summary={summary}
+            loading={loading}
+            onClaim={
+              summary.period === "daily"
+                ? actions.claimDailyReward
+                : actions.claimWeeklyReward
+            }
+            isPrimaryAction={
+              surface.primaryAction?.kind === "goal-reward" &&
+              (surface.primaryAction.meta?.period ?? "daily") === summary.period
+            }
+          />
+        ))}
+      </CoreSurfaceGrid>
     </DashboardCard>
+  );
+}
+
+function RouteStepList({
+  surface
+}: {
+  surface: ReturnType<typeof deriveHomeSurface>;
+}) {
+  const steps = surface.routeSteps.slice(0, 5);
+  if (!steps.length) return null;
+  return (
+    <>
+      {steps.map((step) => (
+        <RouteStep key={step.id} step={step} />
+      ))}
+    </>
   );
 }
 
@@ -244,4 +305,66 @@ function routeStepStatusLabel(status: TodayLoopStep["status"]) {
   if (status === "claimable") return "可做";
   if (status === "optional") return "可选";
   return "待开始";
+}
+
+function GoalPeriodSummary({
+  summary,
+  loading,
+  onClaim,
+  isPrimaryAction
+}: {
+  summary: HomeGoalSummary;
+  loading: boolean;
+  onClaim(): void | Promise<void>;
+  isPrimaryAction: boolean;
+}) {
+  const status = summary.claimable
+    ? "奖励可领取"
+    : summary.claimed
+      ? "奖励已入账"
+      : `${summary.completed}/${summary.total} 完成`;
+  return (
+    <SummaryCard
+      title={summary.title}
+      status={status}
+      actionLabel={summary.claimable && !isPrimaryAction ? "领取" : undefined}
+      disabled={loading || !summary.claimable}
+      onAction={onClaim}
+      style={styles.homeGoalSummary}
+    />
+  );
+}
+
+function HomeSecondaryActions({
+  actions,
+  loading,
+  onAction
+}: {
+  actions: TodayLoopAction[];
+  loading: boolean;
+  onAction(action: TodayLoopAction): void | Promise<void>;
+}) {
+  return (
+    <DashboardCard>
+      <SectionHeader kicker="还可以做" title="顺手推进，不用勉强" />
+      <View style={styles.homeSecondaryRow}>
+        {actions.map((action) => (
+          <Pressable
+            key={`${action.kind}-${action.title}`}
+            accessibilityLabel={action.actionLabel}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: loading }}
+            disabled={loading}
+            onPress={() => void onAction(action)}
+            style={({ pressed }) => [
+              styles.homeSecondaryButton,
+              (pressed || loading) && styles.buttonMuted
+            ]}
+          >
+            <Text style={styles.inlineActionText}>{action.actionLabel}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </DashboardCard>
+  );
 }
