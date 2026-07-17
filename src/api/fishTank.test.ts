@@ -121,6 +121,81 @@ describe("FishTankApi", () => {
     expect(body.idempotencyKey).toMatch(/^fish_tank_feed_/);
   });
 
+  it("POST /v1/fish-tank/interactions sends bubble interaction with idempotency key", async () => {
+    const result = {
+      success: true,
+      replayed: false,
+      outcomeCode: "BUBBLED",
+      resultCopy: "吹了一个气泡。",
+      resourceType: "bubble",
+      cost: 1,
+      resourceBalance: 1,
+      tank: {
+        initialized: true,
+        fish: [],
+        careAvailability: {
+          feed: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 },
+          bubble: { available: false, nextAvailableAt: null, cooldownRemainingSeconds: 3600 }
+        },
+        mood: { code: "sparkly", title: "气泡闪闪", copy: "气泡让鱼缸亮了一点。", ambientArtKey: "tank-mood-sparkly" },
+        nextAction: "feed",
+        decorations: { equipped: [], inventory: [] }
+      }
+    };
+    mockFetch({ data: result, error: null });
+
+    const api = createApi();
+    const response = await api.interact("bubble");
+
+    expect(response.data).toEqual(result);
+    expect(response.error).toBeNull();
+    const [url, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe("http://api.test/v1/fish-tank/interactions");
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body);
+    expect(body.interactionType).toBe("bubble");
+    expect(body.idempotencyKey).toMatch(/^fish_tank_bubble_/);
+  });
+
+  it("POST /v1/fish-tank/displayed-fish/reorder sends ordered ids with idempotency key", async () => {
+    const result = {
+      success: true,
+      replayed: false,
+      outcomeCode: "REORDERED",
+      resultCopy: "展示顺序已更新。",
+      displayedFish: [],
+      tank: {
+        initialized: true,
+        fish: [],
+        displayedFish: [],
+        eligibleFish: [],
+        careAvailability: {
+          feed: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 },
+          bubble: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 }
+        },
+        mood: { code: "idle", title: "一起发呆", copy: "小鱼正在假装工作。", ambientArtKey: "tank-mood-idle" },
+        nextAction: "feed",
+        decorations: { equipped: [], inventory: [] },
+        resourceSummary: { resources: [], totalFood: 0, totalBubbles: 0, totalHatchProgress: 0 },
+        costs: { feed: 1, bubble: 1 },
+        guidance: { foodSource: "draw", bubbleSource: "draw" }
+      }
+    };
+    mockFetch({ data: result, error: null });
+
+    const api = createApi();
+    const response = await api.reorderDisplayedFish(["fish-3", "fish-1"]);
+
+    expect(response.data).toEqual(result);
+    expect(response.error).toBeNull();
+    const [url, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe("http://api.test/v1/fish-tank/displayed-fish/reorder");
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body);
+    expect(body.displayedFishIds).toEqual(["fish-3", "fish-1"]);
+    expect(body.idempotencyKey).toMatch(/^fish_tank_reorder_/);
+  });
+
   it("POST /v1/fish-tank/hatch sends idempotency key and returns result", async () => {
     const result = {
       success: true,

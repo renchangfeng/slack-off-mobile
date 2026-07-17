@@ -16,6 +16,9 @@ export type HatchRequest = components["schemas"]["HatchRequest"];
 export type HatchResult = components["schemas"]["HatchResult"];
 export type EquipDecorationRequest = components["schemas"]["EquipDecorationRequest"];
 export type EquipDecorationResult = components["schemas"]["EquipDecorationResult"];
+export type DisplayedFishReorderRequest = components["schemas"]["DisplayedFishReorderRequest"];
+export type DisplayedFishReorderResult = components["schemas"]["DisplayedFishReorderResult"];
+export type FishTankCareError = components["schemas"]["FishTankCareError"];
 
 export class FishTankApi {
   constructor(private readonly client: ApiClient) {}
@@ -50,6 +53,15 @@ export class FishTankApi {
       slot,
       decorationDefinitionId,
       idempotencyKey
+    });
+  }
+
+  reorderDisplayedFish(
+    displayedFishIds: DisplayedFishReorderRequest["displayedFishIds"]
+  ): Promise<ApiEnvelope<DisplayedFishReorderResult>> {
+    return this.client.post<DisplayedFishReorderResult>("/v1/fish-tank/displayed-fish/reorder", {
+      displayedFishIds,
+      idempotencyKey: createFishTankIdempotencyKey("fish_tank_reorder")
     });
   }
 }

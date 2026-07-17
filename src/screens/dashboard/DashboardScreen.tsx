@@ -37,8 +37,10 @@ import { ApiClient } from "../../api/client";
 import {
   FishTankApi,
   createFishTankIdempotencyKey,
+  type CareInteractionResult,
   type DecorationInventoryItem,
   type EquipDecorationResult,
+  type FishTankFish,
   type FishTankSummary,
   type HatchResult
 } from "../../api/fishTank";
@@ -153,6 +155,10 @@ export function DashboardScreen({
   const [fishTankLoading, setFishTankLoading] = useState(false);
   const [fishTankError, setFishTankError] = useState<string | null>(null);
   const [fishTankResultCopy, setFishTankResultCopy] = useState<string | null>(null);
+  const [fishTankResult, setFishTankResult] = useState<CareInteractionResult | null>(null);
+  const [bubbleLoading, setBubbleLoading] = useState(false);
+  const [displayedFishLoading, setDisplayedFishLoading] = useState(false);
+  const [displayedFishDraft, setDisplayedFishDraft] = useState<FishTankFish[] | null>(null);
   const [hatchResult, setHatchResult] = useState<HatchResult | null>(null);
   const [hatchError, setHatchError] = useState<string | null>(null);
   const [hatchLoading, setHatchLoading] = useState(false);
@@ -635,11 +641,44 @@ export function DashboardScreen({
     const response = await api.fishTank.interact("feed");
     setFishTankLoading(false);
     if (response.error) {
-      setFishTankError(localizedApiError(response.error, "鱼缸互动失败，请重试。"));
+      setFishTankError(localizedApiError(response.error, "投喂没有成功，请重试。"));
       return;
     }
+    setFishTankResult(response.data ?? null);
     setFishTankResultCopy(response.data?.resultCopy ?? null);
     setFishTank(response.data?.tank ?? null);
+  }
+
+  async function bubbleFish() {
+    setBubbleLoading(true);
+    setFishTankError(null);
+    const response = await api.fishTank.interact("bubble");
+    setBubbleLoading(false);
+    if (response.error) {
+      setFishTankError(localizedApiError(response.error, "气泡互动失败，请重试。"));
+      return;
+    }
+    setFishTankResult(response.data ?? null);
+    setFishTankResultCopy(response.data?.resultCopy ?? null);
+    setFishTank(response.data?.tank ?? null);
+  }
+
+  async function reorderDisplayedFish(displayedFishIds: string[]) {
+    setDisplayedFishLoading(true);
+    setFishTankError(null);
+    const response = await api.fishTank.reorderDisplayedFish(displayedFishIds);
+    setDisplayedFishLoading(false);
+    if (response.error) {
+      setFishTankError(localizedApiError(response.error, "展示顺序保存失败，请重试。"));
+      return;
+    }
+    setDisplayedFishDraft(null);
+    setFishTank(response.data?.tank ?? null);
+  }
+
+  function dismissFishTankResult() {
+    setFishTankResult(null);
+    setFishTankResultCopy(null);
   }
 
   function ensureHatchIdempotencyKey(): string {
@@ -1180,6 +1219,10 @@ export function DashboardScreen({
             fishTankLoading={fishTankLoading}
             fishTankError={fishTankError}
             fishTankResultCopy={fishTankResultCopy}
+            fishTankResult={fishTankResult}
+            bubbleLoading={bubbleLoading}
+            displayedFishLoading={displayedFishLoading}
+            displayedFishDraft={displayedFishDraft}
             hatchResult={hatchResult}
             hatchError={hatchError}
             hatchLoading={hatchLoading}
@@ -1195,12 +1238,17 @@ export function DashboardScreen({
               runTodayLoopAction,
               initializeTank,
               feedFish,
+              bubbleFish,
               hatchFish,
               dismissHatchResult,
               refreshFishTank,
               inspectFishTank,
+              selectBeansMode: (mode) => selectMode(mode),
+              reorderDisplayedFish,
+              setDisplayedFishDraft,
               equipDecoration: equipFishTankDecoration,
-              dismissEquipResult
+              dismissEquipResult,
+              dismissFishTankResult
             }}
           />
         ) : null}

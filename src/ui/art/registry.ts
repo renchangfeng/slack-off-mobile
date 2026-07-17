@@ -267,6 +267,38 @@ const artSlotDefinitions: Record<ArtSlotId, ArtSlotDefinition> = {
     alt: "空鱼缸",
     aspectRatio: 1
   },
+  "fish-tank-position-1": {
+    id: "fish-tank-position-1",
+    kind: "fish",
+    defaultSize: 80,
+    fallbackGlyph: "🐟",
+    alt: "鱼缸主位小鱼",
+    aspectRatio: 1
+  },
+  "fish-tank-position-2": {
+    id: "fish-tank-position-2",
+    kind: "fish",
+    defaultSize: 72,
+    fallbackGlyph: "🐠",
+    alt: "鱼缸左侧小鱼",
+    aspectRatio: 1
+  },
+  "fish-tank-position-3": {
+    id: "fish-tank-position-3",
+    kind: "fish",
+    defaultSize: 64,
+    fallbackGlyph: "🐡",
+    alt: "鱼缸右侧小鱼",
+    aspectRatio: 1
+  },
+  "fish-tank-bubble-rise": {
+    id: "fish-tank-bubble-rise",
+    kind: "scene-prop",
+    defaultSize: 56,
+    fallbackGlyph: "🫧",
+    alt: "鱼缸气泡",
+    aspectRatio: 1
+  },
   "fish-hatch-egg": {
     id: "fish-hatch-egg",
     kind: "scene-prop",
@@ -532,6 +564,81 @@ const artAssets: ArtAsset[] = [
     kind: "empty-state",
     fallbackGlyph: "🫗",
     alt: "空鱼缸",
+    aspectRatio: 1
+  },
+  {
+    id: "pixel-rest.fish-tank-position-1",
+    slotId: "fish-tank-position-1",
+    kind: "fish",
+    themeId: pixelRestTheme.id,
+    component: PixelRestFish,
+    fallbackGlyph: "🐟",
+    alt: "像素休息风鱼缸主位小鱼",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.primary
+  },
+  {
+    id: "pixel-rest.fish-tank-position-2",
+    slotId: "fish-tank-position-2",
+    kind: "fish",
+    themeId: pixelRestTheme.id,
+    component: PixelRestFish,
+    fallbackGlyph: "🐠",
+    alt: "像素休息风鱼缸左侧小鱼",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.primary
+  },
+  {
+    id: "pixel-rest.fish-tank-position-3",
+    slotId: "fish-tank-position-3",
+    kind: "fish",
+    themeId: pixelRestTheme.id,
+    component: PixelRestFish,
+    fallbackGlyph: "🐡",
+    alt: "像素休息风鱼缸右侧小鱼",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.primary
+  },
+  {
+    id: "pixel-rest.fish-tank-bubble-rise",
+    slotId: "fish-tank-bubble-rise",
+    kind: "scene-prop",
+    themeId: pixelRestTheme.id,
+    fallbackGlyph: "🫧",
+    alt: "像素休息风鱼缸气泡",
+    aspectRatio: 1,
+    dominantColor: pixelRestTheme.colors.accent
+  },
+  {
+    id: "default.fish-tank-position-1",
+    slotId: "fish-tank-position-1",
+    kind: "fish",
+    fallbackGlyph: "🐟",
+    alt: "鱼缸主位小鱼",
+    aspectRatio: 1
+  },
+  {
+    id: "default.fish-tank-position-2",
+    slotId: "fish-tank-position-2",
+    kind: "fish",
+    fallbackGlyph: "🐠",
+    alt: "鱼缸左侧小鱼",
+    aspectRatio: 1
+  },
+  {
+    id: "default.fish-tank-position-3",
+    slotId: "fish-tank-position-3",
+    kind: "fish",
+    fallbackGlyph: "🐡",
+    alt: "鱼缸右侧小鱼",
+    aspectRatio: 1
+  },
+  {
+    id: "default.fish-tank-bubble-rise",
+    slotId: "fish-tank-bubble-rise",
+    kind: "scene-prop",
+    fallbackGlyph: "🫧",
+    alt: "鱼缸气泡",
     aspectRatio: 1
   },
   {

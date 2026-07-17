@@ -1,6 +1,8 @@
 import type {
+  CareInteractionResult,
   DecorationInventoryItem,
   EquipDecorationResult,
+  FishTankFish,
   FishTankSummary,
   HatchResult,
   TankMood
@@ -190,6 +192,144 @@ export function deriveMoodPresentation(mood: TankMood | null | undefined) {
     title: mood.title,
     copy: mood.copy,
     ambientArtKey: mood.ambientArtKey
+  };
+}
+
+export type PrimaryAction =
+  | { kind: "feed"; available: boolean; cooldownSeconds: number }
+  | { kind: "bubble"; available: boolean; cooldownSeconds: number }
+  | { kind: "hatch"; available: boolean }
+  | { kind: "companionship"; available: true };
+
+export function derivePrimaryAction(summary: FishTankSummary | null): PrimaryAction {
+  if (!summary || !summary.initialized) {
+    return { kind: "companionship", available: true };
+  }
+  const feed = summary.careAvailability.feed;
+  const bubble = summary.careAvailability.bubble;
+  const feedCost = summary.costs?.feed ?? 1;
+  const bubbleCost = summary.costs?.bubble ?? 1;
+  const feedResourced = hasResource(summary, "food") >= feedCost;
+  const bubbleResourced = hasResource(summary, "bubble") >= bubbleCost;
+  if (feed?.available && feedResourced) {
+    return { kind: "feed", available: true, cooldownSeconds: 0 };
+  }
+  if (bubble?.available && bubbleResourced) {
+    return { kind: "bubble", available: true, cooldownSeconds: 0 };
+  }
+  if (summary.hatchAvailability?.available) {
+    return { kind: "hatch", available: true };
+  }
+  return { kind: "companionship", available: true };
+}
+
+export function deriveActionButtonLabel(action: PrimaryAction, nowMs: number, receivedAtMs: number): string {
+  if (action.kind === "feed") {
+    if (action.available) return "投喂小鱼";
+    const seconds = calculateLiveCooldownSecondsFromValues(action.cooldownSeconds, nowMs, receivedAtMs);
+    return `投喂冷却 ${formatCooldownCompact(seconds)}`;
+  }
+  if (action.kind === "bubble") {
+    if (action.available) return "吹个气泡";
+    const seconds = calculateLiveCooldownSecondsFromValues(action.cooldownSeconds, nowMs, receivedAtMs);
+    return `气泡冷却 ${formatCooldownCompact(seconds)}`;
+  }
+  if (action.kind === "hatch") {
+    return "孵化新邻居";
+  }
+  return "一起发呆";
+}
+
+export function deriveResourceBalance(summary: FishTankSummary | null): {
+  food: number;
+  bubble: number;
+  hatchProgress: number;
+} {
+  if (!summary?.resourceSummary?.resources) {
+    return { food: 0, bubble: 0, hatchProgress: 0 };
+  }
+  const find = (type: string) => summary.resourceSummary!.resources.find((r) => r.resourceType === type)?.quantity ?? 0;
+  return {
+    food: find("food"),
+    bubble: find("bubble"),
+    hatchProgress: find("hatch_progress")
+  };
+}
+
+export function hasResource(summary: FishTankSummary | null, resourceType: "food" | "bubble" | "hatch_progress"): number {
+  const balances = deriveResourceBalance(summary);
+  if (resourceType === "hatch_progress") return balances.hatchProgress;
+  return balances[resourceType];
+}
+
+export function deriveResourceGuidance(summary: FishTankSummary | null): {
+  foodSourceLabel: string;
+  bubbleSourceLabel: string;
+} {
+  const guidance = summary?.guidance;
+  return {
+    foodSourceLabel: guidance?.foodSource === "collection" ? "去收藏换" : "去抽豆",
+    bubbleSourceLabel: guidance?.bubbleSource === "collection" ? "去收藏换" : "去抽豆"
+  };
+}
+
+export function formatCooldownCompact(totalSeconds: number): string {
+  if (totalSeconds <= 0) return "即可";
+  if (totalSeconds < 60) return `${totalSeconds} 秒`;
+  if (totalSeconds < 3600) return `${Math.ceil(totalSeconds / 60)} 分`;
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.ceil((totalSeconds % 3600) / 60);
+  return minutes > 0 ? `${hours} 时 ${minutes} 分` : `${hours} 时`;
+}
+
+export function calculateLiveCooldownSecondsFromValues(
+  cooldownRemainingSeconds: number,
+  nowMs: number,
+  receivedAtMs: number
+): number {
+  const elapsedSeconds = Math.floor((nowMs - receivedAtMs) / 1000);
+  return Math.max(0, cooldownRemainingSeconds - elapsedSeconds);
+}
+
+export function deriveDisplayedFishSlots(summary: FishTankSummary | null): FishTankFish[] {
+  if (!summary?.initialized || !summary.displayedFish) {
+    return [];
+  }
+  return summary.displayedFish.slice(0, 3);
+}
+
+export function deriveEligibleFishForPicker(summary: FishTankSummary | null): FishTankFish[] {
+  if (!summary?.initialized || !summary.eligibleFish) {
+    return [];
+  }
+  return summary.eligibleFish;
+}
+
+export function derivePickerCapacityLabel(selectedCount: number): string {
+  return `${Math.min(3, selectedCount)}/3`;
+}
+
+export function companionshipLine(): string {
+  const lines = [
+    "你和鱼缸同时静止了一秒。",
+    "小鱼没说什么，但水面平静了一点。",
+    "假装两个人都在认真工作。",
+    "这一刻没有进度条，也挺好。"
+  ];
+  return lines[Math.floor(Math.random() * lines.length)];
+}
+
+export function deriveCareResultPresentation(result: CareInteractionResult | null) {
+  if (!result) {
+    return null;
+  }
+  return {
+    title: result.resultCopy,
+    replayed: result.replayed,
+    outcomeCode: result.outcomeCode,
+    resourceType: result.resourceType,
+    cost: result.cost,
+    resourceBalance: result.resourceBalance
   };
 }
 

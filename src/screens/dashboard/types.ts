@@ -18,7 +18,7 @@ import type {
   ActivitySkipReason
 } from "../../api/activities";
 import type { BeanCollection, BeanDrawResult, BeanTheme } from "../../api/beans";
-import type { DecorationInventoryItem, EquipDecorationResult, FishTankSummary, HatchResult } from "../../api/fishTank";
+import type { CareInteractionResult, DecorationInventoryItem, EquipDecorationResult, FishTankFish, FishTankSummary, HatchResult } from "../../api/fishTank";
 import type { CheckInFinishResult, CheckInSession } from "../../api/checkins";
 import type { Dispatch, SetStateAction } from "react";
 import type { LeaderboardResponse, LeaderboardScope, LeaderboardWindow } from "../../api/leaderboards";
@@ -121,6 +121,10 @@ export type BeansTabProps = {
   fishTankLoading: boolean;
   fishTankError: string | null;
   fishTankResultCopy: string | null;
+  fishTankResult: CareInteractionResult | null;
+  bubbleLoading: boolean;
+  displayedFishLoading: boolean;
+  displayedFishDraft: FishTankFish[] | null;
   hatchResult: HatchResult | null;
   hatchError: string | null;
   hatchLoading: boolean;
@@ -136,12 +140,17 @@ export type BeansTabProps = {
     runTodayLoopAction(action: TodayLoopAction): void | Promise<void>;
     initializeTank(): void | Promise<void>;
     feedFish(): void | Promise<void>;
+    bubbleFish(): void | Promise<void>;
     hatchFish(): void | Promise<void>;
     dismissHatchResult(): void;
     refreshFishTank(): void | Promise<boolean>;
     inspectFishTank(): void | Promise<void>;
+    selectBeansMode?(mode: "draw" | "collection"): void;
+    reorderDisplayedFish(displayedFishIds: string[]): void | Promise<void>;
+    setDisplayedFishDraft(draft: FishTankFish[] | null): void;
     equipDecoration(item: DecorationInventoryItem): void | Promise<void>;
     dismissEquipResult(): void;
+    dismissFishTankResult(): void;
   };
 };
 

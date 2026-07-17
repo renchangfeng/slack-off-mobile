@@ -61,6 +61,23 @@ export const MOTION_CONFIGS: Record<MotionFeedbackVariant, MotionConfig> = {
     final: { opacity: 1, scale: 1, translateY: 0 },
     duration: 260,
     spring: { damping: 14, stiffness: 190 }
+  },
+  "fish-tap": {
+    initial: { opacity: 1, scale: 0.86, translateY: 0 },
+    final: { opacity: 1, scale: 1, translateY: 0 },
+    duration: 180,
+    spring: { damping: 12, stiffness: 240 }
+  },
+  "bubble-rise": {
+    initial: { opacity: 0, scale: 0.6, translateY: 18 },
+    final: { opacity: 1, scale: 1, translateY: -8 },
+    duration: 320,
+    spring: { damping: 14, stiffness: 160 }
+  },
+  "reorder-shuffle": {
+    initial: { opacity: 0, scale: 0.98, translateY: 6 },
+    final: { opacity: 1, scale: 1, translateY: 0 },
+    duration: 200
   }
 };
 

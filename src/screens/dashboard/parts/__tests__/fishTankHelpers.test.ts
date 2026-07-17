@@ -3,19 +3,27 @@ import {
   deriveCollectionPreview,
   deriveDecorItemAction,
   deriveDecorSlotGroups,
+  deriveDisplayedFishSlots,
+  deriveEligibleFishForPicker,
   deriveEquipResultPresentation,
   deriveHatchButtonLabel,
   deriveHatchProgressLabel,
   deriveHatchResultPresentation,
   deriveHatchUiState,
-  deriveMoodPresentation
+  deriveMoodPresentation,
+  derivePrimaryAction,
+  deriveResourceBalance,
+  deriveResourceGuidance
 } from "../fishTankHelpers";
-import type { DecorationInventoryItem, EquipDecorationResult, FishTankSummary, HatchResult } from "../../../../api/fishTank";
+import type { DecorationInventoryItem, EquipDecorationResult, FishTankFish, FishTankSummary, HatchResult } from "../../../../api/fishTank";
 
 function makeSummary(
   partial: Partial<FishTankSummary> & Pick<FishTankSummary, "initialized" | "fish" | "nextAction">
 ): FishTankSummary {
+  const fish = partial.fish ?? [];
   return {
+    displayedFish: partial.displayedFish ?? fish.slice(0, 3),
+    eligibleFish: partial.eligibleFish ?? fish,
     moodCopy: "小鱼正在假装工作。",
     mood: {
       code: "idle",
@@ -28,7 +36,8 @@ function makeSummary(
       inventory: []
     },
     careAvailability: {
-      feed: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 }
+      feed: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 },
+      bubble: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 }
     },
     hatchAvailability: {
       available: false,
@@ -69,6 +78,14 @@ function makeSummary(
       totalBubbles: 0,
       totalHatchProgress: 0
     },
+    costs: {
+      feed: 1,
+      bubble: 1
+    },
+    guidance: {
+      foodSource: "draw",
+      bubbleSource: "draw"
+    },
     ...partial
   };
 }
@@ -79,7 +96,7 @@ describe("deriveHatchUiState", () => {
   });
 
   it("returns loading when loading is true", () => {
-    const summary = makeSummary({ initialized: true, fish: [], nextAction: "wait" });
+    const summary = makeSummary({ initialized: true, fish: [], nextAction: "companionship" });
     expect(deriveHatchUiState(summary, true)).toEqual({ kind: "loading" });
   });
 
@@ -87,7 +104,7 @@ describe("deriveHatchUiState", () => {
     const summary = makeSummary({
       initialized: true,
       fish: [],
-      nextAction: "wait",
+      nextAction: "companionship",
       hatchAvailability: {
         available: false,
         reason: "insufficient_progress",
@@ -128,7 +145,7 @@ describe("deriveHatchUiState", () => {
     const summary = makeSummary({
       initialized: true,
       fish: [],
-      nextAction: "wait",
+      nextAction: "companionship",
       hatchAvailability: {
         available: false,
         reason: "catalog_complete",
@@ -242,7 +259,7 @@ describe("deriveCollectionPreview", () => {
   });
 
   it("returns collection items", () => {
-    const summary = makeSummary({ initialized: true, fish: [], nextAction: "wait" });
+    const summary = makeSummary({ initialized: true, fish: [], nextAction: "companionship" });
     expect(deriveCollectionPreview(summary)).toEqual([
       {
         definitionId: "def-1",
@@ -310,7 +327,7 @@ describe("deriveDecorSlotGroups", () => {
     const summary = makeSummary({
       initialized: true,
       fish: [],
-      nextAction: "wait",
+      nextAction: "companionship",
       decorations: {
         equipped: [],
         inventory: [
@@ -331,7 +348,7 @@ describe("deriveDecorSlotGroups", () => {
     const summary = makeSummary({
       initialized: true,
       fish: [],
-      nextAction: "wait",
+      nextAction: "companionship",
       decorations: {
         equipped: [
           {
@@ -369,7 +386,7 @@ describe("deriveDecorSlotGroups", () => {
       makeSummary({
         initialized: true,
         fish: [],
-        nextAction: "wait",
+        nextAction: "companionship",
         decorations: {
           inventory: [],
           equipped: [
@@ -452,5 +469,164 @@ describe("deriveEquipResultPresentation", () => {
       equippedSlot: "background",
       equippedArtKey: "tank-bg-office-window"
     });
+  });
+});
+
+describe("derivePrimaryAction", () => {
+  it("prefers feed when available and resourced", () => {
+    const summary = makeSummary({
+      initialized: true,
+      fish: [],
+      nextAction: "feed",
+      resourceSummary: {
+        resources: [{ resourceType: "food", quantity: 2, label: "鱼食" }],
+        totalFood: 2,
+        totalBubbles: 0,
+        totalHatchProgress: 0
+      }
+    });
+    expect(derivePrimaryAction(summary)).toEqual({
+      kind: "feed",
+      available: true,
+      cooldownSeconds: 0
+    });
+  });
+
+  it("prefers bubble when feed is unavailable", () => {
+    const summary = makeSummary({
+      initialized: true,
+      fish: [],
+      nextAction: "bubble",
+      careAvailability: {
+        feed: { available: false, nextAvailableAt: null, cooldownRemainingSeconds: 60 },
+        bubble: { available: true, nextAvailableAt: null, cooldownRemainingSeconds: 0 }
+      },
+      resourceSummary: {
+        resources: [{ resourceType: "bubble", quantity: 2, label: "气泡" }],
+        totalFood: 0,
+        totalBubbles: 2,
+        totalHatchProgress: 0
+      }
+    });
+    expect(derivePrimaryAction(summary)).toEqual({
+      kind: "bubble",
+      available: true,
+      cooldownSeconds: 0
+    });
+  });
+
+  it("falls back to hatch when ready", () => {
+    const summary = makeSummary({
+      initialized: true,
+      fish: [],
+      nextAction: "hatch",
+      hatchAvailability: {
+        available: true,
+        reason: "ready",
+        currentProgress: 3,
+        cost: 3,
+        missingProgress: 0
+      }
+    });
+    expect(derivePrimaryAction(summary)).toEqual({ kind: "hatch", available: true });
+  });
+
+  it("falls back to companionship when nothing is available", () => {
+    const summary = makeSummary({
+      initialized: true,
+      fish: [],
+      nextAction: "companionship",
+      careAvailability: {
+        feed: { available: false, nextAvailableAt: null, cooldownRemainingSeconds: 60 },
+        bubble: { available: false, nextAvailableAt: null, cooldownRemainingSeconds: 120 }
+      }
+    });
+    expect(derivePrimaryAction(summary)).toEqual({ kind: "companionship", available: true });
+  });
+});
+
+describe("deriveResourceBalance", () => {
+  it("returns zero defaults for null summary", () => {
+    expect(deriveResourceBalance(null)).toEqual({ food: 0, bubble: 0, hatchProgress: 0 });
+  });
+
+  it("reads resource quantities by type", () => {
+    const summary = makeSummary({
+      initialized: true,
+      fish: [],
+      nextAction: "feed",
+      resourceSummary: {
+        resources: [
+          { resourceType: "food", quantity: 2, label: "鱼食" },
+          { resourceType: "bubble", quantity: 3, label: "气泡" },
+          { resourceType: "hatch_progress", quantity: 1, label: "孵化进度" }
+        ],
+        totalFood: 2,
+        totalBubbles: 3,
+        totalHatchProgress: 1
+      }
+    });
+    expect(deriveResourceBalance(summary)).toEqual({ food: 2, bubble: 3, hatchProgress: 1 });
+  });
+});
+
+describe("deriveResourceGuidance", () => {
+  it("uses draw source by default", () => {
+    expect(deriveResourceGuidance(null)).toEqual({
+      foodSourceLabel: "去抽豆",
+      bubbleSourceLabel: "去抽豆"
+    });
+  });
+
+  it("respects collection guidance", () => {
+    const summary = makeSummary({
+      initialized: true,
+      fish: [],
+      nextAction: "feed",
+      guidance: { foodSource: "collection", bubbleSource: "collection" }
+    });
+    expect(deriveResourceGuidance(summary)).toEqual({
+      foodSourceLabel: "去收藏换",
+      bubbleSourceLabel: "去收藏换"
+    });
+  });
+});
+
+describe("deriveDisplayedFishSlots", () => {
+  it("returns empty for uninitialized tank", () => {
+    expect(deriveDisplayedFishSlots(null)).toEqual([]);
+  });
+
+  it("returns up to three displayed fish", () => {
+    const fish: FishTankFish[] = [
+      { id: "f1", definitionId: "d1", name: "摸摸", rarity: "common", theme: "office", personality: "", artKey: "fish-tank-fish", acquiredSource: "starter", createdAt: "" },
+      { id: "f2", definitionId: "d2", name: "泡泡", rarity: "common", theme: "office", personality: "", artKey: "fish-tank-fish", acquiredSource: "starter", createdAt: "" },
+      { id: "f3", definitionId: "d3", name: "静静", rarity: "common", theme: "office", personality: "", artKey: "fish-tank-fish", acquiredSource: "starter", createdAt: "" },
+      { id: "f4", definitionId: "d4", name: "游游", rarity: "common", theme: "office", personality: "", artKey: "fish-tank-fish", acquiredSource: "starter", createdAt: "" }
+    ];
+    const summary = makeSummary({
+      initialized: true,
+      fish,
+      nextAction: "feed",
+      displayedFish: fish.slice(0, 3),
+      eligibleFish: fish
+    });
+    expect(deriveDisplayedFishSlots(summary)).toHaveLength(3);
+    expect(deriveDisplayedFishSlots(summary)[0].id).toBe("f1");
+  });
+});
+
+describe("deriveEligibleFishForPicker", () => {
+  it("returns all owned fish for the picker", () => {
+    const fish: FishTankFish[] = [
+      { id: "f1", definitionId: "d1", name: "摸摸", rarity: "common", theme: "office", personality: "", artKey: "fish-tank-fish", acquiredSource: "starter", createdAt: "" }
+    ];
+    const summary = makeSummary({
+      initialized: true,
+      fish,
+      nextAction: "feed",
+      eligibleFish: fish
+    });
+    expect(deriveEligibleFishForPicker(summary)).toEqual(fish);
   });
 });

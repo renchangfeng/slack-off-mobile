@@ -11,23 +11,28 @@ import { useTheme } from "../../../ui/theme/useTheme";
 import type { ArtSlotId } from "../../../ui/art/types";
 import { DashboardCard } from "./DashboardCard";
 import { ActionButton, ProgressBar } from "./SharedControls";
+import { FishTankControls } from "./FishTankControls";
+import { FishTankPicker } from "./FishTankPicker";
+import { FishTankScene } from "./FishTankScene";
 import { rarityLabel, resourceIcon } from "../helpers";
 import {
+  calculateLiveCooldownSecondsFromValues,
+  deriveCareResultPresentation,
   deriveCollectionPreview,
   deriveDecorItemAction,
   deriveDecorSlotGroups,
   deriveEquipResultPresentation,
-  deriveHatchButtonLabel,
-  deriveHatchProgressLabel,
   deriveHatchResultPresentation,
-  deriveHatchUiState,
   deriveMoodPresentation,
+  formatCooldownCompact,
   SLOT_LABELS
 } from "./fishTankHelpers";
 import styles from "../styles";
 import type {
+  CareInteractionResult,
   DecorationInventoryItem,
   EquipDecorationResult,
+  FishTankFish,
   FishTankSummary,
   HatchResult
 } from "../../../api/fishTank";
@@ -37,6 +42,10 @@ type FishTankCardProps = {
   summary: FishTankSummary | null;
   error: string | null;
   resultCopy?: string | null;
+  fishTankResult?: CareInteractionResult | null;
+  bubbleLoading?: boolean;
+  displayedFishLoading?: boolean;
+  displayedFishDraft?: FishTankFish[] | null;
   hatchResult?: HatchResult | null;
   hatchError?: string | null;
   hatchLoading?: boolean;
@@ -45,11 +54,18 @@ type FishTankCardProps = {
   equipLoading?: boolean;
   onInitialize: () => void | Promise<void>;
   onFeed: () => void | Promise<void>;
+  onBubble: () => void | Promise<void>;
   onHatch: () => void | Promise<void>;
   onDismissHatchResult: () => void;
   onEquipDecoration: (item: DecorationInventoryItem) => void | Promise<void>;
   onDismissEquipResult: () => void;
   onRetry: () => void | Promise<void>;
+  onReorderDisplayedFish?: (displayedFishIds: string[]) => void | Promise<void>;
+  onSetDisplayedFishDraft?: (draft: FishTankFish[] | null) => void;
+  onDismissFishTankResult?: () => void;
+  onNavigateDraw?: () => void;
+  onNavigateCollection?: () => void;
+  reducedMotionOverride?: boolean;
 };
 
 export function FishTankCard({
@@ -57,6 +73,10 @@ export function FishTankCard({
   summary,
   error,
   resultCopy,
+  fishTankResult,
+  bubbleLoading = false,
+  displayedFishLoading = false,
+  displayedFishDraft,
   hatchResult,
   hatchError,
   hatchLoading = false,
@@ -65,42 +85,58 @@ export function FishTankCard({
   equipLoading = false,
   onInitialize,
   onFeed,
+  onBubble,
   onHatch,
   onDismissHatchResult,
   onEquipDecoration,
   onDismissEquipResult,
-  onRetry
+  onRetry,
+  onReorderDisplayedFish,
+  onSetDisplayedFishDraft,
+  onDismissFishTankResult,
+  onNavigateDraw = () => undefined,
+  onNavigateCollection = () => undefined,
+  reducedMotionOverride = false
 }: FishTankCardProps) {
   const theme = useTheme();
-  const feedCare = summary?.careAvailability.feed ?? null;
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [cooldownReceivedAtMs, setCooldownReceivedAtMs] = useState(() => Date.now());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [decorOpen, setDecorOpen] = useState(false);
+  const [companionshipCopy, setCompanionshipCopy] = useState<string | null>(null);
 
   useEffect(() => {
     const receivedAt = Date.now();
     setNowMs(receivedAt);
     setCooldownReceivedAtMs(receivedAt);
+  }, [summary?.careAvailability?.feed?.available, summary?.careAvailability?.bubble?.available]);
 
-    if (!feedCare || feedCare.available) {
+  useEffect(() => {
+    const feedCare = summary?.careAvailability?.feed;
+    const bubbleCare = summary?.careAvailability?.bubble;
+    const hasCooldown =
+      !feedCare?.available ||
+      !bubbleCare?.available ||
+      (feedCare?.cooldownRemainingSeconds ?? 0) > 0 ||
+      (bubbleCare?.cooldownRemainingSeconds ?? 0) > 0;
+
+    if (!hasCooldown) {
       return undefined;
     }
 
     const timer = setInterval(() => {
       setNowMs(Date.now());
     }, 1000);
-
     return () => clearInterval(timer);
-  }, [feedCare?.available, feedCare?.cooldownRemainingSeconds, feedCare?.nextAvailableAt]);
+  }, [
+    summary?.careAvailability?.feed?.available,
+    summary?.careAvailability?.bubble?.available,
+    summary?.careAvailability?.feed?.cooldownRemainingSeconds,
+    summary?.careAvailability?.bubble?.cooldownRemainingSeconds
+  ]);
 
-  const cooldownSeconds = calculateLiveCooldownSeconds(feedCare, nowMs, cooldownReceivedAtMs);
-  const feedAvailable = Boolean(feedCare?.available) || cooldownSeconds <= 0;
-  const cooldownLabel = formatCooldown(cooldownSeconds);
-
-  const hatchState = deriveHatchUiState(summary, hatchLoading);
-  const hatchProgressLabel = deriveHatchProgressLabel(hatchState);
-  const hatchButtonLabel = deriveHatchButtonLabel(hatchState);
-  const canHatch = hatchState.kind === "ready" && !hatchLoading;
   const presentation = deriveHatchResultPresentation(hatchResult ?? null);
+  const carePresentation = deriveCareResultPresentation(fishTankResult ?? null);
 
   if (loading && !summary) {
     return (
@@ -113,7 +149,7 @@ export function FishTankCard({
     );
   }
 
-  if (error) {
+  if (error && !summary) {
     return (
       <DashboardCard>
         <SectionHeader kicker="个人鱼缸" title="出错了" />
@@ -142,201 +178,214 @@ export function FishTankCard({
   const decorGroups = deriveDecorSlotGroups(summary);
   const equipPresentation = deriveEquipResultPresentation(equipResult ?? null);
 
+  const handleCompanionship = () => {
+    setCompanionshipCopy(null);
+    setTimeout(() => setCompanionshipCopy("你和鱼缸同时静止了一秒。"), 50);
+  };
+
   return (
     <DashboardCard>
       <SectionHeader
         kicker="个人鱼缸"
         title={fish?.name ?? "小鱼"}
-        trailing={
-          feedAvailable ? (
-            <StatusBadge tone="active" label="可投喂" />
-          ) : (
-            <StatusBadge tone="locked" label={cooldownLabel} />
-          )
-        }
+        trailing={<StatusBadge tone="active" label={mood.title} />}
       />
-      <View style={{ alignItems: "center", marginVertical: 12 }}>
-        <MotionFeedback variant="fish-feed" trigger={resultCopy} animateOnMount={false}>
-          <ArtSlot slotId="fish-tank-fish" size={96} />
-        </MotionFeedback>
-      </View>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <StatusBadge tone="active" label={mood.title} />
-        <Text style={[styles.copy, { flex: 1, marginBottom: 0 }]}>{mood.copy}</Text>
-      </View>
 
-      {decorGroups.length > 0 ? (
-        <View style={{ marginVertical: 8 }}>
-          <Text style={styles.kicker}>当前装扮</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
-            {decorGroups.map((group) => (
-              <View
-                key={group.slot}
-                style={[
-                  styles.decorPreviewCell,
-                  {
-                    backgroundColor: theme.colors.surfaceWarm,
-                    borderColor: theme.colors.border
-                  }
-                ]}
-              >
-                <ArtSlot
-                  slotId={(group.equipped?.artKey as ArtSlotId) ?? "tank-decor-locked-silhouette"}
-                  size={40}
-                />
-                <Text style={styles.decorPreviewLabel}>{group.label}</Text>
-              </View>
-            ))}
+      {error ? (
+        <View style={[styles.resultReceiptBox, { borderColor: theme.colors.danger }]}>
+          <Text style={styles.message}>{error}</Text>
+          <ActionButton label="重试鱼缸数据" onPress={onRetry} />
+        </View>
+      ) : null}
+
+      {pickerOpen ? (
+        <FishTankPicker
+          summary={summary}
+          draft={displayedFishDraft ?? null}
+          loading={displayedFishLoading}
+          onChangeDraft={(draft) => onSetDisplayedFishDraft?.(draft)}
+          onSave={async (ids) => {
+            await onReorderDisplayedFish?.(ids);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      ) : (
+        <>
+          <FishTankScene
+            summary={summary}
+            onCompanionship={handleCompanionship}
+            companionshipCopy={companionshipCopy}
+            reducedMotionOverride={reducedMotionOverride}
+          />
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 }}>
+            <StatusBadge tone="active" label={mood.title} />
+            <Text style={[styles.copy, { flex: 1, marginBottom: 0 }]}>{mood.copy}</Text>
           </View>
-        </View>
-      ) : null}
 
-      {resultCopy ? (
-        <View
-          style={[
-            styles.resultReceiptBox,
-            {
-              backgroundColor: theme.colors.surfaceWarm,
-              borderColor: theme.colors.primary
-            }
-          ]}
-        >
-          <Text style={styles.kicker}>投喂结果</Text>
-          <Text style={styles.rowTitle}>{resultCopy}</Text>
-        </View>
-      ) : null}
-      <ActionButton
-        label={feedAvailable ? "投喂小鱼" : `冷却中 ${cooldownLabel}`}
-        disabled={loading || !feedAvailable}
-        onPress={onFeed}
-      />
-
-      <View style={{ marginTop: 16 }}>
-        <View style={styles.rowBetween}>
-          <Text style={styles.kicker}>孵化进度</Text>
-          <Text style={styles.helperText}>{hatchProgressLabel}</Text>
-        </View>
-        <ProgressBar
-          value={
-            hatchState.kind === "insufficient" || hatchState.kind === "ready"
-              ? hatchState.current
-              : hatchState.kind === "complete"
-                ? summary.collection?.total ?? 0
-                : 0
-          }
-          max={
-            hatchState.kind === "insufficient" || hatchState.kind === "ready"
-              ? hatchState.cost
-              : Math.max(1, summary.collection?.total ?? 1)
-          }
-          color={canHatch ? theme.colors.success : theme.colors.accent}
-          trackColor={theme.colors.border}
-        />
-        <ActionButton
-          label={hatchButtonLabel}
-          disabled={!canHatch}
-          dark={canHatch}
-          onPress={onHatch}
-        />
-        {hatchError ? <Text style={styles.message}>{hatchError}</Text> : null}
-      </View>
-
-      {summary.collection?.items && summary.collection.items.length > 0 ? (
-        <View style={{ marginTop: 12 }}>
-          <Text style={styles.kicker}>
-            小鱼图鉴 {summary.collection.owned}/{summary.collection.total}
-          </Text>
-          <View style={styles.fishCollectionGrid}>
-            {deriveCollectionPreview(summary).map((item) => (
-              <View key={item.definitionId} style={styles.fishCollectionCell}>
-                <ArtSlot
-                  slotId={item.owned ? "fish-tank-fish" : "fish-locked-silhouette"}
-                  size={40}
-                />
-                <Text style={styles.fishCollectionName}>
-                  {item.owned ? item.name : item.sourceHint}
+          {resultCopy ? (
+            <View
+              style={[
+                styles.resultReceiptBox,
+                {
+                  backgroundColor: theme.colors.surfaceWarm,
+                  borderColor: theme.colors.primary
+                }
+              ]}
+            >
+              <Text style={styles.kicker}>{fishTankResult?.resourceType === "bubble" ? "气泡结果" : "投喂结果"}</Text>
+              <Text style={styles.rowTitle}>{resultCopy}</Text>
+              {carePresentation ? (
+                <Text style={styles.helperText}>
+                  {carePresentation.replayed ? "已保存 · " : ""}
+                  消耗 {carePresentation.cost} · 剩余 {carePresentation.resourceBalance}
                 </Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          <FishTankControls
+            summary={summary}
+            loading={loading}
+            bubbleLoading={bubbleLoading}
+            hatchLoading={hatchLoading}
+            hatchError={hatchError}
+            nowMs={nowMs}
+            cooldownReceivedAtMs={cooldownReceivedAtMs}
+            onFeed={onFeed}
+            onBubble={onBubble}
+            onHatch={onHatch}
+            onCompanionship={handleCompanionship}
+            onNavigateDraw={onNavigateDraw}
+            onNavigateCollection={onNavigateCollection}
+            onOpenPicker={() => setPickerOpen(true)}
+            onOpenDecor={() => setDecorOpen((current) => !current)}
+          />
+
+          {decorGroups.length > 0 ? (
+            <View style={{ marginTop: 12 }}>
+              <Text style={styles.kicker}>当前装扮</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+                {decorGroups.map((group) => (
+                  <View
+                    key={group.slot}
+                    style={[
+                      styles.decorPreviewCell,
+                      {
+                        backgroundColor: theme.colors.surfaceWarm,
+                        borderColor: theme.colors.border
+                      }
+                    ]}
+                  >
+                    <ArtSlot
+                      slotId={(group.equipped?.artKey as ArtSlotId) ?? "tank-decor-locked-silhouette"}
+                      size={40}
+                    />
+                    <Text style={styles.decorPreviewLabel}>{group.label}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        </View>
-      ) : null}
+            </View>
+          ) : null}
 
-      {summary.resourceSummary?.resources?.some((resource) => resource.quantity > 0) ? (
-        <View style={{ marginTop: 8 }}>
-          <Text style={styles.kicker}>鱼缸库存</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
-            {summary.resourceSummary.resources.map((resource) => (
-              <RewardRow
-                key={resource.resourceType}
-                icon={resourceIcon(resource.resourceType)}
-                label={resource.label}
-                value={`${resource.quantity}`}
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
+          {summary.collection?.items && summary.collection.items.length > 0 ? (
+            <View style={{ marginTop: 12 }}>
+              <Text style={styles.kicker}>
+                小鱼图鉴 {summary.collection.owned}/{summary.collection.total}
+              </Text>
+              <View style={styles.fishCollectionGrid}>
+                {deriveCollectionPreview(summary).map((item) => (
+                  <View key={item.definitionId} style={styles.fishCollectionCell}>
+                    <ArtSlot
+                      slotId={item.owned ? "fish-tank-fish" : "fish-locked-silhouette"}
+                      size={40}
+                    />
+                    <Text style={styles.fishCollectionName}>
+                      {item.owned ? item.name : item.sourceHint}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
 
-      {decorGroups.length > 0 ? (
-        <View style={{ marginTop: 12 }}>
-          <Text style={styles.kicker}>装扮仓库</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginTop: 6 }}
-            contentContainerStyle={{ gap: 12, paddingRight: 8 }}
-          >
-            {decorGroups.map((group) => (
-              <View key={group.slot} style={{ minWidth: 160, maxWidth: 220 }}>
-                <Text style={styles.helperText}>{group.label}</Text>
-                <View style={{ gap: 8, marginTop: 6 }}>
-                  {group.items.map((item) => {
-                    const action = deriveDecorItemAction(item);
-                    return (
-                      <View
-                        key={item.definitionId}
-                        style={[
-                          styles.decorItemRow,
-                          action.state === "locked" && styles.decorItemRowLocked
-                        ]}
-                      >
-                        <ArtSlot
-                          slotId={item.owned ? (item.artKey as ArtSlotId) : "tank-decor-locked-silhouette"}
-                          size={40}
-                        />
-                        <View style={{ flex: 1, marginLeft: 10 }}>
-                          <Text style={styles.rowTitle}>{item.name}</Text>
-                          <Text style={styles.rowMeta}>
-                            {rarityLabel(item.rarity)} · {action.actionLabel}
-                          </Text>
-                          {action.state === "locked" ? (
-                            <Text style={styles.helperText}>{item.unlockHint}</Text>
-                          ) : null}
-                        </View>
-                        {action.actionable ? (
-                          <Pressable
-                            accessibilityRole="button"
-                            disabled={equipLoading}
-                            onPress={() => onEquipDecoration(item)}
-                            style={({ pressed }) => [
-                              styles.inlineEquipButton,
-                              (pressed || equipLoading) && styles.buttonMuted
+          {equipError && !decorOpen ? <Text style={styles.message}>{equipError}</Text> : null}
+
+          <View style={{ marginTop: 8 }}>
+            <Text style={styles.kicker}>鱼缸库存</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+              {(summary.resourceSummary?.resources ?? []).map((resource) => (
+                <RewardRow
+                  key={resource.resourceType}
+                  icon={resourceIcon(resource.resourceType)}
+                  label={resource.label}
+                  value={`${resource.quantity}`}
+                />
+              ))}
+            </View>
+          </View>
+
+          {decorOpen && decorGroups.length > 0 ? (
+            <View style={{ marginTop: 12 }}>
+              <Text style={styles.kicker}>装扮仓库</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginTop: 6 }}
+                contentContainerStyle={{ gap: 12, paddingRight: 8 }}
+              >
+                {decorGroups.map((group) => (
+                  <View key={group.slot} style={{ minWidth: 160, maxWidth: 220 }}>
+                    <Text style={styles.helperText}>{group.label}</Text>
+                    <View style={{ gap: 8, marginTop: 6 }}>
+                      {group.items.map((item) => {
+                        const action = deriveDecorItemAction(item);
+                        return (
+                          <View
+                            key={item.definitionId}
+                            style={[
+                              styles.decorItemRow,
+                              action.state === "locked" && styles.decorItemRowLocked
                             ]}
                           >
-                            <Text style={styles.inlineEquipText}>装备</Text>
-                          </Pressable>
-                        ) : null}
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-          {equipError ? <Text style={styles.message}>{equipError}</Text> : null}
-        </View>
-      ) : null}
+                            <ArtSlot
+                              slotId={item.owned ? (item.artKey as ArtSlotId) : "tank-decor-locked-silhouette"}
+                              size={40}
+                            />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                              <Text style={styles.rowTitle}>{item.name}</Text>
+                              <Text style={styles.rowMeta}>
+                                {rarityLabel(item.rarity)} · {action.actionLabel}
+                              </Text>
+                              {action.state === "locked" ? (
+                                <Text style={styles.helperText}>{item.unlockHint}</Text>
+                              ) : null}
+                            </View>
+                            {action.actionable ? (
+                              <Pressable
+                                accessibilityRole="button"
+                                disabled={equipLoading}
+                                onPress={() => onEquipDecoration(item)}
+                                style={({ pressed }) => [
+                                  styles.inlineEquipButton,
+                                  (pressed || equipLoading) && styles.buttonMuted
+                                ]}
+                              >
+                                <Text style={styles.inlineEquipText}>装备</Text>
+                              </Pressable>
+                            ) : null}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+              {equipError ? <Text style={styles.message}>{equipError}</Text> : null}
+            </View>
+          ) : null}
+        </>
+      )}
 
       {equipPresentation ? (
         <View
@@ -461,33 +510,60 @@ export function FishTankCard({
           </View>
         </View>
       ) : null}
+
+      {carePresentation ? (
+        <View
+          style={[
+            styles.hatchRevealBackdrop,
+            { backgroundColor: "rgba(20, 19, 17, 0.72)" }
+          ]}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="关闭照顾结果"
+            onPress={() => onDismissFishTankResult?.()}
+            style={StyleSheet.absoluteFill}
+          />
+          <View
+            style={[
+              styles.hatchRevealPanel,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: carePresentation.replayed ? theme.colors.warning : theme.colors.primary
+              }
+            ]}
+          >
+            <MotionFeedback variant="fish-feed" trigger={carePresentation.title} animateOnMount>
+              <View style={{ alignItems: "center", marginVertical: 12 }}>
+                <ArtSlot
+                  slotId={carePresentation.resourceType === "bubble" ? "fish-tank-bubble-rise" : "fish-tank-fish"}
+                  size={96}
+                />
+              </View>
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 6 }}>
+                <StatusBadge
+                  tone={carePresentation.replayed ? "warning" : "completed"}
+                  label={carePresentation.replayed ? "已保存" : carePresentation.resourceType === "bubble" ? "气泡" : "投喂"}
+                />
+              </View>
+              <Text style={styles.kicker}>{carePresentation.resourceType === "bubble" ? "气泡结果" : "投喂结果"}</Text>
+              <Text style={styles.sectionTitle}>{carePresentation.title}</Text>
+              <View style={styles.resultReceiptBox}>
+                <Text style={styles.kicker}>{carePresentation.replayed ? "照顾回执" : "消耗回执"}</Text>
+                <Text style={styles.rowTitle}>
+                  {carePresentation.replayed
+                    ? "这次照顾已经记录过了，没有重复消耗。"
+                    : `消耗 ${carePresentation.cost} · 剩余 ${carePresentation.resourceBalance}`}
+                </Text>
+              </View>
+              <ActionButton label="返回鱼缸" onPress={() => onDismissFishTankResult?.()} />
+            </MotionFeedback>
+          </View>
+        </View>
+      ) : null}
     </DashboardCard>
   );
 }
 
-export function formatCooldown(totalSeconds: number): string {
-  if (totalSeconds <= 0) return "可投喂";
-  const minutes = Math.ceil(totalSeconds / 60);
-  if (minutes < 60) return `${minutes} 分钟后`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes > 0 ? `${hours} 小时 ${remainingMinutes} 分` : `${hours} 小时`;
-}
-
-export function calculateLiveCooldownSeconds(
-  feedCare: FishTankSummary["careAvailability"]["feed"] | null,
-  nowMs: number,
-  receivedAtMs: number
-): number {
-  if (!feedCare || feedCare.available) return 0;
-
-  if (feedCare.nextAvailableAt) {
-    const targetMs = Date.parse(feedCare.nextAvailableAt);
-    if (Number.isFinite(targetMs)) {
-      return Math.max(0, Math.ceil((targetMs - nowMs) / 1000));
-    }
-  }
-
-  const elapsedSeconds = Math.floor((nowMs - receivedAtMs) / 1000);
-  return Math.max(0, feedCare.cooldownRemainingSeconds - elapsedSeconds);
-}
+export const formatCooldown = formatCooldownCompact;
+export const calculateLiveCooldownSeconds = calculateLiveCooldownSecondsFromValues;

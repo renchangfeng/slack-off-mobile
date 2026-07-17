@@ -520,6 +520,10 @@ export function makeBeansProps(overrides?: Partial<BeansTabProps>): BeansTabProp
     fishTankLoading: false,
     fishTankError: null,
     fishTankResultCopy: null,
+    fishTankResult: null,
+    bubbleLoading: false,
+    displayedFishLoading: false,
+    displayedFishDraft: null,
     hatchResult: null,
     hatchError: null,
     hatchLoading: false,
@@ -535,12 +539,16 @@ export function makeBeansProps(overrides?: Partial<BeansTabProps>): BeansTabProp
       runTodayLoopAction: noopAsync,
       initializeTank: noopAsync,
       feedFish: noopAsync,
+      bubbleFish: noopAsync,
       hatchFish: noopAsync,
       dismissHatchResult: noop,
       refreshFishTank: async () => true,
       inspectFishTank: noopAsync,
+      reorderDisplayedFish: noopAsync,
+      setDisplayedFishDraft: noop,
       equipDecoration: noopAsync,
-      dismissEquipResult: noop
+      dismissEquipResult: noop,
+      dismissFishTankResult: noop
     }
   };
   return { ...base, ...overrides } as BeansTabProps;

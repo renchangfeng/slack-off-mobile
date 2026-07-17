@@ -19,6 +19,7 @@ import {
 } from "../dashboard/parts/activity-interactions";
 import { ActivityInteractionRunner } from "../dashboard/parts/ActivityInteractionRunner";
 import { FishTankCard } from "../dashboard/parts/FishTankCard";
+import { FishTankPicker } from "../dashboard/parts/FishTankPicker";
 import { DashboardFeedbackBanner } from "../dashboard/parts/DashboardFeedbackBanner";
 import {
   createDashboardFeedback,
@@ -29,7 +30,14 @@ import {
   ActivityHistoryDetail,
   ActivityHistorySection
 } from "../dashboard/ActivitiesTab";
-import type { DecorationInventoryItem, EquipDecorationResult, FishTankSummary, HatchResult } from "../../api/fishTank";
+import type {
+  CareInteractionResult,
+  DecorationInventoryItem,
+  EquipDecorationResult,
+  FishTankFish,
+  FishTankSummary,
+  HatchResult
+} from "../../api/fishTank";
 import type { components } from "../../api/generated";
 
 type FishTankResourceOutcome = components["schemas"]["FishTankResourceOutcome"];
@@ -1266,7 +1274,13 @@ function makeFishSummary(
     sourceHint: f.acquiredSource,
     owned: true as const
   })) ?? [];
+  const nextAction = partial.nextAction;
+  const feedAvailable = nextAction === "feed";
+  const bubbleAvailable = nextAction === "bubble";
+  const displayedFish = partial.displayedFish ?? partial.fish?.slice(0, 3) ?? [];
   return {
+    displayedFish,
+    eligibleFish: partial.eligibleFish ?? partial.fish ?? [],
     moodCopy: partial.mood?.copy ?? "小鱼正在假装工作。",
     mood: {
       code: "idle",
@@ -1280,17 +1294,22 @@ function makeFishSummary(
     },
     careAvailability: {
       feed: {
-        available: partial.nextAction === "feed",
-        nextAvailableAt: null,
-        cooldownRemainingSeconds: 0
+        available: feedAvailable,
+        nextAvailableAt: feedAvailable ? null : new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        cooldownRemainingSeconds: feedAvailable ? 0 : 30 * 60
+      },
+      bubble: {
+        available: bubbleAvailable,
+        nextAvailableAt: bubbleAvailable ? null : new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        cooldownRemainingSeconds: bubbleAvailable ? 0 : 60 * 60
       }
     },
     hatchAvailability: {
-      available: partial.nextAction === "hatch",
-      reason: partial.nextAction === "hatch" ? "ready" : "insufficient_progress",
-      currentProgress: partial.nextAction === "hatch" ? 3 : 0,
+      available: nextAction === "hatch",
+      reason: nextAction === "hatch" ? "ready" : "insufficient_progress",
+      currentProgress: nextAction === "hatch" ? 3 : 0,
       cost: 3,
-      missingProgress: partial.nextAction === "hatch" ? 0 : 3
+      missingProgress: nextAction === "hatch" ? 0 : 3
     },
     collection: {
       owned: defaultItems.length,
@@ -1309,7 +1328,16 @@ function makeFishSummary(
       totalBubbles: 0,
       totalHatchProgress: 0
     },
-    ...partial
+    costs: {
+      feed: 1,
+      bubble: 1
+    },
+    guidance: {
+      foodSource: "draw",
+      bubbleSource: "draw"
+    },
+    ...partial,
+    nextAction
   };
 }
 
@@ -1319,6 +1347,9 @@ const FISH_TANK_SPECIMENS: Array<{
   loading: boolean;
   error: string | null;
   resultCopy?: string | null;
+  fishTankResult?: CareInteractionResult | null;
+  bubbleLoading?: boolean;
+  reducedMotionOverride?: boolean;
 }> = [
   {
     label: "Loading",
@@ -1343,7 +1374,7 @@ const FISH_TANK_SPECIMENS: Array<{
     error: null
   },
   {
-    label: "Care available",
+    label: "One fish · care available",
     summary: makeFishSummary({
       initialized: true,
       fish: [
@@ -1365,6 +1396,99 @@ const FISH_TANK_SPECIMENS: Array<{
     error: null
   },
   {
+    label: "Two fish · positive mood",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-two-1",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "lab-fish-two-2",
+          definitionId: "lab-bluefish",
+          name: "蓝屏",
+          rarity: "rare",
+          theme: "daydream",
+          personality: "偶尔假装断线",
+          artKey: "fish-tank-fish",
+          acquiredSource: "hatch",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "companionship",
+      mood: {
+        code: "sparkly",
+        title: "闪闪发亮",
+        copy: "两条小鱼正在交换今日份的好心情。",
+        ambientArtKey: "tank-mood-sparkly"
+      }
+    }),
+    loading: false,
+    error: null
+  },
+  {
+    label: "Three fish · populated scene",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-three-1",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "lab-fish-three-2",
+          definitionId: "lab-bluefish",
+          name: "蓝屏",
+          rarity: "rare",
+          theme: "daydream",
+          personality: "偶尔假装断线",
+          artKey: "fish-tank-fish",
+          acquiredSource: "hatch",
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "lab-fish-three-3",
+          definitionId: "lab-nightfish",
+          name: "夜班",
+          rarity: "epic",
+          theme: "restroom",
+          personality: "只在下班后活跃",
+          artKey: "fish-tank-fish",
+          acquiredSource: "hatch",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "feed",
+      resourceSummary: {
+        resources: [
+          { resourceType: "food", quantity: 2, label: "鱼食" },
+          { resourceType: "bubble", quantity: 3, label: "气泡" },
+          { resourceType: "hatch_progress", quantity: 1, label: "孵化进度" }
+        ],
+        totalFood: 2,
+        totalBubbles: 3,
+        totalHatchProgress: 1
+      }
+    }),
+    loading: false,
+    error: null
+  },
+  {
     label: "Cooldown",
     summary: makeFishSummary({
       initialized: true,
@@ -1381,7 +1505,7 @@ const FISH_TANK_SPECIMENS: Array<{
           createdAt: new Date().toISOString()
         }
       ],
-      nextAction: "wait",
+      nextAction: "companionship",
       mood: {
         code: "cozy",
         title: "吃饱发呆",
@@ -1393,6 +1517,11 @@ const FISH_TANK_SPECIMENS: Array<{
           available: false,
           nextAvailableAt: new Date(Date.now() + 25 * 60 * 1000).toISOString(),
           cooldownRemainingSeconds: 25 * 60
+        },
+        bubble: {
+          available: false,
+          nextAvailableAt: new Date(Date.now() + 55 * 60 * 1000).toISOString(),
+          cooldownRemainingSeconds: 55 * 60
         }
       }
     }),
@@ -1416,7 +1545,7 @@ const FISH_TANK_SPECIMENS: Array<{
           createdAt: new Date().toISOString()
         }
       ],
-      nextAction: "wait",
+      nextAction: "companionship",
       mood: {
         code: "excited",
         title: "刚吃饱",
@@ -1428,12 +1557,97 @@ const FISH_TANK_SPECIMENS: Array<{
           available: false,
           nextAvailableAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
           cooldownRemainingSeconds: 30 * 60
+        },
+        bubble: {
+          available: false,
+          nextAvailableAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          cooldownRemainingSeconds: 60 * 60
         }
       }
     }),
     loading: false,
     error: null,
     resultCopy: "小鱼打了个饱嗝，卷度 -5。"
+  },
+  {
+    label: "Bubble pending",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-bubble-pending",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "bubble",
+      resourceSummary: {
+        resources: [
+          { resourceType: "food", quantity: 0, label: "鱼食" },
+          { resourceType: "bubble", quantity: 2, label: "气泡" },
+          { resourceType: "hatch_progress", quantity: 0, label: "孵化进度" }
+        ],
+        totalFood: 0,
+        totalBubbles: 2,
+        totalHatchProgress: 0
+      }
+    }),
+    loading: false,
+    error: null,
+    bubbleLoading: true
+  },
+  {
+    label: "Bubble replay receipt",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-bubble-replay",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "companionship",
+      resourceSummary: {
+        resources: [
+          { resourceType: "food", quantity: 0, label: "鱼食" },
+          { resourceType: "bubble", quantity: 1, label: "气泡" },
+          { resourceType: "hatch_progress", quantity: 0, label: "孵化进度" }
+        ],
+        totalFood: 0,
+        totalBubbles: 1,
+        totalHatchProgress: 0
+      }
+    }),
+    loading: false,
+    error: null,
+    resultCopy: "旧气泡请求已安全回放，没有再次扣减。",
+    fishTankResult: {
+      success: true,
+      replayed: true,
+      outcomeCode: "bubble_applied",
+      resultCopy: "旧气泡请求已安全回放，没有再次扣减。",
+      resourceType: "bubble",
+      cost: 1,
+      resourceBalance: 1,
+      tank: makeFishSummary({
+        initialized: true,
+        fish: [],
+        nextAction: "companionship"
+      })
+    }
   },
   {
     label: "With resources",
@@ -1468,40 +1682,153 @@ const FISH_TANK_SPECIMENS: Array<{
     error: null
   },
   {
-    label: "Error",
+    label: "Unknown error · no cached scene",
     summary: null,
     loading: false,
     error: "小鱼临时失联，请稍后再试。"
+  },
+  {
+    label: "Conflict/error · preserve scene",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-scoped-error",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "feed"
+    }),
+    loading: false,
+    error: "展示顺序刚被其他设备更新；旧场景仍保留，可安全重试。"
+  },
+  {
+    label: "Reduced motion · static semantic fallback",
+    summary: makeFishSummary({
+      initialized: true,
+      fish: [
+        {
+          id: "lab-fish-reduced-motion",
+          definitionId: "lab-goldfish",
+          name: "摸摸",
+          rarity: "common",
+          theme: "office",
+          personality: "在键盘上吐泡泡",
+          artKey: "fish-tank-fish",
+          acquiredSource: "starter",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      nextAction: "companionship",
+      mood: {
+        code: "cozy",
+        title: "静静陪伴",
+        copy: "静态姿态、对比和文字保留了相同的状态含义。",
+        ambientArtKey: "tank-mood-cozy"
+      }
+    }),
+    loading: false,
+    error: null,
+    reducedMotionOverride: true
   }
 ];
 
-function FishTankSpecimens() {
+function FishTankPickerSpecimen({ summary }: { summary: FishTankSummary }) {
+  const [draft, setDraft] = useState<FishTankFish[] | null>(null);
   return (
-    <View style={styles.flowSpecimenGrid}>
-      {FISH_TANK_SPECIMENS.map(({ label, summary, loading, error, resultCopy }) => (
-        <FramedCard key={label} style={styles.flowSpecimenCard}>
-          <Text style={styles.miniSpecimenType}>{label}</Text>
-          <FishTankCard
-            loading={loading}
-            summary={summary}
-            error={error}
-            resultCopy={resultCopy ?? null}
-            hatchResult={null}
-            hatchError={null}
-            hatchLoading={false}
-            equipResult={null}
-            equipError={null}
-            equipLoading={false}
-            onInitialize={() => undefined}
-            onFeed={() => undefined}
-            onHatch={() => undefined}
-            onDismissHatchResult={() => undefined}
-            onEquipDecoration={() => undefined}
-            onDismissEquipResult={() => undefined}
-            onRetry={() => undefined}
-          />
+    <FishTankPicker
+      summary={summary}
+      draft={draft}
+      loading={false}
+      onChangeDraft={setDraft}
+      onSave={() => undefined}
+      onClose={() => undefined}
+    />
+  );
+}
+
+function FishTankSpecimens({ reducedMotion }: { reducedMotion: boolean }) {
+  const pickerSummary = FISH_TANK_SPECIMENS.find(({ label }) => label.startsWith("Three fish"))?.summary;
+  return (
+    <View style={{ gap: spacing.lg }}>
+      <Text style={styles.themeMeta}>
+        {reducedMotion
+          ? "Reduced motion active: static pose, contrast, availability and receipt copy remain visible."
+          : "Motion active; enable system reduced motion to review the equivalent static cues."}
+      </Text>
+      <View style={styles.flowSpecimenGrid}>
+        {FISH_TANK_SPECIMENS.map(({ label, summary, loading, error, resultCopy, fishTankResult, bubbleLoading, reducedMotionOverride }) => (
+          <FramedCard key={label} style={styles.flowSpecimenCard}>
+            <Text style={styles.miniSpecimenType}>{label}</Text>
+            <FishTankCard
+              loading={loading}
+              summary={summary}
+              error={error}
+              resultCopy={resultCopy ?? null}
+              fishTankResult={fishTankResult ?? null}
+              bubbleLoading={bubbleLoading ?? false}
+              reducedMotionOverride={reducedMotionOverride ?? false}
+              hatchResult={null}
+              hatchError={null}
+              hatchLoading={false}
+              equipResult={null}
+              equipError={null}
+              equipLoading={false}
+              onInitialize={() => undefined}
+              onFeed={() => undefined}
+              onBubble={() => undefined}
+              onHatch={() => undefined}
+              onDismissHatchResult={() => undefined}
+              onEquipDecoration={() => undefined}
+              onDismissEquipResult={() => undefined}
+              onRetry={() => undefined}
+            />
+          </FramedCard>
+        ))}
+      </View>
+      {pickerSummary ? (
+        <FramedCard>
+          <Text style={styles.miniSpecimenType}>Picker · selected/order/capacity states</Text>
+          <FishTankPickerSpecimen summary={pickerSummary} />
         </FramedCard>
-      ))}
+      ) : null}
+      {pickerSummary ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={{ flexDirection: "row", gap: spacing.md }}>
+            {([360, 390, 640] as const).map((width) => (
+              <View key={width} style={{ width }}>
+                <Text style={styles.miniSpecimenType}>{width}px fish-tank viewport</Text>
+                <FishTankCard
+                  loading={false}
+                  summary={pickerSummary}
+                  error={null}
+                  hatchResult={null}
+                  hatchError={null}
+                  hatchLoading={false}
+                  equipResult={null}
+                  equipError={null}
+                  equipLoading={false}
+                  onInitialize={() => undefined}
+                  onFeed={() => undefined}
+                  onBubble={() => undefined}
+                  onHatch={() => undefined}
+                  onDismissHatchResult={() => undefined}
+                  onEquipDecoration={() => undefined}
+                  onDismissEquipResult={() => undefined}
+                  onRetry={() => undefined}
+                />
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      ) : null}
     </View>
   );
 }
@@ -1514,7 +1841,7 @@ function makeHatchResult(partial: Partial<HatchResult> & Pick<HatchResult, "succ
     resultTitle: "孵化结果",
     resultCopy: "结果走丢了。",
     nextHint: "返回鱼缸。",
-    tank: makeFishSummary({ initialized: true, fish: [], nextAction: "wait" }),
+    tank: makeFishSummary({ initialized: true, fish: [], nextAction: "companionship" }),
     ...partial
   };
 }
@@ -1573,7 +1900,7 @@ const HATCH_SPECIMENS: Array<{
           createdAt: new Date().toISOString()
         }
       ],
-      nextAction: "wait",
+      nextAction: "companionship",
       hatchAvailability: {
         available: false,
         reason: "insufficient_progress",
@@ -1731,7 +2058,7 @@ const HATCH_SPECIMENS: Array<{
           createdAt: new Date().toISOString()
         }
       ],
-      nextAction: "wait",
+      nextAction: "companionship",
       hatchAvailability: {
         available: false,
         reason: "catalog_complete",
@@ -1796,6 +2123,7 @@ function HatchSpecimens() {
             equipLoading={false}
             onInitialize={() => undefined}
             onFeed={() => undefined}
+            onBubble={() => undefined}
             onHatch={() => undefined}
             onDismissHatchResult={() => undefined}
             onEquipDecoration={() => undefined}
@@ -1840,7 +2168,7 @@ function makeDecorSummary(partial: Partial<FishTankSummary> & { decorations: Fis
         createdAt: new Date().toISOString()
       }
     ],
-    nextAction: "wait",
+    nextAction: "companionship",
     ...partial,
     decorations: partial.decorations
   });
@@ -1975,6 +2303,7 @@ function DecorSpecimens() {
             equipLoading={false}
             onInitialize={() => undefined}
             onFeed={() => undefined}
+            onBubble={() => undefined}
             onHatch={() => undefined}
             onDismissHatchResult={() => undefined}
             onEquipDecoration={() => undefined}
@@ -2033,7 +2362,7 @@ function MoodSpecimens() {
                   createdAt: new Date().toISOString()
                 }
               ],
-              nextAction: "wait",
+              nextAction: "companionship",
               mood
             })}
             error={null}
@@ -2046,6 +2375,7 @@ function MoodSpecimens() {
             equipLoading={false}
             onInitialize={() => undefined}
             onFeed={() => undefined}
+            onBubble={() => undefined}
             onHatch={() => undefined}
             onDismissHatchResult={() => undefined}
             onEquipDecoration={() => undefined}
@@ -2550,7 +2880,7 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
           <Text style={[styles.copy, { color: colors.inkMuted }]}>
             Loading, uninitialized, care-available, cooldown, success receipt, with resources, and error states.
           </Text>
-          <FishTankSpecimens />
+          <FishTankSpecimens reducedMotion={reducedMotion} />
         </Surface>
 
         <Surface>

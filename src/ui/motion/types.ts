@@ -7,6 +7,9 @@ export type MotionFeedbackVariant =
   | "theme-switch"
   | "fish-feed"
   | "fish-hatch"
-  | "decor-equip";
+  | "decor-equip"
+  | "fish-tap"
+  | "bubble-rise"
+  | "reorder-shuffle";
 
 export type MotionIntensity = "normal" | "reduced";

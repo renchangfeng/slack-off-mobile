@@ -24,6 +24,10 @@ function TankMode(props: BeansTabProps) {
     fishTankLoading,
     fishTankError,
     fishTankResultCopy,
+    fishTankResult,
+    bubbleLoading,
+    displayedFishLoading,
+    displayedFishDraft,
     hatchResult,
     hatchError,
     hatchLoading,
@@ -46,6 +50,10 @@ function TankMode(props: BeansTabProps) {
           summary={fishTank}
           error={fishTankError}
           resultCopy={fishTankResultCopy}
+          fishTankResult={fishTankResult}
+          bubbleLoading={bubbleLoading}
+          displayedFishLoading={displayedFishLoading}
+          displayedFishDraft={displayedFishDraft}
           hatchResult={hatchResult}
           hatchError={hatchError}
           hatchLoading={hatchLoading}
@@ -54,11 +62,17 @@ function TankMode(props: BeansTabProps) {
           equipLoading={equipLoading}
           onInitialize={actions.initializeTank}
           onFeed={actions.feedFish}
+          onBubble={actions.bubbleFish}
           onHatch={actions.hatchFish}
           onDismissHatchResult={actions.dismissHatchResult}
           onEquipDecoration={actions.equipDecoration}
           onDismissEquipResult={actions.dismissEquipResult}
           onRetry={() => void actions.refreshFishTank()}
+          onReorderDisplayedFish={actions.reorderDisplayedFish}
+          onSetDisplayedFishDraft={actions.setDisplayedFishDraft}
+          onDismissFishTankResult={actions.dismissFishTankResult}
+          onNavigateDraw={() => actions.selectBeansMode?.("draw")}
+          onNavigateCollection={() => actions.selectBeansMode?.("collection")}
         />
       </View>
     </>
