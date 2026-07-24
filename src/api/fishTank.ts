@@ -19,6 +19,8 @@ export type EquipDecorationResult = components["schemas"]["EquipDecorationResult
 export type DisplayedFishReorderRequest = components["schemas"]["DisplayedFishReorderRequest"];
 export type DisplayedFishReorderResult = components["schemas"]["DisplayedFishReorderResult"];
 export type FishTankCareError = components["schemas"]["FishTankCareError"];
+export type FishTankResourceOutcome = components["schemas"]["FishTankResourceOutcome"];
+export type FishTankResourceType = components["schemas"]["FishTankResourceType"];
 
 export class FishTankApi {
   constructor(private readonly client: ApiClient) {}

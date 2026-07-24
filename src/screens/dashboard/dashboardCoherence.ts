@@ -157,6 +157,20 @@ export function shouldRefreshFishTankAfterDraw(
   return Boolean(result?.fishTankOutcomes?.length);
 }
 
+export function hasFishTankOutcomes(
+  result: { fishTankOutcomes?: unknown[] } | null | undefined
+): boolean {
+  return Boolean(result?.fishTankOutcomes?.length);
+}
+
+export async function synchronizeFishTankAfterReward(
+  result: { fishTankOutcomes?: unknown[] } | null | undefined,
+  refreshFishTank: () => Promise<boolean>
+): Promise<"not-required" | "current" | "stale"> {
+  if (!hasFishTankOutcomes(result)) return "not-required";
+  return (await refreshFishTank()) ? "current" : "stale";
+}
+
 export function resolveLandingOffset(
   target: DashboardLandingTarget,
   offsets: Partial<Record<DashboardLandingTarget, number>>

@@ -358,6 +358,29 @@ const styles = StyleSheet.create({
     marginTop: 10,
     padding: 12
   },
+  fishTankOutcomeRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 8
+  },
+  fishTankOutcomeIcon: {
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  fishTankOutcomeLabel: {
+    color: "#47413a",
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  fishTankOutcomeQuantity: {
+    color: "#116548",
+    fontSize: 16,
+    fontWeight: "900",
+    minWidth: 32,
+    textAlign: "right"
+  },
   dailyReportCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,

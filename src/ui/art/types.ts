@@ -47,7 +47,11 @@ export type ArtSlotId =
   | "tank-ambient-neon-bubbles"
   | "tank-ambient-starry-water"
   | "tank-ambient-coffee-steam"
-  | "tank-decor-locked-silhouette";
+  | "tank-decor-locked-silhouette"
+  | "fish-tank-resource-food"
+  | "fish-tank-resource-bubble"
+  | "fish-tank-resource-hatch-progress"
+  | "fish-tank-resource-generic";
 
 export type ArtAssetRenderProps = {
   size: number;
@@ -81,4 +85,5 @@ export type ArtSlotProps = {
   size?: number;
   style?: ViewStyle;
   placeholderStyle?: "pseudo-pixel" | "minimal";
+  fallback?: string;
 };

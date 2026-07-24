@@ -322,6 +322,38 @@ const artSlotDefinitions: Record<ArtSlotId, ArtSlotDefinition> = {
     fallbackGlyph: "🔒",
     alt: "未解锁小鱼",
     aspectRatio: 1
+  },
+  "fish-tank-resource-food": {
+    id: "fish-tank-resource-food",
+    kind: "badge",
+    defaultSize: 28,
+    fallbackGlyph: "🍥",
+    alt: "鱼粮",
+    aspectRatio: 1
+  },
+  "fish-tank-resource-bubble": {
+    id: "fish-tank-resource-bubble",
+    kind: "badge",
+    defaultSize: 28,
+    fallbackGlyph: "🫧",
+    alt: "气泡",
+    aspectRatio: 1
+  },
+  "fish-tank-resource-hatch-progress": {
+    id: "fish-tank-resource-hatch-progress",
+    kind: "badge",
+    defaultSize: 28,
+    fallbackGlyph: "🥚",
+    alt: "孵化进度",
+    aspectRatio: 1
+  },
+  "fish-tank-resource-generic": {
+    id: "fish-tank-resource-generic",
+    kind: "badge",
+    defaultSize: 28,
+    fallbackGlyph: "🐟",
+    alt: "鱼缸资源",
+    aspectRatio: 1
   }
 };
 

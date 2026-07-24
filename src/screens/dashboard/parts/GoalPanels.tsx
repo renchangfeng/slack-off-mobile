@@ -14,6 +14,7 @@ import {
 } from "../helpers";
 import styles from "../styles";
 import type { DerivedGameplayStep } from "../types";
+import { FishTankOutcomeReceipt } from "./fishTankOutcomeReceipt";
 
 export function ProgressionOverview({ progression }: { progression: ProgressionSummary | null }) {
   return (
@@ -176,6 +177,7 @@ export function ProgressionClaimResultPanel({
           {result.reward.drawChancesGranted}
         </Text>
       </View>
+      <FishTankOutcomeReceipt outcomes={result.fishTankOutcomes} testID="goal-claim-fish-tank-outcomes" />
       <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
     </DashboardCard>
   );

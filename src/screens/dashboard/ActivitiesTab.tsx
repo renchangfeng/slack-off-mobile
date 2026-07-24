@@ -9,6 +9,7 @@ import { ActivityInteractionRunner } from "./parts/ActivityInteractionRunner";
 import { StepReceipt } from "./parts/activity-interactions/StepReceipt";
 import { ActionButton, CategoryChip } from "./parts/SharedControls";
 import { GoalBanner } from "./parts/GoalPanels";
+import { FishTankOutcomeReceipt } from "./parts/fishTankOutcomeReceipt";
 import {
   activityCategories,
   activityCategoryLabel,
@@ -352,6 +353,7 @@ function PlayMode(props: ActivitiesTabProps) {
                       `+${result.reward.score} 分 · 进度 +${result.reward.drawProgress} · 抽豆机会 +${result.reward.drawChancesGranted}`}
                   </Text>
                 </View>
+                <FishTankOutcomeReceipt outcomes={result.fishTankOutcomes} testID="activity-fish-tank-outcomes" />
                 {result.stepSummaries?.length ? (
                   <StepReceipt summaries={result.stepSummaries} />
                 ) : null}

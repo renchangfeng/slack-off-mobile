@@ -1,4 +1,4 @@
-import { Image, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import { PixelArtPlaceholder } from "../components";
 import { useTheme } from "../theme/useTheme";
 import { resolveArtAsset } from "./registry";
@@ -17,7 +17,7 @@ const PLACEHOLDER_KINDS: Record<
   fish: "fish"
 };
 
-export function ArtSlot({ slotId, size, style, placeholderStyle }: ArtSlotProps) {
+export function ArtSlot({ slotId, size, style, placeholderStyle, fallback }: ArtSlotProps) {
   const theme = useTheme();
   const asset = resolveArtAsset(theme.id, slotId as ArtSlotId);
   const resolvedSize = size ?? (asset.aspectRatio >= 1 ? 64 : 80);
@@ -53,6 +53,25 @@ export function ArtSlot({ slotId, size, style, placeholderStyle }: ArtSlotProps)
           source={asset.source}
           style={{ width: "100%", height: "100%" }}
         />
+      </View>
+    );
+  }
+
+  if (fallback) {
+    return (
+      <View
+        accessibilityLabel={asset.alt}
+        style={[
+          {
+            alignItems: "center",
+            justifyContent: "center",
+            width: resolvedSize,
+            height: resolvedSize
+          },
+          style
+        ]}
+      >
+        <Text style={{ fontSize: resolvedSize * 0.55 }}>{fallback}</Text>
       </View>
     );
   }

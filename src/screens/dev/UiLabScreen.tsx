@@ -21,6 +21,9 @@ import { ActivityInteractionRunner } from "../dashboard/parts/ActivityInteractio
 import { FishTankCard } from "../dashboard/parts/FishTankCard";
 import { FishTankPicker } from "../dashboard/parts/FishTankPicker";
 import { DashboardFeedbackBanner } from "../dashboard/parts/DashboardFeedbackBanner";
+import { CheckInResult } from "../dashboard/parts/ResultPanels";
+import { ProgressionClaimResultPanel } from "../dashboard/parts/GoalPanels";
+import { FishTankOutcomeReceipt } from "../dashboard/parts/fishTankOutcomeReceipt";
 import {
   createDashboardFeedback,
   localizedGoalUnit
@@ -41,6 +44,9 @@ import type {
 import type { components } from "../../api/generated";
 
 type FishTankResourceOutcome = components["schemas"]["FishTankResourceOutcome"];
+type CheckInFinishResult = components["schemas"]["CheckInFinishResult"];
+type ActivityCompleteResult = components["schemas"]["ActivityCompleteResult"];
+type ProgressionClaimResult = components["schemas"]["ProgressionClaimResult"];
 
 type MiniStep = ActivityAssignment["interaction"]["steps"][number];
 
@@ -2447,6 +2453,248 @@ function BeanDrawOutcomeSpecimens() {
   );
 }
 
+const MOCK_NEXT_STEP: import("../../gameplay/nextStep").GameplayStep = {
+  kind: "get-activity",
+  title: "领取下一个摸鱼任务",
+  description: "继续攒抽豆进度。",
+  actionLabel: "领取摸鱼任务",
+  execution: "mutate",
+  targetSection: "activities",
+  rewardPreview: { score: 5, drawProgress: 1, drawChances: 0 }
+};
+
+const CHECK_IN_OUTCOME_SPECIMENS: Array<{ label: string; result: CheckInFinishResult }> = [
+  {
+    label: "check-in granted",
+    result: {
+      session: {
+        id: "lab-check-in-1",
+        status: "completed",
+        startedAt: new Date().toISOString(),
+        endedAt: new Date().toISOString(),
+        durationSeconds: 300,
+        eligibleDurationSeconds: 300,
+        rewarded: true
+      },
+      reward: { score: 1, drawProgress: 1, drawChancesGranted: 0, rewarded: true, achievementsUnlocked: [] },
+      fishTankOutcomes: [{ resourceType: "food", quantity: 1, label: "鱼食", copy: "打卡完成，鱼食 +1。" }]
+    } as never
+  },
+  {
+    label: "check-in unrewarded",
+    result: {
+      session: {
+        id: "lab-check-in-2",
+        status: "completed",
+        startedAt: new Date().toISOString(),
+        endedAt: new Date().toISOString(),
+        durationSeconds: 10,
+        eligibleDurationSeconds: 10,
+        rewarded: false
+      },
+      reward: { score: 0, drawProgress: 0, drawChancesGranted: 0, rewarded: false, achievementsUnlocked: [] },
+      fishTankOutcomes: []
+    } as never
+  },
+  {
+    label: "check-in replayed",
+    result: {
+      session: {
+        id: "lab-check-in-3",
+        status: "completed",
+        startedAt: new Date().toISOString(),
+        endedAt: new Date().toISOString(),
+        durationSeconds: 300,
+        eligibleDurationSeconds: 300,
+        rewarded: true
+      },
+      reward: { score: 0, drawProgress: 0, drawChancesGranted: 0, rewarded: false, achievementsUnlocked: [] },
+      fishTankOutcomes: [{ resourceType: "food", quantity: 1, label: "鱼食", copy: "打卡完成，鱼食 +1。（已领取）" }]
+    } as never
+  }
+];
+
+const ACTIVITY_OUTCOME_SPECIMENS: Array<{ label: string; result: ActivityCompleteResult }> = [
+  {
+    label: "activity granted",
+    result: {
+      assignment: {
+        assignmentId: "lab-activity-1",
+        code: "lab-template",
+        title: "整理桌面",
+        description: "把桌面图标按颜色排序。",
+        category: "physical",
+        difficulty: "easy",
+        flavor: "calm",
+        interactionSummary: { flavorLabel: "轻整理", stepCount: 1, estimatedSeconds: 60, proofPolicy: "none", hasTimer: false, hasChoice: false, hasMiniGame: false, hasTapPattern: false, hasShufflePick: false, hasSort: true, hasBreath: false, hasReaction: false, hasReveal: false, hasMicroJournal: false },
+        rewardPreview: { score: 5, drawProgress: 1 },
+        recommendationExplanation: "久坐提醒。",
+        eligible: true,
+        cooldownRemainingSeconds: 0,
+        status: "completed"
+      },
+      reward: { score: 5, drawProgress: 1, drawChancesGranted: 0, rewarded: true, reason: null, achievementsUnlocked: [] },
+      feedback: "整理完毕，桌面看起来没那么累了。",
+      resultTitle: "活动奖励已结算",
+      resultCopy: "这次摸鱼记录已经归档。",
+      stepSummaries: [],
+      fishTankOutcomes: [{ resourceType: "bubble", quantity: 1, label: "气泡", copy: "活动完成，气泡 +1。" }]
+    } as never
+  },
+  {
+    label: "activity daily-limit no reward",
+    result: {
+      assignment: {
+        assignmentId: "lab-activity-2",
+        code: "lab-template",
+        title: "整理桌面",
+        description: "把桌面图标按颜色排序。",
+        category: "physical",
+        difficulty: "easy",
+        interactionSummary: { flavorLabel: "轻整理", stepCount: 1, estimatedSeconds: 60, proofPolicy: "none", hasTimer: false, hasChoice: false, hasMiniGame: false, hasTapPattern: false, hasShufflePick: false, hasSort: true, hasBreath: false, hasReaction: false, hasReveal: false, hasMicroJournal: false },
+        rewardPreview: { score: 5, drawProgress: 1 },
+        eligible: true,
+        cooldownRemainingSeconds: 0,
+        status: "completed"
+      },
+      reward: { score: 0, drawProgress: 0, drawChancesGranted: 0, rewarded: false, reason: "daily_limit", achievementsUnlocked: [] },
+      feedback: "今日活动奖励已达上限。",
+      resultTitle: "活动已记录",
+      resultCopy: "这次没有发放奖励，但休息本身算数。",
+      stepSummaries: [],
+      fishTankOutcomes: []
+    } as never
+  }
+];
+
+const GOAL_OUTCOME_SPECIMENS: Array<{ label: string; result: ProgressionClaimResult }> = [
+  {
+    label: "daily goal granted",
+    result: {
+      period: "daily",
+      awarded: true,
+      claimedAt: new Date().toISOString(),
+      reward: { score: 15, drawProgress: 1, drawChancesGranted: 0 },
+      progression: { level: 2, previousLevel: 2, currentLevel: 2, leveledUp: false, experience: 210, currentLevelExperience: 10, nextLevelExperience: 100, progressPercent: 10 },
+      fishTankOutcomes: [{ resourceType: "hatch_progress", quantity: 1, label: "孵化进度", copy: "每日目标完成，孵化进度 +1。" }]
+    } as never
+  },
+  {
+    label: "weekly goal level-up",
+    result: {
+      period: "weekly",
+      awarded: true,
+      claimedAt: new Date().toISOString(),
+      reward: { score: 50, drawProgress: 2, drawChancesGranted: 1 },
+      progression: { level: 3, previousLevel: 2, currentLevel: 3, leveledUp: true, experience: 295, currentLevelExperience: 5, nextLevelExperience: 120, progressPercent: 4 },
+      fishTankOutcomes: [{ resourceType: "hatch_progress", quantity: 2, label: "孵化进度", copy: "每周目标完成，孵化进度 +2。" }]
+    } as never
+  },
+  {
+    label: "goal replayed",
+    result: {
+      period: "daily",
+      awarded: false,
+      claimedAt: new Date().toISOString(),
+      reward: { score: 0, drawProgress: 0, drawChancesGranted: 0 },
+      progression: { level: 2, previousLevel: 2, currentLevel: 2, leveledUp: false, experience: 210, currentLevelExperience: 10, nextLevelExperience: 100, progressPercent: 10 },
+      fishTankOutcomes: [{ resourceType: "hatch_progress", quantity: 1, label: "孵化进度", copy: "每日目标完成，孵化进度 +1。（已领取）" }]
+    } as never
+  }
+];
+
+function ActivityResultCertificate({
+  result,
+  nextStep
+}: {
+  result: ActivityCompleteResult;
+  nextStep: import("../../gameplay/nextStep").GameplayStep;
+}) {
+  return (
+    <View style={{ borderColor: "#17a36b", borderWidth: 1, borderRadius: 8, padding: 14, marginTop: 12 }}>
+      <Text style={{ color: "#18232b", fontSize: 18, fontWeight: "900" }}>{result.resultTitle}</Text>
+      <Text style={{ color: "#746b60", fontSize: 13, marginTop: 6 }}>{result.resultCopy}</Text>
+      <View style={{ backgroundColor: "#fffdf8", borderColor: "#d8d0c4", borderWidth: 1, borderRadius: 8, marginTop: 10, padding: 12 }}>
+        <Text style={{ color: "#756c61", fontSize: 12, fontWeight: "900" }}>奖励回执</Text>
+        <Text style={{ color: "#232323", fontSize: 15, fontWeight: "900", marginTop: 4 }}>
+          +{result.reward.score} 分 · 进度 +{result.reward.drawProgress} · 抽豆机会 +{result.reward.drawChancesGranted}
+        </Text>
+      </View>
+      <FishTankOutcomeReceipt outcomes={result.fishTankOutcomes} />
+      <Text style={{ color: "#746b60", fontSize: 13, marginTop: 10 }}>下一步：{nextStep.title}</Text>
+    </View>
+  );
+}
+
+function SourceRewardOutcomeSpecimens() {
+  const checkInGranted = CHECK_IN_OUTCOME_SPECIMENS[0]!;
+  return (
+    <View style={{ gap: spacing.lg }}>
+      <View style={styles.flowSpecimenGrid}>
+        {CHECK_IN_OUTCOME_SPECIMENS.map(({ label, result }) => (
+          <FramedCard key={label} style={styles.flowSpecimenCard}>
+            <Text style={styles.miniSpecimenType}>{label}</Text>
+            <CheckInResult result={result} nextStep={MOCK_NEXT_STEP} />
+          </FramedCard>
+        ))}
+        {ACTIVITY_OUTCOME_SPECIMENS.map(({ label, result }) => (
+          <FramedCard key={label} style={styles.flowSpecimenCard}>
+            <Text style={styles.miniSpecimenType}>{label}</Text>
+            <ActivityResultCertificate result={result} nextStep={MOCK_NEXT_STEP} />
+          </FramedCard>
+        ))}
+        {GOAL_OUTCOME_SPECIMENS.map(({ label, result }) => (
+          <FramedCard key={label} style={styles.flowSpecimenCard}>
+            <Text style={styles.miniSpecimenType}>{label}</Text>
+            <ProgressionClaimResultPanel result={result} nextStep={MOCK_NEXT_STEP} />
+          </FramedCard>
+        ))}
+        <FramedCard style={styles.flowSpecimenCard}>
+          <Text style={styles.miniSpecimenType}>multiple resources</Text>
+          <FishTankOutcomeReceipt
+            outcomes={[
+              { resourceType: "food", quantity: 1, label: "鱼食", copy: "打卡完成，鱼食 +1。" },
+              { resourceType: "bubble", quantity: 1, label: "气泡", copy: "活动完成，气泡 +1。" },
+              { resourceType: "hatch_progress", quantity: 1, label: "孵化进度", copy: "每日目标完成，孵化进度 +1。" }
+            ]}
+          />
+        </FramedCard>
+        <FramedCard style={styles.flowSpecimenCard}>
+          <Text style={styles.miniSpecimenType}>long copy wrap</Text>
+          <FishTankOutcomeReceipt
+            outcomes={[
+              {
+                resourceType: "hatch_progress",
+                quantity: 2,
+                label: "孵化进度",
+                copy: "每周目标全部达成，孵化进度 +2，距离下一条小鱼又近了一步。"
+              }
+            ]}
+          />
+        </FramedCard>
+        <FramedCard style={styles.flowSpecimenCard}>
+          <Text style={styles.miniSpecimenType}>missing-art fallback</Text>
+          <FishTankOutcomeReceipt
+            outcomes={[
+              { resourceType: "food", quantity: 1, label: "神秘资源", copy: "未知资源 fallback 到通用图标。" }
+            ]}
+          />
+        </FramedCard>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={{ flexDirection: "row", gap: spacing.md }}>
+          {([360, 390, 640] as const).map((width) => (
+            <View key={width} style={{ width }}>
+              <Text style={styles.miniSpecimenType}>{width}px combined receipt viewport</Text>
+              <CheckInResult result={checkInGranted.result} nextStep={MOCK_NEXT_STEP} />
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
 function DashboardCoherenceSpecimens() {
   const [showError, setShowError] = useState(true);
   const success = createDashboardFeedback({
@@ -2913,6 +3161,14 @@ export function UiLabScreen({ onClose }: UiLabScreenProps) {
             Outcomes rendered inside the bean draw result for new and duplicate rare draws.
           </Text>
           <BeanDrawOutcomeSpecimens />
+        </Surface>
+
+        <Surface>
+          <SectionHeader title="Source reward to fish tank" kicker="REWARD OUTCOMES" />
+          <Text style={[styles.copy, { color: colors.inkMuted }]}>
+            Check-in, activity, and daily/weekly goal outcomes rendered below source receipts.
+          </Text>
+          <SourceRewardOutcomeSpecimens />
         </Surface>
 
         <Surface>

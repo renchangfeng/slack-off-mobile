@@ -16,6 +16,8 @@ import {
   selectLatestLoopResults,
   shouldRefreshFishTankAfterDraw,
   synchronizeFishTankAfterBeanDraw,
+  hasFishTankOutcomes,
+  synchronizeFishTankAfterReward,
   visibleDashboardFeedback,
   visibleDashboardFeedbackFromList
 } from "../dashboardCoherence";
@@ -187,6 +189,55 @@ describe("cross-feature coherence", () => {
     expect(await synchronizeFishTankAfterBeanDraw(affected, async () => { refreshes += 1; return false; })).toBe("stale");
     expect(await synchronizeFishTankAfterBeanDraw(null, async () => { refreshes += 1; return true; })).toBe("not-required");
     expect(refreshes).toBe(2);
+  });
+
+  it("detects fish tank outcomes across source result types", () => {
+    expect(hasFishTankOutcomes({ fishTankOutcomes: [{ resourceType: "food" }] } as never)).toBe(true);
+    expect(hasFishTankOutcomes({ fishTankOutcomes: [] } as never)).toBe(false);
+    expect(hasFishTankOutcomes(null)).toBe(false);
+    expect(hasFishTankOutcomes(undefined)).toBe(false);
+  });
+
+  it("synchronizes fish tank after generic reward results", async () => {
+    const affected = { fishTankOutcomes: [{ resourceType: "bubble" }] } as never;
+    let refreshes = 0;
+    expect(await synchronizeFishTankAfterReward(affected, async () => { refreshes += 1; return true; })).toBe("current");
+    expect(await synchronizeFishTankAfterReward(affected, async () => { refreshes += 1; return false; })).toBe("stale");
+    expect(await synchronizeFishTankAfterReward(null, async () => { refreshes += 1; return true; })).toBe("not-required");
+    expect(refreshes).toBe(2);
+  });
+
+  it("limits source reward follow-up to projection refresh without gameplay or navigation side effects", async () => {
+    const affected = { fishTankOutcomes: [{ resourceType: "food" }] } as never;
+    const sideEffects = {
+      navigate: 0,
+      feed: 0,
+      bubble: 0,
+      hatch: 0,
+      equip: 0,
+      draw: 0,
+      claim: 0,
+      resubmit: 0
+    };
+    let refreshes = 0;
+
+    const result = await synchronizeFishTankAfterReward(affected, async () => {
+      refreshes += 1;
+      return true;
+    });
+
+    expect(result).toBe("current");
+    expect(refreshes).toBe(1);
+    expect(sideEffects).toEqual({
+      navigate: 0,
+      feed: 0,
+      bubble: 0,
+      hatch: 0,
+      equip: 0,
+      draw: 0,
+      claim: 0,
+      resubmit: 0
+    });
   });
 
   it("makes direct action labels explicit", () => {

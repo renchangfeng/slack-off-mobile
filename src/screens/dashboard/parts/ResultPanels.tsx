@@ -7,6 +7,7 @@ import type { CheckInFinishResult } from "../../../api/checkins";
 import styles from "../styles";
 import type { DerivedGameplayStep } from "../types";
 import type { TodayLoopResultDelight } from "../../../gameplay/todayLoop";
+import { FishTankOutcomeReceipt } from "./fishTankOutcomeReceipt";
 
 export function CheckInResult({
   result,
@@ -42,6 +43,7 @@ export function CheckInResult({
           <Text style={styles.kicker}>奖励回执</Text>
           <Text style={styles.rowTitle}>{rewardLabel}</Text>
         </View>
+        <FishTankOutcomeReceipt outcomes={result.fishTankOutcomes} testID="check-in-fish-tank-outcomes" />
         <Text style={styles.helperText}>下一步：{nextStep.title}</Text>
       </DashboardCard>
     </MotionFeedback>

@@ -95,6 +95,7 @@ import {
   runSingleFlight,
   selectLatestLoopResults,
   synchronizeFishTankAfterBeanDraw,
+  synchronizeFishTankAfterReward,
   visibleDashboardFeedbackFromList,
   type DashboardApiError,
   type DashboardFeedback,
@@ -554,7 +555,14 @@ export function DashboardScreen({
         ? `${period === "daily" ? "今日" : "本周"}成长奖励已领取。`
         : "这份成长奖励已经领取过了。"
     );
-    await refreshAfterReward();
+    const syncState = await synchronizeFishTankAfterReward(response.data, () =>
+      refreshAfterReward({ fishTank: true })
+    );
+    if (syncState === "not-required") {
+      await refreshAfterReward();
+    } else if (syncState === "stale") {
+      setMessage("鱼缸奖励已经到账，但库存同步失败。请在鱼缸卡片中重试。");
+    }
   }
 
   async function startSession() {
@@ -592,7 +600,14 @@ export function DashboardScreen({
     setLatestLoopResult("check-in");
     setNotice("打卡已结算，今日进度也同步更新了。");
     enqueueAchievementUnlocks(response.data?.reward.achievementsUnlocked ?? []);
-    await refreshAfterReward();
+    const syncState = await synchronizeFishTankAfterReward(response.data, () =>
+      refreshAfterReward({ fishTank: true })
+    );
+    if (syncState === "not-required") {
+      await refreshAfterReward();
+    } else if (syncState === "stale") {
+      setMessage("鱼缸奖励已经到账，但库存同步失败。请在鱼缸卡片中重试。");
+    }
   }
 
   async function drawBean() {
@@ -861,7 +876,15 @@ export function DashboardScreen({
         : response.data.feedback
     );
     enqueueAchievementUnlocks(response.data.reward.achievementsUnlocked);
-    await Promise.all([refreshAfterReward(), refreshActivityData()]);
+    const syncState = await synchronizeFishTankAfterReward(response.data, () =>
+      refreshAfterReward({ fishTank: true })
+    );
+    if (syncState === "not-required") {
+      await refreshAfterReward();
+    } else if (syncState === "stale") {
+      setMessage("鱼缸奖励已经到账，但库存同步失败。请在鱼缸卡片中重试。");
+    }
+    await refreshActivityData();
   }
 
   async function submitActivityFeedback(feedbackType: ActivityFeedbackType) {
